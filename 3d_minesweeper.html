@@ -42,7 +42,7 @@
 <canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas>
 <div id="cellInfo" aria-live="polite">칸을 눌러 열기 · 안쪽 칸은 표시할 층을 선택해서 열 수 있습니다.</div>
 <footer>
-  추론 힌트는 공개된 기물 숫자와 깃발, 남은 지뢰 수로 확정할 수 있는 칸만 표시합니다. 확정할 수 없는 경우에는 그 사실을 알려 줍니다.<br>
+  추론 힌트는 공개된 기물 숫자와 깃발로 가능한 배치를 비교하고, 남은 지뢰 수와 맞춰 확정 칸을 찾습니다.<br>
   열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
   <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
   클릭 / 탭: 칸 열기 · 오른쪽 클릭 또는 깃발 모드: 깃발 · <kbd>V</kbd> 보기 전환 · <kbd>F</kbd> 깃발 모드 · <kbd>R</kbd> 새 게임<br>
@@ -139,8 +139,8 @@
       for(const p of flags){const neighbor=cells.get(key(...p));if(neighbor.flagged)total--;else if(!neighbor.revealed)candidates.push(key(...p));}
       add(candidates,total);if(conflict)return{moves:[],conflict};
     }
-    add(unknown,MINE_COUNT-[...cells.values()].filter(c=>c.flagged).length);
-    if(conflict)return{moves:[],conflict};
+    const remainingMines=MINE_COUNT-[...cells.values()].filter(c=>c.flagged).length;
+    if(remainingMines<0||remainingMines>unknown.length)return{moves:[],conflict:true};
     for(let round=0;round<=unknown.length;round++){
       const forced=new Map();
       for(const{ids,total}of constraints.values())if(total===0||total===ids.length)for(const id of ids){const mine=total>0;if(forced.has(id)&&forced.get(id)!==mine)return{moves:[],conflict:true};forced.set(id,mine);}
@@ -166,12 +166,39 @@
       }
       if(!changed)break;
     }
-    return{moves:[],conflict:false};
+    const frontier=new Set([...constraints.values()].flatMap(e=>e.ids)),free=unknown.filter(id=>!frontier.has(id)),components=[],seen=new Set();
+    for(const start of frontier){if(seen.has(start))continue;const ids=[],queue=[start];seen.add(start);for(let at=0;at<queue.length;at++){const id=queue[at];ids.push(id);for(const e of constraints.values())if(e.ids.includes(id))for(const other of e.ids)if(!seen.has(other)){seen.add(other);queue.push(other);}}components.push(ids);}
+    const solved=[];let searchNodes=0;
+    for(const ids of components){
+      const indexes=new Map(ids.map((id,i)=>[id,i])),equations=[...constraints.values()].filter(e=>e.ids.some(id=>indexes.has(id))).map(e=>({ids:e.ids.map(id=>indexes.get(id)),total:e.total})),possible=Array(ids.length+1),counts=new Set();let aborted=false,solutions=0;
+      function search(state){
+        // ponytail: cap exact search at 500k nodes; improve propagation if normal boards hit this ceiling.
+        if(++searchNodes>500000){aborted=true;return;}
+        let changed=true;
+        while(changed){changed=false;for(const e of equations){let mines=0,open=[];for(const i of e.ids)if(state[i]===1)mines++;else if(state[i]<0)open.push(i);if(mines>e.total||mines+open.length<e.total)return;const value=mines===e.total?0:mines+open.length===e.total?1:-1;if(value>=0)for(const i of open){state[i]=value;changed=true;}}}
+        const branch=state.findIndex(v=>v<0);
+        if(branch<0){const total=state.reduce((sum,v)=>sum+v,0);if(!possible[total])possible[total]=new Uint8Array(ids.length);for(let i=0;i<ids.length;i++)possible[total][i]|=state[i]?2:1;counts.add(total);solutions++;return;}
+        for(const value of [0,1]){const next=state.slice();next[branch]=value;search(next);if(aborted)return;}
+      }
+      search(new Int8Array(ids.length).fill(-1));
+      if(aborted)return{moves:[],conflict:false,limited:true};
+      if(!solutions)return{moves:[],conflict:true};
+      solved.push({ids,possible,counts});
+    }
+    const prefix=[new Set([0])];for(const c of solved){const sums=new Set();for(const a of prefix.at(-1))for(const b of c.counts)sums.add(a+b);prefix.push(sums);}
+    const suffix=Array(solved.length+1);suffix[solved.length]=new Set([0]);for(let i=solved.length-1;i>=0;i--){const sums=new Set();for(const a of solved[i].counts)for(const b of suffix[i+1])sums.add(a+b);suffix[i]=sums;}
+    function compatible(left,right,target,freeCount=free.length){for(const a of left){const low=Math.max(0,target-a-freeCount),high=target-a;for(let b=low;b<=high;b++)if(right.has(b))return true;}return false;}
+    if(!compatible(prefix.at(-1),new Set([0]),remainingMines))return{moves:[],conflict:true};
+    const moves=[];
+    for(let i=0;i<solved.length;i++){const c=solved[i],otherCounts=new Set();for(const a of prefix[i])for(const b of suffix[i+1])otherCounts.add(a+b);for(let j=0;j<c.ids.length;j++){let safe=false,mine=false;for(const total of c.counts){if(!compatible(new Set([total]),otherCounts,remainingMines))continue;const mask=c.possible[total][j];safe||=!!(mask&1);mine||=!!(mask&2);}if(safe!==mine)moves.push({key:c.ids[j],mine});}}
+    if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine})));}
+    return{moves,conflict:false};
   }
   function showHint(){
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
     const result=inferMoves();hintKey=null;hintMine=false;
     if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
+    if(result.limited){draw();cellInfo.textContent="가능한 배치가 너무 많아 이번 추론을 끝내지 못했습니다. 더 많은 칸을 열어 단서를 늘려 보세요.";return;}
     if(!result.moves.length){draw();cellInfo.textContent="현재 공개된 단서만으로 확정할 수 있는 칸이 없습니다.";return;}
     let choices=result.moves;
     if(choices.some(move=>!move.mine))choices=choices.filter(move=>!move.mine);

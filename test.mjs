@@ -26,7 +26,7 @@ try{
   const path=resolve('3d_minesweeper.html');await navigate(pathToFileURL(path).href);
   assert.equal(await evaluate('document.getElementById("board3d").hidden'),false,'The original HTML must initialize in 3D');
   assert.deepEqual(errors,[]);await screenshot('minesweeper-initial.png');
-  const hook=`window.__game={cluePositions,countMines,inferMoves,pickPiece,find3d,find2d,layout2d,center,render3d,tileStyle,reveal,toggleFlag,startGame,setView,draw,resetCamera,cameraBasis,
+  const hook=`window.__game={cluePositions,countMines,inferMoves,pickPiece,find3d,find2d,layout2d,center,render3d,tileStyle,reveal,toggleFlag,startGame,setView,draw,resetCamera,cameraBasis,setCluePositions(fn){cluePositions=fn},
     setCamera(y,p,d){yaw=y;pitch=p;distance=d;render3d();},
     get state(){return{N,cells,mines,ended,hintKey,hintMine,yaw,pitch,distance,visibleCells,vertexCount,view,gl,width,height};}};`;
   const html=(await readFile(path,'utf8')).replace('window.addEventListener("resize",resize);',hook+'window.addEventListener("resize",resize);');
@@ -52,7 +52,9 @@ try{
   await evaluate('__game.startGame();for(const c of __game.state.cells.values())c.revealed=false;__game.draw();document.getElementById("hintButton").click()');
   assert.equal(await evaluate('__game.state.hintKey'),null,'Hints must not guess when public clues cannot prove a safe cell');
   assert.match(await evaluate('document.getElementById("cellInfo").textContent'),/확정할 수 있는 칸이 없습니다/,'An uncertain board must say that no move is proven');
-  await evaluate('__game.startGame()');
+  const deep=await evaluate(`(()=>{document.getElementById('sizeInput').value=3;document.getElementById('mineInput').value=2;__game.startGame();const g=__game.state,ids=[...g.cells.keys()],clues=ids.slice(0,4),a=ids[4],b=ids[5],c=ids[6],d=ids[7],e=ids[8],f=ids[9],map=new Map([[clues[0],[a,b]],[clues[1],[b,c]],[clues[2],[d,e]],[clues[3],[e,f]]]);for(const v of g.cells.values()){v.revealed=false;v.flagged=false;}for(const id of clues){g.cells.get(id).revealed=true;g.cells.get(id).piece='K';}g.mines.clear();g.mines.add(b);g.mines.add(e);__game.setCluePositions(pos=>(map.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));return{a,b,c,d,e,f};})()`);
+  assert.equal(await evaluate(`(()=>{const moves=__game.inferMoves().moves,known=[${JSON.stringify(deep.b)},${JSON.stringify(deep.e)}];return moves.length===23&&known.every(k=>moves.some(x=>x.key===k&&x.mine))&&moves.every(x=>known.includes(x.key)||!x.mine);})()`),true,'Global mine count must resolve linked constraint components without a direct local deduction');
+  await evaluate('__game.setCluePositions(__game.cluePositions);__game.startGame()');
   assert.deepEqual(await evaluate(`(()=>{const random=Math.random,counts={K:0,R:0};try{for(let i=0;i<1000;i++){Math.random=()=>(i+.5)/1000;counts[__game.pickPiece({K:1,R:3,B:0,Q:0,N:0})]++;}return counts;}finally{Math.random=random;}})()`),{K:250,R:750},'Weights must set relative probabilities and exclude zero weights');
   for(const piece of ['K','R','B','Q','N']){
     await evaluate(`for(const p of ['K','R','B','Q','N'])document.getElementById('weight'+p).value=p===${JSON.stringify(piece)}?1:0;__game.startGame()`);
