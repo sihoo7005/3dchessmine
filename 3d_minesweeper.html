@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D 체스 지뢰찾기</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:18px;background:#101722;color:#edf3fb;font-family:system-ui,"Malgun Gothic",sans-serif}main{max-width:1100px;margin:auto}header,.toolbar,.status{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{margin:0;font-size:1.4rem}.hint,footer{color:#9eafc3;font-size:.88rem}.toolbar{margin:14px 0 8px}.buttons{display:flex;gap:8px;flex-wrap:wrap}button,input,select{border:1px solid #35465d;border-radius:8px;padding:8px 12px;background:#1b2838;color:#eaf2ff;font:inherit}button{cursor:pointer}button:hover{background:#26384d}button.active{background:#2862a1;border-color:#55a1f3}button.flag.active{background:#815f19;border-color:#e9bd4a}button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid #68c7ff;outline-offset:3px}.settings,.camera-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0;color:#b9c8d9;font-size:.9rem}.settings input{width:82px}.camera-controls label{display:flex;align-items:center;gap:8px}input[type=range]{width:110px;padding:0;accent-color:#68c7ff}.status{min-height:40px;color:#b9c8d9;font-size:.92rem}#message,#settingError{color:#ffd66a;font-weight:700}canvas.board{display:block;width:100%;height:min(68vh,650px);min-height:420px;border:1px solid #2b3a4d;border-radius:14px;background:radial-gradient(ellipse at 50% 40%,#1b2a3c,#111923 75%);touch-action:none}#board3d{cursor:grab}#board3d.dragging{cursor:grabbing}[hidden]{display:none!important}#cellInfo{min-height:24px;margin:8px 0;color:#b9c8d9;font-size:.88rem}footer{margin-top:12px;line-height:1.8}kbd{padding:1px 5px;border:1px solid #526276;border-radius:4px}.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}.legend b{white-space:nowrap}@media(max-width:600px){body{padding:12px}canvas.board{min-height:380px;height:60vh}.settings{gap:8px}.settings input{width:66px}}
+</style>
+<style>fieldset.settings{min-width:0;border:1px solid #35465d;border-radius:8px;padding:10px 12px}fieldset.settings legend{padding:0 6px}#weightSummary{flex-basis:100%}</style>
+</head>
+<body><main>
+<header><h1>♟ 3D 체스 지뢰찾기</h1><div class="hint" id="boardInfo"></div></header>
+<div class="settings">
+  <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
+  <label>지뢰 수 <input id="mineInput" type="number" min="1" max="215" value="35"></label>
+  <button id="start">새 게임 시작</button>
+  <span id="settingError" role="alert"></span>
+</div>
+<fieldset class="settings">
+  <legend>기물 생성 가중치</legend>
+  <label>♚ 킹 <input id="weightK" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♜ 룩 <input id="weightR" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♝ 비숍 <input id="weightB" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♛ 퀸 <input id="weightQ" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♞ 나이트 <input id="weightN" type="number" min="0" max="1000" step="any" value="1"></label>
+  <span class="hint">값이 클수록 자주 생성됩니다. 0은 생성하지 않음 · 새 게임에 적용</span>
+  <span class="hint" id="weightSummary"></span>
+</fieldset>
+<div class="toolbar">
+  <div class="buttons"><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button></div>
+  <div class="buttons"><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
+</div>
+<div class="camera-controls" id="cameraControls">
+  <label>표시할 층 <select id="layer" aria-label="표시할 층"><option value="all">모든 층</option></select></label>
+  <label>칸 간격 <input id="spacing" type="range" min="1.05" max="2" step="0.05" value="1.3"></label>
+  <button id="resetCamera">시점 초기화</button>
+  <span class="hint">드래그: 회전 · 휠 / 두 손가락: 확대·축소</span>
+</div>
+<div class="status"><span id="stats"></span><span id="message" role="status" aria-live="polite"></span></div>
+<canvas id="board3d" class="board" tabindex="0" aria-label="3D 지뢰찾기. 드래그 또는 방향키로 회전, 클릭으로 칸 열기"></canvas>
+<canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas>
+<div id="cellInfo" aria-live="polite">칸을 눌러 열기 · 안쪽 칸은 표시할 층을 선택해서 열 수 있습니다.</div>
+<footer>
+  열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
+  <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
+  클릭 / 탭: 칸 열기 · 오른쪽 클릭 또는 깃발 모드: 깃발 · <kbd>V</kbd> 보기 전환 · <kbd>F</kbd> 깃발 모드 · <kbd>R</kbd> 새 게임<br>
+  3D 화면에 초점을 두고 <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd>로 회전, <kbd>+</kbd> <kbd>−</kbd>로 확대·축소할 수 있습니다.
+</footer>
+</main>
+<script>
+(() => {
+  "use strict";
+  let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, cellSize=40, width=0, height=0;
+  const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
+  const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
+  const $=id=>document.getElementById(id);
+  const canvas=$("board"),canvas3d=$("board3d"),ctx=canvas.getContext("2d"),stats=$("stats"),message=$("message");
+  const sizeInput=$("sizeInput"),mineInput=$("mineInput"),settingError=$("settingError"),boardInfo=$("boardInfo"),flagButton=$("flagMode"),layer=$("layer"),spacing=$("spacing"),cellInfo=$("cellInfo");
+  const key=(x,y,z)=>`${x},${y},${z}`,parse=k=>k.split(",").map(Number);
+  function allPositions(size=N){const a=[];for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++)a.push([x,y,z]);return a;}
+  function readWeights(){return Object.fromEntries(PIECES.map(p=>[p,$("weight"+p).value.trim()===""?NaN:Number($("weight"+p).value)]));}
+  function validWeights(weights){return PIECES.every(p=>Number.isFinite(weights[p])&&weights[p]>=0&&weights[p]<=1000)&&PIECES.some(p=>weights[p]>0);}
+  function pickPiece(weights,pieces=PIECES){
+    const enabled=pieces.filter(p=>weights[p]>0);let value=Math.random()*enabled.reduce((sum,p)=>sum+weights[p],0);
+    for(const p of enabled){value-=weights[p];if(value<0)return p;}return enabled[enabled.length-1];
+  }
+  function updateWeightSummary(){
+    const weights=readWeights(),total=PIECES.reduce((sum,p)=>sum+weights[p],0);
+    $("weightSummary").textContent=validWeights(weights)?"생성 비율: "+PIECES.map(p=>`${NAMES[p]} ${(weights[p]/total*100).toFixed(1)}%`).join(" · "):"가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";
+  }
+  function startGame(){
+    const size=Number(sizeInput.value),count=Number(mineInput.value),capacity=size**3;
+    if(!Number.isInteger(size)||size<3||size>10){settingError.textContent="칸 수는 3–10 사이의 정수로 입력하세요.";return;}
+    if(!Number.isInteger(count)||count<1||count>=capacity){settingError.textContent=`지뢰 수는 1–${capacity-1} 사이의 정수로 입력하세요.`;return;}
+    const weights=readWeights();
+    if(!validWeights(weights)){settingError.textContent="가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";return;}
+    const positions=allPositions(size),options=[];let minimumClues=Infinity;
+    for(const piece of PIECES.filter(p=>weights[p]>0))for(const pos of positions){
+      const clues=cluePositions(pos,piece,size).length;minimumClues=Math.min(minimumClues,clues);
+      if(clues<=capacity-count-1)options.push({pos,piece});
+    }
+    if(!options.length){settingError.textContent=`이 가중치에서 숫자 0인 칸으로 시작하려면 지뢰 수를 ${capacity-minimumClues-1}개 이하로 설정하세요.`;return;}
+    // Prefer the faces visible from the initial camera so the opening is visible.
+    const surface=options.filter(({pos})=>pos.some(v=>v===size-1)),choices=surface.length?surface:options;
+    const startPiece=pickPiece(weights,PIECES.filter(p=>choices.some(c=>c.piece===p))),pieceChoices=choices.filter(c=>c.piece===startPiece);
+    const opening=pieceChoices[Math.floor(Math.random()*pieceChoices.length)],openingKey=key(...opening.pos);
+    const reserved=new Set([openingKey,...cluePositions(opening.pos,opening.piece,size).map(p=>key(...p))]);
+    const minePositions=positions.filter(p=>!reserved.has(key(...p)));
+    for(let i=minePositions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[minePositions[i],minePositions[j]]=[minePositions[j],minePositions[i]];}
+    N=size;MINE_COUNT=count;mineInput.max=capacity-1;settingError.textContent="";boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개`;
+    mines=new Set(minePositions.slice(0,MINE_COUNT).map(p=>key(...p)));cells=new Map();
+    for(const p of positions)cells.set(key(...p),{revealed:false,flagged:false,piece:pickPiece(weights)});
+    cells.get(openingKey).piece=opening.piece;
+    layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
+    if(!surface.length)layer.value=String(opening.pos[2]);
+    ended=false;message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+  }
+  function cluePositions([x,y,z],piece,size=N){
+    const out=[];
+    if(piece==="K"){
+      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+        if(!dx&&!dy&&!dz)continue;const p=[x+dx,y+dy,z+dz];if(p.every(v=>v>=0&&v<size))out.push(p);
+      }return out;
+    }
+    if(piece==="N"){
+      for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(let dz=-2;dz<=2;dz++){
+        const a=[Math.abs(dx),Math.abs(dy),Math.abs(dz)].sort((u,v)=>v-u);
+        if(a[0]!==2||a[1]!==1||a[2]!==0)continue;const p=[x+dx,y+dy,z+dz];if(p.every(v=>v>=0&&v<size))out.push(p);
+      }return out;
+    }
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+      const axes=[dx,dy,dz].filter(v=>v!==0).length;
+      const ok=piece==="R"?axes===1:piece==="B"?axes===2:axes===1||axes===2;
+      if(!ok)continue;
+      for(let step=1;;step++){const p=[x+dx*step,y+dy*step,z+dz*step];if(!p.every(v=>v>=0&&v<size))break;out.push(p);}
+    }return out;
+  }
+  function countMines(pos,piece){return cluePositions(pos,piece).filter(p=>mines.has(key(...p))).length;}
+  function reveal(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed||c.flagged)return;c.revealed=true;
+    if(mines.has(k)){ended=true;message.textContent="지뢰를 밟았습니다! 새 게임으로 다시 도전하세요.";}
+    else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;message.textContent="성공! 모든 안전한 칸을 열었습니다.";}
+    draw();showCellInfo(k);
+  }
+  function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;c.flagged=!c.flagged;draw();showCellInfo(k);}
+  function activate(k,flag){if(!k)return;flag?toggleFlag(k):reveal(k);}
+  function setView(v){
+    view=v==="3d"&&gl?"3d":"2d";canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
+    for(const mode of ["3d","2d"]){$("view"+mode).classList.toggle("active",mode===view);$("view"+mode).setAttribute("aria-pressed",String(mode===view));}resize();
+  }
+  function tileStyle(k,c){if(mines.has(k)&&(c.revealed||ended))return{fill:"#a7434a",text:"✹",color:"#fff"};if(c.flagged)return{fill:"#b2872c",text:"⚑",color:"#fff1be"};if(c.revealed)return{fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};return{fill:"#52657d",text:"",color:"#fff"};}
+  function paintLabel(context,s,cx,cy,size){
+    if(!s.text)return;context.fillStyle=s.color;context.textAlign="center";context.textBaseline="middle";const lines=s.text.split("\n");
+    context.font=`600 ${size*(lines.length===2?.49:.55)}px "DejaVu Sans","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif`;
+    context.fillText(lines[0],cx,cy+(lines.length===2?-size*.15:0));
+    if(lines.length===2){context.font=`700 ${size*.31}px system-ui`;context.fillText(lines[1],cx,cy+size*.27);}
+  }
+  function layout2d(){
+    const cols=width<600?2:3,rows=Math.ceil(N/cols),gap=.58,label=.42;
+    const s=Math.min((width-24)/(cols*N+(cols-1)*gap),(height-24)/(rows*(N+label)+(rows-1)*.3),58);
+    return{cols,s,left:(width-(cols*N+(cols-1)*gap)*s)/2,top:(height-(rows*(N+label)+(rows-1)*.3)*s)/2};
+  }
+  function draw2d(){
+    ctx.clearRect(0,0,width,height);const{cols,s,left,top}=layout2d();cellSize=s;
+    for(let z=0;z<N;z++){
+      const bx=left+(z%cols)*(N+.58)*s,by=top+Math.floor(z/cols)*(N+.42+.3)*s;
+      ctx.fillStyle="#c4d3e5";ctx.font=`600 ${Math.max(10,s*.27)}px system-ui`;ctx.textAlign="left";ctx.textBaseline="bottom";ctx.fillText(`z = ${z}`,bx,by+.42*s-2);
+      for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+        const k=key(x,y,z),style=tileStyle(k,cells.get(k)),px=bx+x*s,py=by+.42*s+y*s;
+        ctx.fillStyle=style.fill;ctx.fillRect(px+1,py+1,s-2,s-2);paintLabel(ctx,style,px+s/2,py+s/2,s);
+      }
+    }
+  }
+  // WebGL renders real cube geometry with perspective and a depth buffer.
+  let gl=null,program,buffer,texture,vertexCount=0,visibleCells=[],yaw=.72,pitch=.48,distance=20;
+  const HALF=.43,FOV=Math.PI/4;
+  const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const normalize=a=>{const length=Math.hypot(...a);return a.map(v=>v/length);};
+  function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
+  function init3d(){
+    try{
+      gl=canvas3d.getContext("webgl",{alpha:true,antialias:true});if(!gl)throw new Error("WebGL unavailable");
+      program=gl.createProgram();
+      gl.attachShader(program,shader(gl.VERTEX_SHADER,`
+        attribute vec3 position; attribute vec3 normal; attribute vec2 uv;
+        uniform mat4 projection; uniform mat4 camera;
+        varying vec2 texcoord; varying float light;
+        void main(){texcoord=uv;light=0.62+0.38*max(dot(normal,normalize(vec3(0.4,0.85,0.65))),0.0);gl_Position=projection*camera*vec4(position,1.0);}
+      `));
+      gl.attachShader(program,shader(gl.FRAGMENT_SHADER,`
+        precision mediump float; uniform sampler2D tiles;
+        varying vec2 texcoord; varying float light;
+        void main(){vec4 color=texture2D(tiles,texcoord);gl_FragColor=vec4(color.rgb*light,color.a);}
+      `));
+      gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
+      gl.useProgram(program);buffer=gl.createBuffer();texture=gl.createTexture();
+      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+      for(const[name,size,offset]of[["position",3,0],["normal",3,12],["uv",2,24]]){const location=gl.getAttribLocation(program,name);gl.enableVertexAttribArray(location);gl.vertexAttribPointer(location,size,gl.FLOAT,false,32,offset);}
+      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);gl.uniform1i(gl.getUniformLocation(program,"tiles"),0);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+      gl.enable(gl.DEPTH_TEST);gl.clearColor(0,0,0,0);
+    }catch(error){console.error("3D renderer:",error);gl=null;$("view3d").disabled=true;message.textContent="이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";}
+  }
+  function center([x,y,z]){const s=Number(spacing.value),mid=(N-1)/2;return[(x-mid)*s,(z-mid)*s,(y-mid)*s];}
+  function build3d(){
+    if(!gl)return;visibleCells=allPositions().filter(p=>layer.value==="all"||p[2]===Number(layer.value)).map(p=>({key:key(...p),center:center(p)}));
+    const tile=64,cols=Math.ceil(Math.sqrt(visibleCells.length)),atlas=document.createElement("canvas");
+    atlas.width=atlas.height=2**Math.ceil(Math.log2(cols*tile));const context=atlas.getContext("2d"),vertices=[];
+    const faces=[
+      [[0,0,1],[[-1,1,1],[1,1,1],[1,-1,1],[-1,-1,1]]],
+      [[0,0,-1],[[1,1,-1],[-1,1,-1],[-1,-1,-1],[1,-1,-1]]],
+      [[1,0,0],[[1,1,1],[1,1,-1],[1,-1,-1],[1,-1,1]]],
+      [[-1,0,0],[[-1,1,-1],[-1,1,1],[-1,-1,1],[-1,-1,-1]]],
+      [[0,1,0],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]]],
+      [[0,-1,0],[[-1,-1,1],[1,-1,1],[1,-1,-1],[-1,-1,-1]]]
+    ];
+    visibleCells.forEach((cell,index)=>{
+      const tx=(index%cols)*tile,ty=Math.floor(index/cols)*tile,style=tileStyle(cell.key,cells.get(cell.key));
+      context.fillStyle="#172333";context.fillRect(tx,ty,tile,tile);context.fillStyle=style.fill;context.fillRect(tx+2,ty+2,tile-4,tile-4);paintLabel(context,style,tx+tile/2,ty+tile/2,tile);
+      const uv=[[tx+.5,ty+.5],[tx+tile-.5,ty+.5],[tx+tile-.5,ty+tile-.5],[tx+.5,ty+tile-.5]];
+      for(const[normal,corners]of faces)for(const i of[0,3,2,0,2,1])vertices.push(...corners[i].map((v,axis)=>cell.center[axis]+v*HALF),...normal,uv[i][0]/atlas.width,uv[i][1]/atlas.height);
+    });
+    gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);
+    gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);vertexCount=vertices.length/8;
+  }
+  function cameraBasis(){const eye=[distance*Math.cos(pitch)*Math.sin(yaw),distance*Math.sin(pitch),distance*Math.cos(pitch)*Math.cos(yaw)],forward=normalize(eye.map(v=>-v)),right=normalize(cross(forward,[0,1,0])),up=cross(right,forward);return{eye,forward,right,up};}
+  function render3d(){
+    if(!gl||view!=="3d"||!width||!height)return;
+    const{eye,forward:f,right:r,up:u}=cameraBasis(),scale=1/Math.tan(FOV/2),near=.1,far=200;
+    const projection=[scale/(width/height),0,0,0,0,scale,0,0,0,0,(far+near)/(near-far),-1,0,0,2*far*near/(near-far),0];
+    const camera=[r[0],u[0],-f[0],0,r[1],u[1],-f[1],0,r[2],u[2],-f[2],0,-dot(r,eye),-dot(u,eye),dot(f,eye),1];
+    gl.viewport(0,0,canvas3d.width,canvas3d.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    gl.uniformMatrix4fv(gl.getUniformLocation(program,"projection"),false,new Float32Array(projection));gl.uniformMatrix4fv(gl.getUniformLocation(program,"camera"),false,new Float32Array(camera));
+    gl.drawArrays(gl.TRIANGLES,0,vertexCount);
+  }
+  function resetCamera(){
+    yaw=.72;pitch=.48;const aspect=width&&height?width/height:1,halfAngle=Math.atan(Math.tan(FOV/2)*Math.min(1,aspect));
+    distance=Math.sqrt(3)*((N-1)*Number(spacing.value)/2+HALF)/Math.sin(halfAngle)*1.08;render3d();
+  }
+  function zoom(factor){distance=Math.max(N*Number(spacing.value)*.95,Math.min(N*Number(spacing.value)*10,distance*factor));render3d();}
+  function draw(){
+    const f=[...cells.values()].filter(c=>c.flagged).length;
+    stats.textContent=`칸 ${N**3}개 · 지뢰 ${MINE_COUNT}개 · 깃발 ${f}개 · 연 칸 ${[...cells].filter(([k,c])=>c.revealed&&!mines.has(k)).length}/${N**3-MINE_COUNT}개`;
+    if(view==="3d"){build3d();render3d();}else if(width&&height)draw2d();
+  }
+  function resize(){
+    const active=view==="3d"?canvas3d:canvas,r=active.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);width=r.width;height=r.height;
+    active.width=Math.round(width*d);active.height=Math.round(height*d);if(view==="2d")ctx.setTransform(d,0,0,d,0,0);draw();
+  }
+  function find2d(px,py){const{cols,s,left,top}=layout2d();for(let z=0;z<N;z++){const bx=left+(z%cols)*(N+.58)*s,by=top+Math.floor(z/cols)*(N+.42+.3)*s+.42*s,x=Math.floor((px-bx)/s),y=Math.floor((py-by)/s);if(x>=0&&x<N&&y>=0&&y<N)return key(x,y,z);}return null;}
+  function find3d(px,py){
+    const{eye,forward,right,up}=cameraBasis(),sx=(px/width*2-1)*Math.tan(FOV/2)*width/height,sy=(1-py/height*2)*Math.tan(FOV/2),ray=normalize(forward.map((v,i)=>v+right[i]*sx+up[i]*sy));
+    let best=null,closest=Infinity;
+    for(const cell of visibleCells){
+      let near=0,far=Infinity;
+      for(let i=0;i<3;i++){
+        const low=cell.center[i]-HALF-eye[i],high=cell.center[i]+HALF-eye[i];
+        if(Math.abs(ray[i])<1e-8){if(low>0||high<0){far=-1;break;}}
+        else{const a=low/ray[i],b=high/ray[i];near=Math.max(near,Math.min(a,b));far=Math.min(far,Math.max(a,b));}
+      }
+      if(far>=near&&near<closest){closest=near;best=cell.key;}
+    }return best;
+  }
+  function showCellInfo(k){const c=cells.get(k);if(!c)return;const pos=`(${parse(k).join(", ")})`;cellInfo.textContent=c.revealed&&!mines.has(k)?`${pos} · ${SYMBOLS[c.piece]} ${NAMES[c.piece]} 규칙으로 센 지뢰: ${countMines(parse(k),c.piece)}개`:`${pos} · ${c.flagged?"깃발 표시":mines.has(k)&&(c.revealed||ended)?"지뢰":"닫힌 칸"}`;}
+  const pointers=new Map();let gesture=null;
+  const pointerDistance=()=>{const p=[...pointers.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);};
+  canvas3d.addEventListener("pointerdown",e=>{
+    if(e.button!==0&&e.button!==2)return;canvas3d.focus({preventScroll:true});canvas3d.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size===1)gesture={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,button:e.button};else{gesture.moved=true;gesture.pinch=pointerDistance();}canvas3d.classList.add("dragging");
+  });
+  canvas3d.addEventListener("pointermove",e=>{
+    if(!pointers.has(e.pointerId)){const r=canvas3d.getBoundingClientRect(),k=find3d(e.clientX-r.left,e.clientY-r.top);if(k)showCellInfo(k);return;}
+    const old=pointers.get(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size>1){const next=pointerDistance();if(gesture.pinch&&next)zoom(gesture.pinch/next);gesture.pinch=next;gesture.moved=true;}
+    else{
+      if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>5)gesture.moved=true;
+      if(gesture.moved){yaw-=(e.clientX-old.x)*.008;pitch=Math.max(-1.45,Math.min(1.45,pitch+(e.clientY-old.y)*.008));render3d();}
+    }
+  });
+  function finishPointer(e,cancelled){
+    if(!pointers.has(e.pointerId))return;
+    if(!cancelled&&pointers.size===1&&gesture&&!gesture.moved){const r=canvas3d.getBoundingClientRect();activate(find3d(e.clientX-r.left,e.clientY-r.top),flagMode||gesture.button===2);}
+    pointers.delete(e.pointerId);if(!pointers.size){gesture=null;canvas3d.classList.remove("dragging");}else{gesture.moved=true;gesture.pinch=null;}
+  }
+  canvas3d.addEventListener("pointerup",e=>finishPointer(e,false));canvas3d.addEventListener("pointercancel",e=>finishPointer(e,true));canvas3d.addEventListener("lostpointercapture",e=>finishPointer(e,true));
+  canvas3d.addEventListener("wheel",e=>{e.preventDefault();zoom(Math.exp(e.deltaY*.001));},{passive:false});
+  canvas.addEventListener("pointerdown",e=>{if(e.button!==0&&e.button!==2)return;const r=canvas.getBoundingClientRect();activate(find2d(e.clientX-r.left,e.clientY-r.top),flagMode||e.button===2);});
+  for(const board of[canvas,canvas3d])board.addEventListener("contextmenu",e=>e.preventDefault());
+  $("start").addEventListener("click",startGame);$("view3d").addEventListener("click",()=>setView("3d"));$("view2d").addEventListener("click",()=>setView("2d"));
+  flagButton.addEventListener("click",()=>{flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
+  layer.addEventListener("change",draw);spacing.addEventListener("input",()=>{resetCamera();draw();});$("resetCamera").addEventListener("click",resetCamera);
+  sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
+  window.addEventListener("keydown",e=>{
+    if(e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
+    if(k==="v")setView(view==="3d"?"2d":"3d");if(k==="f")flagButton.click();if(k==="r")startGame();
+    if(e.target===canvas3d){if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","=","-"].includes(e.key))e.preventDefault();
+      if(k==="arrowleft")yaw-=.12;if(k==="arrowright")yaw+=.12;if(k==="arrowup")pitch=Math.min(1.45,pitch+.12);if(k==="arrowdown")pitch=Math.max(-1.45,pitch-.12);if(k==="+"||k==="=")zoom(.9);if(k==="-")zoom(1.1);render3d();}
+  });
+  canvas3d.addEventListener("webglcontextlost",e=>{e.preventDefault();gl=null;$("view3d").disabled=true;setView("2d");message.textContent="3D 렌더링이 중단되어 2D 보기로 전환했습니다. 새로고침하면 다시 시도합니다.";});
+  for(const p of PIECES)$("weight"+p).addEventListener("input",updateWeightSummary);
+  window.addEventListener("resize",resize);updateWeightSummary();init3d();startGame();setView(gl?"3d":"2d");resetCamera();
+})();
+</script></body></html>
