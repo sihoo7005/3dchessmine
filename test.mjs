@@ -28,11 +28,23 @@ try{
   assert.deepEqual(errors,[]);await screenshot('minesweeper-initial.png');
   const hook=`window.__game={cluePositions,countMines,pickPiece,find3d,find2d,layout2d,center,render3d,tileStyle,reveal,toggleFlag,startGame,setView,draw,resetCamera,cameraBasis,
     setCamera(y,p,d){yaw=y;pitch=p;distance=d;render3d();},
-    get state(){return{N,cells,mines,ended,yaw,pitch,distance,visibleCells,vertexCount,view,gl,width,height};}};`;
+    get state(){return{N,cells,mines,ended,hintKey,yaw,pitch,distance,visibleCells,vertexCount,view,gl,width,height};}};`;
   const html=(await readFile(path,'utf8')).replace('window.addEventListener("resize",resize);',hook+'window.addEventListener("resize",resize);');
   await navigate('data:text/html;base64,'+Buffer.from(html).toString('base64'));
   const openingValid='(()=>{const g=__game.state,opened=[...g.cells].filter(([k,c])=>c.revealed);return opened.length===1&&!g.mines.has(opened[0][0])&&__game.countMines(opened[0][0].split(",").map(Number),opened[0][1].piece)===0&&g.mines.size===Number(document.getElementById("mineInput").value);})()';
   assert.equal(await evaluate(openingValid),true,'A new game must reveal exactly one safe zero clue');
+  const beforeHint=await evaluate('[...__game.state.cells.values()].filter(c=>c.revealed).length');
+  await evaluate('document.getElementById("hintButton").click()');
+  assert.equal(await evaluate('(()=>{const g=__game.state,c=g.cells.get(g.hintKey);return !!c&&!c.revealed&&!c.flagged&&!g.mines.has(g.hintKey)&&document.getElementById("layer").value===g.hintKey.split(",")[2]&&g.pitch===1.4&&__game.tileStyle(g.hintKey,c).text==="✦";})()'),true,'3D hint must highlight a safe closed cell and show its layer');
+  assert.equal(await evaluate('[...__game.state.cells.values()].filter(c=>c.revealed).length'),beforeHint,'A hint must not open a cell');
+  await evaluate('__game.reveal(__game.state.hintKey)');
+  assert.equal(await evaluate('__game.state.hintKey'),null,'Opening the hinted cell must clear the hint');
+  await evaluate('__game.setView("2d");document.getElementById("hintButton").click()');
+  assert.equal(await evaluate('(()=>{const g=__game.state,c=g.cells.get(g.hintKey);return !!c&&!c.revealed&&!c.flagged&&!g.mines.has(g.hintKey)&&__game.tileStyle(g.hintKey,c).text==="✦";})()'),true,'2D hint must highlight a safe closed cell');
+  await evaluate('__game.toggleFlag(__game.state.hintKey)');
+  assert.equal(await evaluate('__game.state.hintKey'),null,'Flagging the hinted cell must clear the hint');
+  await evaluate('document.getElementById("hintButton").click();__game.startGame();__game.setView("3d")');
+  assert.equal(await evaluate('__game.state.hintKey'),null,'A new game must clear any hint');
   assert.deepEqual(await evaluate(`(()=>{const random=Math.random,counts={K:0,R:0};try{for(let i=0;i<1000;i++){Math.random=()=>(i+.5)/1000;counts[__game.pickPiece({K:1,R:3,B:0,Q:0,N:0})]++;}return counts;}finally{Math.random=random;}})()`),{K:250,R:750},'Weights must set relative probabilities and exclude zero weights');
   for(const piece of ['K','R','B','Q','N']){
     await evaluate(`for(const p of ['K','R','B','Q','N'])document.getElementById('weight'+p).value=p===${JSON.stringify(piece)}?1:0;__game.startGame()`);
@@ -104,6 +116,7 @@ try{
   await cdp('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
   await evaluate('document.getElementById("sizeInput").value=6;document.getElementById("mineInput").value=35;__game.startGame();__game.setView("3d");__game.resetCamera()');
   assert.equal(await evaluate('document.documentElement.scrollWidth<=390'),true,'Mobile page must fit its width');
+  await evaluate('document.getElementById("board3d").scrollIntoView({block:"center"});new Promise(r=>requestAnimationFrame(r))');
   const mobile=await evaluate('(()=>{const r=document.getElementById("board3d").getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};})()');
   const mobileBefore=await evaluate('[__game.state.yaw,__game.state.distance,[...__game.state.cells.values()].filter(c=>c.revealed).length]');
   await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:mobile.x,y:mobile.y,id:1}]});
@@ -121,7 +134,7 @@ try{
   for(let i=0;i<50;i++){if(await evaluate('__game.state.view === "2d"'))break;await new Promise(r=>setTimeout(r,20));}
   assert.equal(await evaluate('__game.state.view'),'2d');assert.equal(await evaluate('document.getElementById("board").hidden'),false);
   assert.deepEqual(errors,[]);
-  console.log('PASS: piece weights, disabled pieces, guaranteed zero openings, impossible settings, original initialization, WebGL pixels, chess clues, 3D ray picking, layers, flags, reveal, rotation, zoom, 2D state, validation, win/loss, mobile touch, 1000 cubes, context-loss fallback.');
+  console.log('PASS: safe hints, piece weights, disabled pieces, guaranteed zero openings, impossible settings, original initialization, WebGL pixels, chess clues, 3D ray picking, layers, flags, reveal, rotation, zoom, 2D state, validation, win/loss, mobile touch, 1000 cubes, context-loss fallback.');
 }finally{
   ws.close();await fetch(`${endpoint}/json/close/${tab.id}`);
 }
