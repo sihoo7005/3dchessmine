@@ -29,7 +29,7 @@
 </fieldset>
 <div class="toolbar">
   <div class="buttons"><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button></div>
-  <div class="buttons"><button id="hintButton">안전한 칸 힌트</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
+  <div class="buttons"><button id="hintButton">추론 가능한 칸</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
 </div>
 <div class="camera-controls" id="cameraControls">
   <label>표시할 층 <select id="layer" aria-label="표시할 층"><option value="all">모든 층</option></select></label>
@@ -42,6 +42,7 @@
 <canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas>
 <div id="cellInfo" aria-live="polite">칸을 눌러 열기 · 안쪽 칸은 표시할 층을 선택해서 열 수 있습니다.</div>
 <footer>
+  추론 힌트는 공개된 기물 숫자와 깃발, 남은 지뢰 수로 확정할 수 있는 칸만 표시합니다. 확정할 수 없는 경우에는 그 사실을 알려 줍니다.<br>
   열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
   <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
   클릭 / 탭: 칸 열기 · 오른쪽 클릭 또는 깃발 모드: 깃발 · <kbd>V</kbd> 보기 전환 · <kbd>F</kbd> 깃발 모드 · <kbd>R</kbd> 새 게임<br>
@@ -94,7 +95,7 @@
     cells.get(openingKey).piece=opening.piece;
     layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
     if(!surface.length)layer.value=String(opening.pos[2]);
-    ended=false;hintKey=null;message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    ended=false;hintKey=null;hintMine=false;message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
   }
   function cluePositions([x,y,z],piece,size=N){
     const out=[];
@@ -124,29 +125,77 @@
   }
   function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;c.flagged=!c.flagged;if(k===hintKey)hintKey=null;draw();showCellInfo(k);}
   function activate(k,flag){if(!k)return;flag?toggleFlag(k):reveal(k);}
+  function inferMoves(){
+    if(ended)return{moves:[],conflict:false};
+    const unknown=[...cells].filter(([,c])=>!c.revealed&&!c.flagged).map(([k])=>k),constraints=new Map();let conflict=false;
+    function add(ids,total){
+      const sorted=[...ids].sort();if(total<0||total>sorted.length){conflict=true;return false;}
+      const id=sorted.join("|");if(!id){if(total!==0)conflict=true;return !conflict;}
+      if(constraints.has(id))return constraints.get(id).total===total||(conflict=true,false);
+      constraints.set(id,{ids:sorted,total});return true;
+    }
+    for(const[k,c]of cells)if(c.revealed&&!mines.has(k)){
+      const candidates=[],flags=cluePositions(parse(k),c.piece);let total=countMines(parse(k),c.piece);
+      for(const p of flags){const neighbor=cells.get(key(...p));if(neighbor.flagged)total--;else if(!neighbor.revealed)candidates.push(key(...p));}
+      add(candidates,total);if(conflict)return{moves:[],conflict};
+    }
+    add(unknown,MINE_COUNT-[...cells.values()].filter(c=>c.flagged).length);
+    if(conflict)return{moves:[],conflict};
+    for(let round=0;round<=unknown.length;round++){
+      const forced=new Map();
+      for(const{ids,total}of constraints.values())if(total===0||total===ids.length)for(const id of ids){const mine=total>0;if(forced.has(id)&&forced.get(id)!==mine)return{moves:[],conflict:true};forced.set(id,mine);}
+      if(forced.size)return{moves:[...forced].map(([key,mine])=>({key,mine})),conflict:false};
+      const equations=[...constraints.values()],sets=equations.map(e=>new Set(e.ids)),byCell=new Map(),pairs=new Set();let changed=false;
+      equations.forEach((equation,i)=>equation.ids.forEach(id=>{if(!byCell.has(id))byCell.set(id,[]);for(const j of byCell.get(id))pairs.add(j*equations.length+i);byCell.get(id).push(i);}));
+      for(const pair of pairs){
+        const i=Math.floor(pair/equations.length),j=pair%equations.length,A=equations[i],B=equations[j],setA=sets[i],setB=sets[j];
+        for(const[small,large,largeSet,smallSet]of[[A,B,setB,setA],[B,A,setA,setB]])if(small.ids.length<large.ids.length&&small.ids.every(id=>largeSet.has(id))){
+          const before=constraints.size;add(large.ids.filter(id=>!smallSet.has(id)),large.total-small.total);
+          if(conflict)return{moves:[],conflict};if(constraints.size!==before)changed=true;
+        }
+        const intersection=A.ids.filter(id=>setB.has(id));if(!intersection.length)continue;
+        const onlyA=A.ids.filter(id=>!setB.has(id)),onlyB=B.ids.filter(id=>!setA.has(id));
+        const low=Math.max(0,A.total-onlyA.length,B.total-onlyB.length,A.total+B.total-A.ids.length-B.ids.length+intersection.length);
+        const high=Math.min(A.total,B.total,intersection.length);
+        if(low>high)return{moves:[],conflict:true};
+        for(const[ids,min,max]of[[intersection,low,high],[onlyA,A.total-high,A.total-low],[onlyB,B.total-high,B.total-low]]){
+          const total=min===max?min:max===0?0:min===ids.length?ids.length:null;
+          if(total===null)continue;const before=constraints.size;add(ids,total);
+          if(conflict)return{moves:[],conflict};if(constraints.size!==before)changed=true;
+        }
+      }
+      if(!changed)break;
+    }
+    return{moves:[],conflict:false};
+  }
   function showHint(){
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
-    const choices=[...cells].filter(([k,c])=>!c.revealed&&!c.flagged&&!mines.has(k));
-    if(!choices.length){hintKey=null;draw();cellInfo.textContent="힌트로 표시할 칸이 없습니다. 깃발을 확인하세요.";return;}
+    const result=inferMoves();hintKey=null;hintMine=false;
+    if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
+    if(!result.moves.length){draw();cellInfo.textContent="현재 공개된 단서만으로 확정할 수 있는 칸이 없습니다.";return;}
+    let choices=result.moves;
+    if(choices.some(move=>!move.mine))choices=choices.filter(move=>!move.mine);
     for(let i=choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}
     let visibleHint=null;
     if(view==="3d"){
       const visible=new Map(visibleCells.map(c=>[c.key,c.center])),{eye,forward,right,up}=cameraBasis(),scale=height/(2*Math.tan(FOV/2));
-      visibleHint=choices.find(([k])=>{
+      visibleHint=choices.find(({key})=>{
+        const k=key;
         const position=visible.get(k);if(!position)return false;
         const offset=position.map((v,i)=>v-eye[i]),depth=dot(offset,forward);if(depth<=0)return false;
         const x=width/2+dot(offset,right)*scale/depth,y=height/2-dot(offset,up)*scale/depth;
         return x>=0&&x<width&&y>=0&&y<height&&find3d(x,y)===k;
       });
     }
-    hintKey=(visibleHint||choices[0])[0];
-    draw();cellInfo.textContent=`힌트: (${parse(hintKey).join(", ")})의 노란 별 칸은 안전합니다.`+(view==="3d"&&!visibleHint?" 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
+    const choice=visibleHint||choices[0];hintKey=choice.key;hintMine=choice.mine;
+    draw();cellInfo.textContent=`추론 힌트: (${parse(hintKey).join(", ")})은 ${hintMine?"지뢰입니다. 깃발을 표시하세요.":"안전합니다. 열어도 됩니다."}`+(view==="3d"&&!visibleHint?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
   }
   function setView(v){
     view=v==="3d"&&gl?"3d":"2d";canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
     for(const mode of ["3d","2d"]){$("view"+mode).classList.toggle("active",mode===view);$("view"+mode).setAttribute("aria-pressed",String(mode===view));}resize();
   }
-  function tileStyle(k,c){if(mines.has(k)&&(c.revealed||ended))return{fill:"#a7434a",text:"✹",color:"#fff"};if(c.flagged)return{fill:"#b2872c",text:"⚑",color:"#fff1be"};if(c.revealed)return{fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};if(k===hintKey)return{fill:"#d2a531",text:"✦",color:"#fff8d1"};return{fill:"#52657d",text:"",color:"#fff"};}
+  let hintMine=false;
+  function tileStyle(k,c){if(mines.has(k)&&(c.revealed||ended))return{fill:"#a7434a",text:"✹",color:"#fff"};if(c.flagged)return{fill:"#b2872c",text:"⚑",color:"#fff1be"};if(c.revealed)return{fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};if(k===hintKey)return hintMine?{fill:"#a7434a",text:"⚑",color:"#fff1be"}:{fill:"#d2a531",text:"✦",color:"#fff8d1"};return{fill:"#52657d",text:"",color:"#fff"};}
   function paintLabel(context,s,cx,cy,size){
     if(!s.text)return;context.fillStyle=s.color;context.textAlign="center";context.textBaseline="middle";const lines=s.text.split("\n");
     context.font=`600 ${size*(lines.length===2?.49:.55)}px "DejaVu Sans","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif`;

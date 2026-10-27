@@ -26,13 +26,14 @@ try{
   const path=resolve('3d_minesweeper.html');await navigate(pathToFileURL(path).href);
   assert.equal(await evaluate('document.getElementById("board3d").hidden'),false,'The original HTML must initialize in 3D');
   assert.deepEqual(errors,[]);await screenshot('minesweeper-initial.png');
-  const hook=`window.__game={cluePositions,countMines,pickPiece,find3d,find2d,layout2d,center,render3d,tileStyle,reveal,toggleFlag,startGame,setView,draw,resetCamera,cameraBasis,
+  const hook=`window.__game={cluePositions,countMines,inferMoves,pickPiece,find3d,find2d,layout2d,center,render3d,tileStyle,reveal,toggleFlag,startGame,setView,draw,resetCamera,cameraBasis,
     setCamera(y,p,d){yaw=y;pitch=p;distance=d;render3d();},
-    get state(){return{N,cells,mines,ended,hintKey,yaw,pitch,distance,visibleCells,vertexCount,view,gl,width,height};}};`;
+    get state(){return{N,cells,mines,ended,hintKey,hintMine,yaw,pitch,distance,visibleCells,vertexCount,view,gl,width,height};}};`;
   const html=(await readFile(path,'utf8')).replace('window.addEventListener("resize",resize);',hook+'window.addEventListener("resize",resize);');
   await navigate('data:text/html;base64,'+Buffer.from(html).toString('base64'));
   const openingValid='(()=>{const g=__game.state,opened=[...g.cells].filter(([k,c])=>c.revealed);return opened.length===1&&!g.mines.has(opened[0][0])&&__game.countMines(opened[0][0].split(",").map(Number),opened[0][1].piece)===0&&g.mines.size===Number(document.getElementById("mineInput").value);})()';
   assert.equal(await evaluate(openingValid),true,'A new game must reveal exactly one safe zero clue');
+  assert.equal(await evaluate('__game.inferMoves().moves.length>0&&__game.inferMoves().moves.every(m=>!m.mine)'),true,'An opening zero clue must logically prove its closed neighbors safe');
   const beforeHint=await evaluate('[...__game.state.cells.values()].filter(c=>c.revealed).length');
   const beforeView=await evaluate('[document.getElementById("layer").value,__game.state.yaw,__game.state.pitch,__game.state.visibleCells.length]');
   await evaluate('document.getElementById("hintButton").click()');
@@ -48,9 +49,9 @@ try{
   assert.equal(await evaluate('__game.state.hintKey'),null,'Flagging the hinted cell must clear the hint');
   await evaluate('document.getElementById("hintButton").click();__game.startGame();__game.setView("3d")');
   assert.equal(await evaluate('__game.state.hintKey'),null,'A new game must clear any hint');
-  await evaluate(`(()=>{document.getElementById('layer').value='0';document.getElementById('layer').dispatchEvent(new Event('change'));const g=__game.state;for(const [k,c] of g.cells)c.flagged=!c.revealed;const hidden=[...g.cells].find(([k,c])=>!c.revealed&&!g.mines.has(k)&&!k.endsWith(',0'));hidden[1].flagged=false;document.getElementById('hintButton').click();})()`);
-  assert.equal(await evaluate('document.getElementById("layer").value'), '0','A hidden hint must not change the selected layer');
-  assert.match(await evaluate('document.getElementById("cellInfo").textContent'),/가려져 있다면/,'A hidden hint must explain how to find it');
+  await evaluate('__game.startGame();for(const c of __game.state.cells.values())c.revealed=false;__game.draw();document.getElementById("hintButton").click()');
+  assert.equal(await evaluate('__game.state.hintKey'),null,'Hints must not guess when public clues cannot prove a safe cell');
+  assert.match(await evaluate('document.getElementById("cellInfo").textContent'),/확정할 수 있는 칸이 없습니다/,'An uncertain board must say that no move is proven');
   await evaluate('__game.startGame()');
   assert.deepEqual(await evaluate(`(()=>{const random=Math.random,counts={K:0,R:0};try{for(let i=0;i<1000;i++){Math.random=()=>(i+.5)/1000;counts[__game.pickPiece({K:1,R:3,B:0,Q:0,N:0})]++;}return counts;}finally{Math.random=random;}})()`),{K:250,R:750},'Weights must set relative probabilities and exclude zero weights');
   for(const piece of ['K','R','B','Q','N']){
