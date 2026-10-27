@@ -128,9 +128,19 @@
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
     const choices=[...cells].filter(([k,c])=>!c.revealed&&!c.flagged&&!mines.has(k));
     if(!choices.length){hintKey=null;draw();cellInfo.textContent="힌트로 표시할 칸이 없습니다. 깃발을 확인하세요.";return;}
-    hintKey=choices[Math.floor(Math.random()*choices.length)][0];
-    if(view==="3d"){layer.value=String(parse(hintKey)[2]);pitch=1.4;}
-    draw();cellInfo.textContent=`힌트: (${parse(hintKey).join(", ")})의 노란 별 칸은 안전합니다.`;
+    for(let i=choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}
+    let visibleHint=null;
+    if(view==="3d"){
+      const visible=new Map(visibleCells.map(c=>[c.key,c.center])),{eye,forward,right,up}=cameraBasis(),scale=height/(2*Math.tan(FOV/2));
+      visibleHint=choices.find(([k])=>{
+        const position=visible.get(k);if(!position)return false;
+        const offset=position.map((v,i)=>v-eye[i]),depth=dot(offset,forward);if(depth<=0)return false;
+        const x=width/2+dot(offset,right)*scale/depth,y=height/2-dot(offset,up)*scale/depth;
+        return x>=0&&x<width&&y>=0&&y<height&&find3d(x,y)===k;
+      });
+    }
+    hintKey=(visibleHint||choices[0])[0];
+    draw();cellInfo.textContent=`힌트: (${parse(hintKey).join(", ")})의 노란 별 칸은 안전합니다.`+(view==="3d"&&!visibleHint?" 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
   }
   function setView(v){
     view=v==="3d"&&gl?"3d":"2d";canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
