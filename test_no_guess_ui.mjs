@@ -56,6 +56,22 @@ for(const p of [original,game]){
   assert.equal([...s.cells.values()].filter(c=>c.revealed).length,7,'A matching flag count must open the six remaining neighbors');
   assert.equal(s.cells.get('0,0,1').flagged,true);assert.equal(s.cells.get('2,2,2').revealed,false);
 }
+for(const p of [page(''),game]){
+  const s=setBoard(p,['0,0,1','2,2,2']),app=p.window.__game,canvas=p.elements.board,{cols,s:scale,left,top}=app.layout2d();
+  function tap2d(x,y,z,button=0){const event={pointerId:5,button,clientX:left+(z%cols)*(3+.58)*scale+(x+.5)*scale,clientY:top+Math.floor(z/cols)*(3+.42+.3)*scale+(.42+y+.5)*scale};canvas.listeners.pointerdown(event);canvas.listeners.pointerup(event);}
+  p.elements.flagMode.click();tap2d(0,0,1);
+  assert.equal(s.cells.get('0,0,1').flagged,true,'A closed cell must still toggle a flag in flag mode');
+  tap2d(0,0,0);assert.equal(app.state.selectedClue,'0,0,0');assert.equal(app.state.clueRange.size,7);
+  p.advance(451);tap2d(0,0,0);assert.equal([...s.cells.values()].filter(c=>c.revealed).length,1,'Slow taps must not chord in flag mode');
+  tap2d(0,0,0);assert.equal([...s.cells.values()].filter(c=>c.revealed).length,7,'Two quick taps must chord an opened clue in flag mode');
+  assert.equal(s.cells.get('0,0,1').flagged,true);
+}
+const flag3dPage=page(''),flag3d=setBoard(flag3dPage,['0,0,1','2,2,2']);let picked='0,0,1';
+flag3dPage.window.__game.setFind3d(()=>picked);flag3dPage.elements.flagMode.click();
+const flag3dEvent={pointerId:8,button:0,clientX:400,clientY:300};
+function tap3d(event=flag3dEvent){flag3dPage.elements.board3d.listeners.pointerdown(event);flag3dPage.elements.board3d.listeners.pointerup(event);}
+tap3d();assert.equal(flag3d.cells.get('0,0,1').flagged,true);picked='0,0,0';tap3d();
+assert.equal(flag3dPage.window.__game.state.clueRange.size,7);tap3d();assert.equal([...flag3d.cells.values()].filter(c=>c.revealed).length,7);
 const zeroPage=page(''),zero=setBoard(zeroPage,['2,2,1','2,2,2']);
 zeroPage.window.__game.activate('0,0,0',false);zeroPage.window.__game.activate('0,0,0',false);
 assert.equal([...zero.cells.values()].filter(c=>c.revealed).length,8,'A zero clue must open its entire unflagged range');

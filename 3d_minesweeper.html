@@ -54,7 +54,7 @@
   열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
   <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
   빠르게 두 번 클릭 / 탭: 칸 열기 · 길게 누르기 / 오른쪽 클릭 / 깃발 모드: 깃발 · <kbd>V</kbd> 보기 전환 · <kbd>F</kbd> 깃발 모드 · <kbd>R</kbd> 새 게임<br>
-  열린 기물을 한 번 누르면 이동 범위가 표시됩니다. 빠르게 두 번 누르면 범위의 깃발 수가 숫자와 같을 때 나머지 칸을 엽니다. 잘못 놓은 깃발 때문에 지뢰가 열릴 수 있습니다.<br>
+  깃발 모드에서도 열린 기물을 한 번 누르면 이동 범위가 표시됩니다. 빠르게 두 번 누르면 범위의 깃발 수가 숫자와 같을 때 나머지 칸을 엽니다. 잘못 놓은 깃발 때문에 지뢰가 열릴 수 있습니다.<br>
   3D 화면에 초점을 두고 <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd>로 회전, <kbd>+</kbd> <kbd>−</kbd>로 확대·축소할 수 있습니다.
 </footer>
 </main>
@@ -163,6 +163,7 @@
     let opened=0,last=k;for(const id of range){const cell=cells.get(id);if(!cell.revealed&&!cell.flagged){reveal(id,true);opened++;last=id;if(ended)break;}}
     draw();showCellInfo(ended&&mines.has(last)?last:k);if(!ended)cellInfo.textContent+=` · ${opened}칸 열기`;
   }
+  function activateTap(k,rightClick){const cell=cells.get(k);activate(k,rightClick||(flagMode&&!!cell&&!cell.revealed));}
   function inferMoves(nodeLimit=500000){
     if(ended)return{moves:[],conflict:false};
     const unknown=[...cells].filter(([,c])=>!c.revealed&&!c.flagged).map(([k])=>k),constraints=new Map();let conflict=false;
@@ -481,7 +482,7 @@
     if(!pointers.has(e.pointerId))return;
     clearTimeout(gesture.timer);
     if(cancelled)resetTap();
-    if(!cancelled&&pointers.size===1&&gesture&&!gesture.moved&&!gesture.longPressed){const r=canvas3d.getBoundingClientRect();activate(find3d(e.clientX-r.left,e.clientY-r.top),flagMode||gesture.button===2);}
+    if(!cancelled&&pointers.size===1&&gesture&&!gesture.moved&&!gesture.longPressed){const r=canvas3d.getBoundingClientRect();activateTap(find3d(e.clientX-r.left,e.clientY-r.top),gesture.button===2);}
     pointers.delete(e.pointerId);if(!pointers.size){gesture=null;canvas3d.classList.remove("dragging");}else{gesture.moved=true;gesture.pinch=null;}
   }
   canvas3d.addEventListener("pointerup",e=>finishPointer(e,false));canvas3d.addEventListener("pointercancel",e=>finishPointer(e,true));canvas3d.addEventListener("lostpointercapture",e=>finishPointer(e,true));
@@ -497,7 +498,7 @@
   function finishFlatPointer(e,cancelled){
     if(!flatGesture||flatGesture.id!==e.pointerId)return;const press=flatGesture;clearTimeout(press.timer);flatGesture=null;
     if(cancelled)resetTap();
-    if(!cancelled&&!press.moved&&!press.longPressed){const r=canvas.getBoundingClientRect();activate(find2d(e.clientX-r.left,e.clientY-r.top),flagMode||press.button===2);}
+    if(!cancelled&&!press.moved&&!press.longPressed){const r=canvas.getBoundingClientRect();activateTap(find2d(e.clientX-r.left,e.clientY-r.top),press.button===2);}
   }
   canvas.addEventListener("pointerup",e=>finishFlatPointer(e,false));canvas.addEventListener("pointercancel",e=>finishFlatPointer(e,true));canvas.addEventListener("lostpointercapture",e=>finishFlatPointer(e,true));
   for(const board of[canvas,canvas3d])board.addEventListener("contextmenu",e=>e.preventDefault());
