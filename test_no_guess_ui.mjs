@@ -76,18 +76,22 @@ assert.equal(flag3dPage.window.__game.state.clueRange.size,7);tap3d();assert.equ
 const zeroPage=page(''),zero=setBoard(zeroPage,['2,2,1','2,2,2']);
 zeroPage.window.__game.activate('0,0,0',false);zeroPage.window.__game.activate('0,0,0',false);
 assert.equal([...zero.cells.values()].filter(c=>c.revealed).length,8,'A zero clue must open its entire unflagged range');
-const newPage=page(''),newBoard=setBoard(newPage,['2,2,1','2,2,2']);
+for(const newPage of [page(''),game]){
+const newBoard=setBoard(newPage,['2,2,1','2,2,2']);
 newPage.window.__game.activate('0,0,1',false);
 assert.equal(newBoard.cells.get('0,0,1').revealed,false,'A single tap must not open a closed cell');
 assert.equal(newPage.window.__game.state.selectedClosed,'0,0,1');
 newPage.advance(451);newPage.window.__game.activate('0,0,1',false);
 assert.equal(newBoard.cells.get('0,0,1').revealed,false,'Slow taps must not open a closed cell');
 newPage.window.__game.activate('0,0,1',false);
-assert.equal(newPage.window.__game.state.selectedClue,'0,0,1','A quick second tap must open the cell and show its range');
-newPage.window.__game.activate('0,0,1',false);newPage.advance(451);newPage.window.__game.activate('0,0,1',false);
+assert.equal(newBoard.cells.get('0,0,1').revealed,true,'A quick second tap must open the cell');
+assert.equal(newPage.window.__game.state.selectedClue,null,'Opening a cell must not select its movement range');assert.equal(newPage.window.__game.state.clueRange.size,0);
+newPage.window.__game.activate('0,0,1',false);assert.equal(newPage.window.__game.state.selectedClue,'0,0,1');assert.ok(newPage.window.__game.state.clueRange.size>0,'A later tap on the opened piece must show its range');
+newPage.advance(451);newPage.window.__game.activate('0,0,1',false);
 assert.equal([...newBoard.cells.values()].filter(c=>c.revealed).length,2,'Slow taps must not chord a clue');
 newPage.window.__game.activate('0,0,1',false);
 assert.ok([...newBoard.cells.values()].filter(c=>c.revealed).length>2,'A quick second tap on an opened zero clue must open its range');
+}
 const wrongPage=page(''),wrong=setBoard(wrongPage,['0,0,1','2,2,2']);
 wrongPage.window.__game.activate('0,1,0',true);wrongPage.window.__game.activate('0,0,0',false);wrongPage.window.__game.activate('0,0,0',false);
 assert.equal(wrongPage.window.__game.state.ended,true);assert.equal(wrong.cells.get('0,0,1').revealed,true,'An incorrect flag must not protect another mine');

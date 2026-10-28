@@ -175,7 +175,7 @@
     lastTapKey=doubleTap?null:k;lastTapAt=doubleTap?0:now;
     if(!c.revealed){
       if(!doubleTap){selectedClue=null;clueRange.clear();selectedClosed=k;draw();showCellInfo(k);cellInfo.textContent+=" · 빠르게 두 번 눌러 열기";return;}
-      clearClueSelection();reveal(k,true);if(ended){draw();showCellInfo(k);}else selectClue(k,c);return;
+      clearClueSelection();reveal(k,true);draw();showCellInfo(k);return;
     }
     if(!doubleTap){selectedClosed=null;selectClue(k,c);return;}
     const range=[...clueRange],flags=range.filter(id=>cells.get(id).flagged).length,total=countMines(parse(k),c.piece);clearClueSelection();
