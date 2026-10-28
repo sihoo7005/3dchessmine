@@ -97,6 +97,8 @@ try{
   assert.equal(await evaluate('__game.state.cells.get("1,2,1").revealed'),false,'Flag must prevent opening');
   await mouse('mousePressed',point.x,point.y,'right',2);await mouse('mouseReleased',point.x,point.y,'right');
   await mouse('mousePressed',point.x,point.y);await mouse('mouseReleased',point.x,point.y);
+  assert.equal(await evaluate('__game.state.cells.get("1,2,1").revealed'),false,'One click must only select a closed cell');
+  await mouse('mousePressed',point.x,point.y);await mouse('mouseReleased',point.x,point.y);
   assert.equal(await evaluate('__game.state.cells.get("1,2,1").revealed'),true);
   assert.match(await evaluate('__game.tileStyle("1,2,1",__game.state.cells.get("1,2,1")).text'),/^[♚♜♝♛♞]\n\d+$/);
   await screenshot('minesweeper-revealed.png');
@@ -112,7 +114,9 @@ try{
   assert.equal(await evaluate('__game.state.view'),'2d');assert.equal(await evaluate('__game.state.cells.get("1,2,1").revealed'),true);
   const flatPoint=await evaluate('(()=>{const r=document.getElementById("board").getBoundingClientRect(),{s,left,top}=__game.layout2d();return{x:r.left+left+2.5*s,y:r.top+top+.92*s};})()');
   await mouse('mousePressed',flatPoint.x,flatPoint.y);await mouse('mouseReleased',flatPoint.x,flatPoint.y);
-  assert.equal(await evaluate('__game.state.cells.get("2,0,0").revealed'),true,'2D clicks must open their own cell');
+  assert.equal(await evaluate('__game.state.cells.get("2,0,0").revealed'),false,'One 2D click must only select a closed cell');
+  await mouse('mousePressed',flatPoint.x,flatPoint.y);await mouse('mouseReleased',flatPoint.x,flatPoint.y);
+  assert.equal(await evaluate('__game.state.cells.get("2,0,0").revealed'),true,'Two quick 2D clicks must open their own cell');
   await screenshot('minesweeper-2d.png');
   await evaluate('document.getElementById("sizeInput").value=11;document.getElementById("start").click()');
   assert.equal(await evaluate('__game.state.N'),3);assert.notEqual(await evaluate('document.getElementById("settingError").textContent'),'');

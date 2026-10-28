@@ -39,16 +39,16 @@
   <span class="hint">드래그: 회전 · 휠 / 두 손가락: 확대·축소</span>
 </div>
 <div class="status"><span id="stats"></span><span id="message" role="status" aria-live="polite"></span></div>
-<canvas id="board3d" class="board" tabindex="0" aria-label="3D 지뢰찾기. 드래그 또는 방향키로 회전, 클릭으로 칸 열기"></canvas>
+<canvas id="board3d" class="board" tabindex="0" aria-label="3D 지뢰찾기. 드래그 또는 방향키로 회전, 빠르게 두 번 눌러 칸 열기"></canvas>
 <canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas>
-<div id="cellInfo" aria-live="polite">칸을 눌러 열기 · 안쪽 칸은 표시할 층을 선택해서 열 수 있습니다.</div>
+<div id="cellInfo" aria-live="polite">칸을 빠르게 두 번 눌러 열기 · 길게 눌러 깃발 표시</div>
 <footer>
   <p id="modeDescription" hidden>시작 칸에서 올바른 단서와 깃발을 따라가면 추측 없이 모든 안전한 칸을 열 수 있는 보드만 생성합니다.</p>
   추론 힌트는 공개된 기물 숫자와 깃발로 가능한 배치를 비교하고, 남은 지뢰 수와 맞춰 확정 칸을 찾습니다.<br>
   열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
   <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
-  클릭 / 탭: 칸 열기 · 오른쪽 클릭 또는 깃발 모드: 깃발 · <kbd>V</kbd> 보기 전환 · <kbd>F</kbd> 깃발 모드 · <kbd>R</kbd> 새 게임<br>
-  열린 기물을 누르면 이동 범위가 표시됩니다. 같은 기물을 다시 누르면 범위의 깃발 수가 숫자와 같을 때 나머지 칸을 엽니다. 잘못 놓은 깃발 때문에 지뢰가 열릴 수 있습니다.<br>
+  빠르게 두 번 클릭 / 탭: 칸 열기 · 길게 누르기 / 오른쪽 클릭 / 깃발 모드: 깃발 · <kbd>V</kbd> 보기 전환 · <kbd>F</kbd> 깃발 모드 · <kbd>R</kbd> 새 게임<br>
+  열린 기물을 한 번 누르면 이동 범위가 표시됩니다. 빠르게 두 번 누르면 범위의 깃발 수가 숫자와 같을 때 나머지 칸을 엽니다. 잘못 놓은 깃발 때문에 지뢰가 열릴 수 있습니다.<br>
   3D 화면에 초점을 두고 <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd>로 회전, <kbd>+</kbd> <kbd>−</kbd>로 확대·축소할 수 있습니다.
 </footer>
 </main>
@@ -58,7 +58,8 @@
   const noGuess=new URLSearchParams(location.search).get("mode")==="no-guess";
   if(noGuess){document.title="추측 없는 3D 체스 지뢰찾기";document.getElementById("gameTitle").textContent="♟ 추측 없는 3D 체스 지뢰찾기";document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, hintKey=null, cellSize=40, width=0, height=0;
-  let selectedClue=null,clueRange=new Set();
+  let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
+  const DOUBLE_TAP_MS=450,LONG_PRESS_MS=500;
   const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
   const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
   const $=id=>document.getElementById(id);
@@ -132,17 +133,24 @@
     if(ended)hintKey=null;if(!deferDraw){draw();showCellInfo(k);}
   }
   function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;c.flagged=!c.flagged;if(k===hintKey)hintKey=null;draw();showCellInfo(k);}
-  function clearClueSelection(){selectedClue=null;clueRange.clear();}
+  function resetTap(){lastTapKey=null;lastTapAt=0;}
+  function clearClueSelection(){selectedClue=null;selectedClosed=null;clueRange.clear();resetTap();}
   function selectClue(k,c){
     selectedClue=k;clueRange=new Set(cluePositions(parse(k),c.piece).map(p=>key(...p)));draw();showCellInfo(k);
-    cellInfo.textContent+=" · 범위 표시 중. 다시 누르면 조건에 맞는 칸을 엽니다.";
+    cellInfo.textContent+=" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
   }
   function activate(k,flag){
     if(ended)return;
     const c=cells.get(k);
-    if(!c||flag){const hadSelection=selectedClue!==null;clearClueSelection();if(c&&flag)toggleFlag(k);if(hadSelection)draw();return;}
-    if(!c.revealed){const hadSelection=selectedClue!==null;clearClueSelection();if(c.flagged){if(hadSelection)draw();return;}reveal(k,true);if(ended){draw();showCellInfo(k);}else selectClue(k,c);return;}
-    if(selectedClue!==k){selectClue(k,c);return;}
+    if(!c||flag){const hadSelection=selectedClue!==null||selectedClosed!==null;clearClueSelection();if(c&&flag)toggleFlag(k);if(hadSelection)draw();return;}
+    if(c.flagged){clearClueSelection();draw();showCellInfo(k);return;}
+    const now=performance.now(),doubleTap=lastTapKey===k&&now-lastTapAt<=DOUBLE_TAP_MS;
+    lastTapKey=doubleTap?null:k;lastTapAt=doubleTap?0:now;
+    if(!c.revealed){
+      if(!doubleTap){selectedClue=null;clueRange.clear();selectedClosed=k;draw();showCellInfo(k);cellInfo.textContent+=" · 빠르게 두 번 눌러 열기";return;}
+      clearClueSelection();reveal(k,true);if(ended){draw();showCellInfo(k);}else selectClue(k,c);return;
+    }
+    if(!doubleTap){selectedClosed=null;selectClue(k,c);return;}
     const range=[...clueRange],flags=range.filter(id=>cells.get(id).flagged).length,total=countMines(parse(k),c.piece);clearClueSelection();
     if(flags!==total){draw();showCellInfo(k);cellInfo.textContent+=` · 깃발 ${flags}개 / 필요 ${total}개`;return;}
     let opened=0,last=k;for(const id of range){const cell=cells.get(id);if(!cell.revealed&&!cell.flagged){reveal(id,true);opened++;last=id;if(ended)break;}}
@@ -286,13 +294,14 @@
     draw();cellInfo.textContent=`추론 힌트: (${parse(hintKey).join(", ")})은 ${hintMine?"지뢰입니다. 깃발을 표시하세요.":"안전합니다. 열어도 됩니다."}`+(view==="3d"&&!visibleHint?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
   }
   function setView(v){
+    resetTap();
     view=v==="3d"&&gl?"3d":"2d";canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
     for(const mode of ["3d","2d"]){$("view"+mode).classList.toggle("active",mode===view);$("view"+mode).setAttribute("aria-pressed",String(mode===view));}resize();
   }
   let hintMine=false;
   function tileStyle(k,c){
     let style;if(mines.has(k)&&(c.revealed||ended))style={fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style=hintMine?{fill:"#a7434a",text:"⚑",color:"#fff1be"}:{fill:"#d2a531",text:"✦",color:"#fff8d1"};else style={fill:"#52657d",text:"",color:"#fff"};
-    if(k===selectedClue)style.fill="#356a89";else if(clueRange.has(k)&&k!==hintKey)style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";
+    if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k)&&k!==hintKey)style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";
     return style;
   }
   function paintLabel(context,s,cx,cy,size){
@@ -385,7 +394,7 @@
     yaw=.72;pitch=.48;const aspect=width&&height?width/height:1,halfAngle=Math.atan(Math.tan(FOV/2)*Math.min(1,aspect));
     distance=Math.sqrt(3)*((N-1)*Number(spacing.value)/2+HALF)/Math.sin(halfAngle)*1.08;render3d();
   }
-  function zoom(factor){distance=Math.max(N*Number(spacing.value)*.95,Math.min(N*Number(spacing.value)*10,distance*factor));render3d();}
+  function zoom(factor){resetTap();distance=Math.max(N*Number(spacing.value)*.95,Math.min(N*Number(spacing.value)*10,distance*factor));render3d();}
   function draw(){
     if(!cells.size){stats.textContent="보드를 준비하고 있습니다.";if(view==="2d"&&width&&height)ctx.clearRect(0,0,width,height);else if(gl)gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);return;}
     const f=[...cells.values()].filter(c=>c.flagged).length;
@@ -415,31 +424,50 @@
   const pointerDistance=()=>{const p=[...pointers.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);};
   canvas3d.addEventListener("pointerdown",e=>{
     if(e.button!==0&&e.button!==2)return;canvas3d.focus({preventScroll:true});canvas3d.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pointers.size===1)gesture={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,button:e.button};else{gesture.moved=true;gesture.pinch=pointerDistance();}canvas3d.classList.add("dragging");
+    if(pointers.size===1){
+      gesture={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,longPressed:false,button:e.button};const press=gesture;
+      if(e.button===0)press.timer=setTimeout(()=>{if(gesture!==press||press.moved||pointers.size!==1)return;press.longPressed=true;const r=canvas3d.getBoundingClientRect();activate(find3d(press.x-r.left,press.y-r.top),true);},LONG_PRESS_MS);
+    }else{clearTimeout(gesture.timer);resetTap();gesture.moved=true;gesture.pinch=pointerDistance();}canvas3d.classList.add("dragging");
   });
   canvas3d.addEventListener("pointermove",e=>{
     if(!pointers.has(e.pointerId)){const r=canvas3d.getBoundingClientRect(),k=find3d(e.clientX-r.left,e.clientY-r.top);if(k)showCellInfo(k);return;}
     const old=pointers.get(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pointers.size>1){const next=pointerDistance();if(gesture.pinch&&next)zoom(gesture.pinch/next);gesture.pinch=next;gesture.moved=true;}
+    if(gesture.longPressed&&pointers.size===1)return;
+    if(pointers.size>1){clearTimeout(gesture.timer);resetTap();const next=pointerDistance();if(gesture.pinch&&next)zoom(gesture.pinch/next);gesture.pinch=next;gesture.moved=true;}
     else{
-      if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>5)gesture.moved=true;
+      if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>5){clearTimeout(gesture.timer);resetTap();gesture.moved=true;}
       if(gesture.moved){yaw-=(e.clientX-old.x)*.008;pitch=Math.max(-1.45,Math.min(1.45,pitch+(e.clientY-old.y)*.008));render3d();}
     }
   });
   function finishPointer(e,cancelled){
     if(!pointers.has(e.pointerId))return;
-    if(!cancelled&&pointers.size===1&&gesture&&!gesture.moved){const r=canvas3d.getBoundingClientRect();activate(find3d(e.clientX-r.left,e.clientY-r.top),flagMode||gesture.button===2);}
+    clearTimeout(gesture.timer);
+    if(cancelled)resetTap();
+    if(!cancelled&&pointers.size===1&&gesture&&!gesture.moved&&!gesture.longPressed){const r=canvas3d.getBoundingClientRect();activate(find3d(e.clientX-r.left,e.clientY-r.top),flagMode||gesture.button===2);}
     pointers.delete(e.pointerId);if(!pointers.size){gesture=null;canvas3d.classList.remove("dragging");}else{gesture.moved=true;gesture.pinch=null;}
   }
   canvas3d.addEventListener("pointerup",e=>finishPointer(e,false));canvas3d.addEventListener("pointercancel",e=>finishPointer(e,true));canvas3d.addEventListener("lostpointercapture",e=>finishPointer(e,true));
   canvas3d.addEventListener("wheel",e=>{e.preventDefault();zoom(Math.exp(e.deltaY*.001));},{passive:false});
-  canvas.addEventListener("pointerdown",e=>{if(e.button!==0&&e.button!==2)return;const r=canvas.getBoundingClientRect();activate(find2d(e.clientX-r.left,e.clientY-r.top),flagMode||e.button===2);});
+  let flatGesture=null;
+  canvas.addEventListener("pointerdown",e=>{
+    if(e.button!==0&&e.button!==2)return;
+    if(flatGesture){clearTimeout(flatGesture.timer);flatGesture.moved=true;resetTap();return;}
+    canvas.setPointerCapture(e.pointerId);const press=flatGesture={id:e.pointerId,x:e.clientX,y:e.clientY,button:e.button,moved:false,longPressed:false};
+    if(e.button===0)press.timer=setTimeout(()=>{if(flatGesture!==press||press.moved)return;press.longPressed=true;const r=canvas.getBoundingClientRect();activate(find2d(press.x-r.left,press.y-r.top),true);},LONG_PRESS_MS);
+  });
+  canvas.addEventListener("pointermove",e=>{if(flatGesture&&flatGesture.id===e.pointerId&&Math.hypot(e.clientX-flatGesture.x,e.clientY-flatGesture.y)>5){clearTimeout(flatGesture.timer);flatGesture.moved=true;resetTap();}});
+  function finishFlatPointer(e,cancelled){
+    if(!flatGesture||flatGesture.id!==e.pointerId)return;const press=flatGesture;clearTimeout(press.timer);flatGesture=null;
+    if(cancelled)resetTap();
+    if(!cancelled&&!press.moved&&!press.longPressed){const r=canvas.getBoundingClientRect();activate(find2d(e.clientX-r.left,e.clientY-r.top),flagMode||press.button===2);}
+  }
+  canvas.addEventListener("pointerup",e=>finishFlatPointer(e,false));canvas.addEventListener("pointercancel",e=>finishFlatPointer(e,true));canvas.addEventListener("lostpointercapture",e=>finishFlatPointer(e,true));
   for(const board of[canvas,canvas3d])board.addEventListener("contextmenu",e=>e.preventDefault());
   $("start").addEventListener("click",startGame);$("view3d").addEventListener("click",()=>setView("3d"));$("view2d").addEventListener("click",()=>setView("2d"));
   $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
   $("hintButton").addEventListener("click",showHint);
-  flagButton.addEventListener("click",()=>{flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
-  layer.addEventListener("change",draw);spacing.addEventListener("input",()=>{resetCamera();draw();});$("resetCamera").addEventListener("click",resetCamera);
+  flagButton.addEventListener("click",()=>{resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
+  layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{
     if(e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();

@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const html=readFileSync('3d_minesweeper.html','utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,selectedClue,clueRange};},countMines,activate,tileStyle};window.addEventListener("resize",resize);');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,activate,tileStyle,layout2d,setFind3d(fn){find3d=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search){
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
@@ -11,7 +11,7 @@ function page(search){
     constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.textContent='';this.listeners={};this.classList={toggle(){},add(){},remove(){}};}
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
-    setAttribute(){} replaceChildren(option){this.value=option.value;} add(){}
+    setAttribute(){} replaceChildren(option){this.value=option.value;} add(){} setPointerCapture(){} focus(){}
     getContext(kind){return kind==='2d'?ctx2d:null;} getBoundingClientRect(){return{width:800,height:600,left:0,top:0};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
@@ -25,11 +25,11 @@ function page(search){
     terminate(){this.terminated=true;}
     postMessage(data){setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
   }
-  const window={devicePixelRatio:1,addEventListener(){}};
+  let tick=0;const window={devicePixelRatio:1,addEventListener(){}};
   const document={getElementById:id=>elements[id],createElement:()=>new Element('canvas'),title:''};
-  const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,console:{error(){}}};
+  const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
-  return{window,elements,get workers(){return workers;}};
+  return{window,elements,advance(ms){tick+=ms;},get workers(){return workers;}};
 }
 
 const original=page('');
@@ -61,10 +61,40 @@ zeroPage.window.__game.activate('0,0,0',false);zeroPage.window.__game.activate('
 assert.equal([...zero.cells.values()].filter(c=>c.revealed).length,8,'A zero clue must open its entire unflagged range');
 const newPage=page(''),newBoard=setBoard(newPage,['2,2,1','2,2,2']);
 newPage.window.__game.activate('0,0,1',false);
-assert.equal(newPage.window.__game.state.selectedClue,'0,0,1','Opening a closed cell must show its range immediately');
+assert.equal(newBoard.cells.get('0,0,1').revealed,false,'A single tap must not open a closed cell');
+assert.equal(newPage.window.__game.state.selectedClosed,'0,0,1');
+newPage.advance(451);newPage.window.__game.activate('0,0,1',false);
+assert.equal(newBoard.cells.get('0,0,1').revealed,false,'Slow taps must not open a closed cell');
 newPage.window.__game.activate('0,0,1',false);
-assert.ok([...newBoard.cells.values()].filter(c=>c.revealed).length>2,'A second click on a newly opened zero clue must open its range');
+assert.equal(newPage.window.__game.state.selectedClue,'0,0,1','A quick second tap must open the cell and show its range');
+newPage.window.__game.activate('0,0,1',false);newPage.advance(451);newPage.window.__game.activate('0,0,1',false);
+assert.equal([...newBoard.cells.values()].filter(c=>c.revealed).length,2,'Slow taps must not chord a clue');
+newPage.window.__game.activate('0,0,1',false);
+assert.ok([...newBoard.cells.values()].filter(c=>c.revealed).length>2,'A quick second tap on an opened zero clue must open its range');
 const wrongPage=page(''),wrong=setBoard(wrongPage,['0,0,1','2,2,2']);
 wrongPage.window.__game.activate('0,1,0',true);wrongPage.window.__game.activate('0,0,0',false);wrongPage.window.__game.activate('0,0,0',false);
 assert.equal(wrongPage.window.__game.state.ended,true);assert.equal(wrong.cells.get('0,0,1').revealed,true,'An incorrect flag must not protect another mine');
-console.log('Verified both modes, range highlighting, chord opening, and cancellation');
+const flatPage=page(''),flat=setBoard(flatPage,['2,2,1','2,2,2']),layout=flatPage.window.__game.layout2d();
+const flatEvent={pointerId:1,button:0,clientX:layout.left+1.5*layout.s,clientY:layout.top+1.92*layout.s};
+const threePage=page(''),three=setBoard(threePage,['2,2,1','2,2,2']);threePage.window.__game.setFind3d(()=> '1,1,0');
+const threeEvent={pointerId:2,button:0,clientX:400,clientY:300};
+flatPage.window.__game.activate('1,1,0',false);threePage.window.__game.activate('1,1,0',false);
+flatPage.elements.board.listeners.pointerdown(flatEvent);threePage.elements.board3d.listeners.pointerdown(threeEvent);
+await new Promise(resolve=>setTimeout(resolve,550));
+flatPage.elements.board.listeners.pointerup(flatEvent);threePage.elements.board3d.listeners.pointerup(threeEvent);
+for(const s of [flat,three]){assert.equal(s.cells.get('1,1,0').flagged,true,'A long press must toggle a flag');assert.equal(s.cells.get('1,1,0').revealed,false,'Releasing a long press must not open the cell');}
+const dragPage=page(''),drag=setBoard(dragPage,['2,2,1','2,2,2']);dragPage.window.__game.setFind3d(()=> '1,1,0');
+dragPage.elements.board3d.listeners.pointerdown(threeEvent);dragPage.elements.board3d.listeners.pointermove({...threeEvent,clientX:420});
+const flatDragPage=page(''),flatDrag=setBoard(flatDragPage,['2,2,1','2,2,2']);
+flatDragPage.elements.board.listeners.pointerdown(flatEvent);flatDragPage.elements.board.listeners.pointermove({...flatEvent,clientX:flatEvent.clientX+20});
+const pinchPage=page(''),pinch=setBoard(pinchPage,['2,2,1','2,2,2']);pinchPage.window.__game.setFind3d(()=> '1,1,0');
+const beforeDistance=pinchPage.window.__game.state.distance,secondFinger={...threeEvent,pointerId:3,clientX:440};
+pinchPage.elements.board3d.listeners.pointerdown(threeEvent);pinchPage.elements.board3d.listeners.pointerdown(secondFinger);
+pinchPage.elements.board3d.listeners.pointermove({...secondFinger,clientX:480});
+await new Promise(resolve=>setTimeout(resolve,550));dragPage.elements.board3d.listeners.pointerup({...threeEvent,clientX:420});
+flatDragPage.elements.board.listeners.pointerup({...flatEvent,clientX:flatEvent.clientX+20});
+pinchPage.elements.board3d.listeners.pointerup({...secondFinger,clientX:480});pinchPage.elements.board3d.listeners.pointerup(threeEvent);
+assert.equal(drag.cells.get('1,1,0').flagged,false,'Dragging must cancel the long press');assert.notEqual(dragPage.window.__game.state.yaw,.72);
+assert.equal(flatDrag.cells.get('1,1,0').flagged,false,'Moving in 2D must cancel the long press');
+assert.equal(pinch.cells.get('1,1,0').flagged,false,'Pinching must cancel the long press');assert.ok(pinchPage.window.__game.state.distance<beforeDistance);
+console.log('Verified both modes, fast double taps, long-press flags, and drag cancellation');
