@@ -104,7 +104,7 @@
     cells.get(openingKey).piece=opening.piece;
     layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
     if(!surface.length)layer.value=String(opening.pos[2]);
-    ended=false;hintKey=null;hintMine=false;clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    ended=false;hintKey=null;clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
   }
   function cluePositions([x,y,z],piece,size=N){
     const out=[];
@@ -262,7 +262,7 @@
       mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
       layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
       if(!data.hasSurface)layer.value=String(data.opening[2]);
-      ended=false;hintKey=null;hintMine=false;clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+      ended=false;hintKey=null;clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
     };
     generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="보드 생성 중 오류가 발생했습니다. 다시 시도하세요.";};
     generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";},45000);
@@ -272,12 +272,11 @@
     if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
     clearClueSelection();
-    const result=inferMoves();hintKey=null;hintMine=false;
+    const result=inferMoves();hintKey=null;
     if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
     if(result.limited){draw();cellInfo.textContent="가능한 배치가 너무 많아 이번 추론을 끝내지 못했습니다. 더 많은 칸을 열어 단서를 늘려 보세요.";return;}
     if(!result.moves.length){draw();cellInfo.textContent="현재 공개된 단서만으로 확정할 수 있는 칸이 없습니다.";return;}
     let choices=result.moves;
-    if(choices.some(move=>!move.mine))choices=choices.filter(move=>!move.mine);
     for(let i=choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}
     let visibleHint=null;
     if(view==="3d"){
@@ -290,17 +289,16 @@
         return x>=0&&x<width&&y>=0&&y<height&&find3d(x,y)===k;
       });
     }
-    const choice=visibleHint||choices[0];hintKey=choice.key;hintMine=choice.mine;
-    draw();cellInfo.textContent=`추론 힌트: (${parse(hintKey).join(", ")})은 ${hintMine?"지뢰입니다. 깃발을 표시하세요.":"안전합니다. 열어도 됩니다."}`+(view==="3d"&&!visibleHint?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
+    const choice=visibleHint||choices[0];hintKey=choice.key;
+    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(view==="3d"&&!visibleHint?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
   }
   function setView(v){
     resetTap();
     view=v==="3d"&&gl?"3d":"2d";canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
     for(const mode of ["3d","2d"]){$("view"+mode).classList.toggle("active",mode===view);$("view"+mode).setAttribute("aria-pressed",String(mode===view));}resize();
   }
-  let hintMine=false;
   function tileStyle(k,c){
-    let style;if(mines.has(k)&&(c.revealed||ended))style={fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style=hintMine?{fill:"#a7434a",text:"⚑",color:"#fff1be"}:{fill:"#d2a531",text:"✦",color:"#fff8d1"};else style={fill:"#52657d",text:"",color:"#fff"};
+    let style;if(mines.has(k)&&(c.revealed||ended))style={fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style={fill:"#5b6d84",text:"·",color:"#b0bfd1"};else style={fill:"#52657d",text:"",color:"#fff"};
     if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k)&&k!==hintKey)style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";
     return style;
   }

@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const html=readFileSync('3d_minesweeper.html','utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,activate,tileStyle,layout2d,setFind3d(fn){find3d=fn;}};window.addEventListener("resize",resize);');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,activate,tileStyle,layout2d,showHint,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search){
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
@@ -97,4 +97,13 @@ pinchPage.elements.board3d.listeners.pointerup({...secondFinger,clientX:480});pi
 assert.equal(drag.cells.get('1,1,0').flagged,false,'Dragging must cancel the long press');assert.notEqual(dragPage.window.__game.state.yaw,.72);
 assert.equal(flatDrag.cells.get('1,1,0').flagged,false,'Moving in 2D must cancel the long press');
 assert.equal(pinch.cells.get('1,1,0').flagged,false,'Pinching must cancel the long press');assert.ok(pinchPage.window.__game.state.distance<beforeDistance);
+const hintPage=page(''),hintBoard=setBoard(hintPage,['0,0,1','2,2,2']),hintApp=hintPage.window.__game,hintCell='0,0,1';
+hintApp.setInference(()=>({moves:[{key:hintCell,mine:true}],conflict:false}));hintApp.showHint();
+const mineStyle=JSON.stringify(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell))),mineMessage=hintPage.elements.cellInfo.textContent;
+hintApp.setInference(()=>({moves:[{key:hintCell,mine:false}],conflict:false}));hintApp.showHint();
+assert.equal(JSON.stringify(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell))),mineStyle,'Mine and safe hints must look identical');
+assert.equal(hintPage.elements.cellInfo.textContent,mineMessage,'Mine and safe hints must use the same message');
+assert.doesNotMatch(mineMessage,/지뢰|안전|깃발/);
+hintApp.setRandom(()=>.9);hintApp.setInference(()=>({moves:[{key:hintCell,mine:true},{key:'1,1,0',mine:false}],conflict:false}));hintApp.showHint();
+assert.equal(hintApp.state.hintKey,hintCell,'Hints must not prefer safe cells over mines');
 console.log('Verified both modes, fast double taps, long-press flags, and drag cancellation');

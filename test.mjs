@@ -28,7 +28,7 @@ try{
   assert.deepEqual(errors,[]);await screenshot('minesweeper-initial.png');
   const hook=`window.__game={cluePositions,countMines,inferMoves,pickPiece,find3d,find2d,layout2d,center,render3d,tileStyle,reveal,toggleFlag,startGame,setView,draw,resetCamera,cameraBasis,setCluePositions(fn){cluePositions=fn},
     setCamera(y,p,d){yaw=y;pitch=p;distance=d;render3d();},
-    get state(){return{N,cells,mines,ended,hintKey,hintMine,yaw,pitch,distance,visibleCells,vertexCount,view,gl,width,height};}};`;
+    get state(){return{N,cells,mines,ended,hintKey,yaw,pitch,distance,visibleCells,vertexCount,view,gl,width,height};}};`;
   const html=(await readFile(path,'utf8')).replace('window.addEventListener("resize",resize);',hook+'window.addEventListener("resize",resize);');
   await navigate('data:text/html;base64,'+Buffer.from(html).toString('base64'));
   const openingValid='(()=>{const g=__game.state,opened=[...g.cells].filter(([k,c])=>c.revealed);return opened.length===1&&!g.mines.has(opened[0][0])&&__game.countMines(opened[0][0].split(",").map(Number),opened[0][1].piece)===0&&g.mines.size===Number(document.getElementById("mineInput").value);})()';
@@ -37,14 +37,14 @@ try{
   const beforeHint=await evaluate('[...__game.state.cells.values()].filter(c=>c.revealed).length');
   const beforeView=await evaluate('[document.getElementById("layer").value,__game.state.yaw,__game.state.pitch,__game.state.visibleCells.length]');
   await evaluate('document.getElementById("hintButton").click()');
-  assert.equal(await evaluate('(()=>{const g=__game.state,c=g.cells.get(g.hintKey);return !!c&&!c.revealed&&!c.flagged&&!g.mines.has(g.hintKey)&&__game.tileStyle(g.hintKey,c).text==="✦";})()'),true,'3D hint must highlight a safe closed cell');
+  assert.equal(await evaluate('(()=>{const g=__game.state,c=g.cells.get(g.hintKey);return !!c&&!c.revealed&&!c.flagged&&!g.mines.has(g.hintKey)&&__game.tileStyle(g.hintKey,c).text==="·";})()'),true,'3D hint must mark a logically determined closed cell');
   assert.deepEqual(await evaluate('[document.getElementById("layer").value,__game.state.yaw,__game.state.pitch,__game.state.visibleCells.length]'),beforeView,'A hint must preserve the visible layers and camera');
   assert.equal(await evaluate(`(()=>{const g=__game.state,p=__game.center(g.hintKey.split(',').map(Number)),{eye,forward,right,up}=__game.cameraBasis(),d=p.map((v,i)=>v-eye[i]),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),depth=dot(d,forward),scale=g.height/(2*Math.tan(Math.PI/8));return __game.find3d(g.width/2+dot(d,right)*scale/depth,g.height/2-dot(d,up)*scale/depth)===g.hintKey;})()`),true,'A hint should prefer a cell visible from the current camera');
   assert.equal(await evaluate('[...__game.state.cells.values()].filter(c=>c.revealed).length'),beforeHint,'A hint must not open a cell');
   await evaluate('__game.reveal(__game.state.hintKey)');
   assert.equal(await evaluate('__game.state.hintKey'),null,'Opening the hinted cell must clear the hint');
   await evaluate('__game.setView("2d");document.getElementById("hintButton").click()');
-  assert.equal(await evaluate('(()=>{const g=__game.state,c=g.cells.get(g.hintKey);return !!c&&!c.revealed&&!c.flagged&&!g.mines.has(g.hintKey)&&__game.tileStyle(g.hintKey,c).text==="✦";})()'),true,'2D hint must highlight a safe closed cell');
+  assert.equal(await evaluate('(()=>{const g=__game.state,c=g.cells.get(g.hintKey);return !!c&&!c.revealed&&!c.flagged&&__game.inferMoves().moves.some(m=>m.key===g.hintKey)&&__game.tileStyle(g.hintKey,c).text==="·";})()'),true,'2D hint must mark a logically determined closed cell');
   await evaluate('__game.toggleFlag(__game.state.hintKey)');
   assert.equal(await evaluate('__game.state.hintKey'),null,'Flagging the hinted cell must clear the hint');
   await evaluate('document.getElementById("hintButton").click();__game.startGame();__game.setView("3d")');
