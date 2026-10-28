@@ -28,8 +28,8 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
 <body><main>
 <header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><a id="modeLink" href="no_guess.html" style="color:#68c7ff">추측 없는 게임</a><div class="hint" id="boardInfo"></div><button id="helpButton" type="button">조작법</button></header>
 <div class="settings">
-  <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
-  <label>지뢰 수 <input id="mineInput" type="number" min="1" max="215" value="35"></label>
+  <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="4"></label>
+  <label>지뢰 수 <input id="mineInput" type="number" min="1" max="63" value="7"></label>
   <button id="start">새 게임 시작</button>
   <button id="cancelGeneration" hidden>생성 취소</button>
   <span id="settingError" role="alert"></span>
@@ -94,7 +94,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   "use strict";
   const noGuess=new URLSearchParams(location.search).get("mode")==="no-guess";
   if(noGuess){document.title="추측 없는 3D 체스 지뢰찾기";document.getElementById("gameTitle").textContent="♟ 추측 없는 3D 체스 지뢰찾기";document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
-  let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0;
+  let N=4, MINE_COUNT=7, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0;
   let hintClues=new Set();
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
   let successTimer=null,zeroTimer=null;
