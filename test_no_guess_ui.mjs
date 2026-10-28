@@ -90,6 +90,20 @@ assert.ok([...newBoard.cells.values()].filter(c=>c.revealed).length>2,'A quick s
 const wrongPage=page(''),wrong=setBoard(wrongPage,['0,0,1','2,2,2']);
 wrongPage.window.__game.activate('0,1,0',true);wrongPage.window.__game.activate('0,0,0',false);wrongPage.window.__game.activate('0,0,0',false);
 assert.equal(wrongPage.window.__game.state.ended,true);assert.equal(wrong.cells.get('0,0,1').revealed,true,'An incorrect flag must not protect another mine');
+assert.equal(wrongPage.elements.successEffect.hidden,true,'Losing must not show the success effect');
+const successNoGuess=page('?mode=no-guess');
+for(let i=0;i<100&&successNoGuess.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
+for(const p of [page(''),successNoGuess]){
+  const s=setBoard(p,['0,0,1','2,2,2']);for(const[id,cell]of s.cells)if(!s.mines.has(id))cell.revealed=id!=='0,1,0';
+  s.cells.get('0,0,1').flagged=true;p.window.__game.activate('0,0,0',false);p.window.__game.activate('0,0,0',false);
+  assert.equal(p.window.__game.state.ended,true);assert.equal(p.elements.successEffect.hidden,false,'Winning by chord must show the success effect');
+  p.elements.start.click();assert.equal(p.elements.successEffect.hidden,true,'Starting a new game must dismiss the success effect');
+  if(!p.elements.cancelGeneration.hidden)p.elements.cancelGeneration.click();
+}
+const directWinPage=page(''),directWin=setBoard(directWinPage,['0,0,1','2,2,2']);
+for(const[id,cell]of directWin.cells)if(!directWin.mines.has(id))cell.revealed=id!=='0,1,0';
+directWinPage.window.__game.activate('0,1,0',false);directWinPage.window.__game.activate('0,1,0',false);
+assert.equal(directWinPage.elements.successEffect.hidden,false,'Opening the final safe cell must show the success effect');directWinPage.elements.start.click();
 const flatPage=page(''),flat=setBoard(flatPage,['2,2,1','2,2,2']),layout=flatPage.window.__game.layout2d();
 const flatEvent={pointerId:1,button:0,clientX:layout.left+1.5*layout.s,clientY:layout.top+1.92*layout.s};
 const threePage=page(''),three=setBoard(threePage,['2,2,1','2,2,2']);threePage.window.__game.setFind3d(()=> '1,1,0');
