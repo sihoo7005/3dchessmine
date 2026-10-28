@@ -12,7 +12,7 @@ function page(search){
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
     setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(){} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;}
-    getContext(kind){return kind==='2d'?ctx2d:null;} getBoundingClientRect(){return{width:800,height:600,left:0,top:0};}
+    getContext(kind){return kind==='2d'?ctx2d:null;} getBoundingClientRect(){return{width:800,height:600,left:0,top:0,right:800,bottom:600};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
   elements.sizeInput.value='3';elements.mineInput.value='2';elements.spacing.value='1.3';elements.layer.value='all';
@@ -37,7 +37,9 @@ assert.equal(original.workers,0);assert.equal(original.window.__game.state.cells
 assert.equal(original.elements.weightK.value,'10');for(const piece of ['R','B','Q','N'])assert.equal(original.elements['weight'+piece].value,'1');
 const boardBeforeHelp=original.window.__game.state.cells;original.elements.helpButton.click();assert.equal(original.elements.helpDialog.open,true,'Help must open as a dialog');
 original.window.listeners.keydown({key:'r',target:{matches:()=>false}});assert.equal(original.window.__game.state.cells,boardBeforeHelp,'Game shortcuts must not run while help is open');
-original.elements.helpClose.click();assert.equal(original.elements.helpDialog.open,false,'The help dialog must close');assert.equal(original.window.__game.state.cells,boardBeforeHelp);
+original.elements.helpDialog.listeners.click({target:original.elements.helpDialog,clientX:400,clientY:300});assert.equal(original.elements.helpDialog.open,true,'Clicking inside the dialog must keep it open');
+original.elements.helpDialog.listeners.click({target:original.elements.helpDialog,clientX:-1,clientY:300});assert.equal(original.elements.helpDialog.open,false,'Clicking outside the dialog must close it');
+original.elements.helpButton.click();original.elements.helpClose.click();assert.equal(original.elements.helpDialog.open,false,'The close button must still close the dialog');assert.equal(original.window.__game.state.cells,boardBeforeHelp);
 const game=page('?mode=no-guess');
 assert.equal(game.elements.start.disabled,true);assert.equal(game.window.__game.state.cells.size,0);
 for(let i=0;i<100&&game.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
@@ -86,21 +88,32 @@ for(const p of [page(''),game]){
   function backgroundTap(){canvas.listeners.pointerdown(event);canvas.listeners.pointerup(event);}
   backgroundTap();assert.equal([...s.cells.values()].filter(c=>c.revealed).length,1,'One background tap must not expand');
   p.advance(451);backgroundTap();assert.equal([...s.cells.values()].filter(c=>c.revealed).length,1,'Slow background taps must not expand');
-  backgroundTap();assert.equal(s.cells.get('0,0,2').revealed,true,'Quick background taps must recursively expand zero clues across layers');
+  backgroundTap();assert.equal([...s.cells.values()].filter(c=>c.revealed).length,2,'Expansion must open only one cell at first');
+  for(let i=0;i<150&&!p.elements.cellInfo.textContent.includes('확장 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
+  assert.match(p.elements.cellInfo.textContent,/확장 완료/);assert.equal(s.cells.get('0,0,2').revealed,true,'Quick background taps must recursively expand zero clues across layers');
   assert.equal(s.cells.get('1,1,0').flagged,true);assert.equal(s.cells.get('1,1,0').revealed,false,'Expansion must leave flagged cells closed');
   for(const id of s.mines)assert.equal(s.cells.get(id).revealed,false,'Zero expansion must not open a mine');
 }
 const background3dPage=page(''),background3d=setBoard(background3dPage,['2,2,1','2,2,2']);background3d.cells.get('1,1,0').flagged=true;background3dPage.window.__game.setFind3d(()=>null);
 const background3dEvent={pointerId:13,button:0,clientX:10,clientY:10};
 for(let i=0;i<2;i++){background3dPage.elements.board3d.listeners.pointerdown(background3dEvent);background3dPage.elements.board3d.listeners.pointerup(background3dEvent);}
+for(let i=0;i<150&&!background3dPage.elements.cellInfo.textContent.includes('확장 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
 assert.equal(background3d.cells.get('0,0,2').revealed,true,'Double tapping empty 3D space must expand zero clues');
 const nonzeroPage=page(''),nonzero=setBoard(nonzeroPage,['0,0,1','2,2,2']);nonzeroPage.window.__game.activate(null,false);nonzeroPage.window.__game.activate(null,false);
 assert.equal([...nonzero.cells.values()].filter(c=>c.revealed).length,1,'Hidden zero clues must not be expanded');
 const chainPage=page(''),chain=setBoard(chainPage,['2,2,1','2,2,2']),chainMap=new Map([['0,0,0',['1,0,0']],['1,0,0',['2,0,0']],['2,0,0',['2,2,2']]]);
 chainPage.window.__game.setCluePositions(pos=>(chainMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
 chainPage.window.__game.activate(null,false);chainPage.window.__game.activate(null,false);
+assert.equal(chain.cells.get('1,0,0').revealed,true);assert.equal(chain.cells.get('2,0,0').revealed,false,'The next cell must wait for the animation');
+for(let i=0;i<100&&!chainPage.elements.cellInfo.textContent.includes('확장 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
 assert.equal(chain.cells.get('1,0,0').revealed,true);assert.equal(chain.cells.get('2,0,0').revealed,true,'New zero clues must continue the chain');
 assert.equal(chain.cells.get('1,1,1').revealed,false,'Expansion must stop beyond a nonzero clue');
+const interruptPage=page(''),interrupt=setBoard(interruptPage,['2,2,1','2,2,2']);interruptPage.window.__game.activate(null,false);interruptPage.window.__game.activate(null,false);
+assert.equal([...interrupt.cells.values()].filter(c=>c.revealed).length,2);interruptPage.window.__game.activate('2,1,0',true);
+await new Promise(resolve=>setTimeout(resolve,100));assert.equal([...interrupt.cells.values()].filter(c=>c.revealed).length,2,'A player action must stop the pending expansion');
+const restartPage=page('');setBoard(restartPage,['2,2,1','2,2,2']);restartPage.window.__game.activate(null,false);restartPage.window.__game.activate(null,false);
+restartPage.elements.start.click();const restarted=restartPage.window.__game.state.cells;await new Promise(resolve=>setTimeout(resolve,100));
+assert.equal(restarted,restartPage.window.__game.state.cells);assert.equal([...restarted.values()].filter(c=>c.revealed).length,1,'A pending expansion must not affect a new game');
 const backgroundWinPage=page(''),backgroundWin=setBoard(backgroundWinPage,['2,2,1','2,2,2']);
 for(const[id,cell]of backgroundWin.cells)if(!backgroundWin.mines.has(id))cell.revealed=id!=='0,1,0';
 backgroundWinPage.window.__game.activate(null,false);backgroundWinPage.window.__game.activate(null,false);

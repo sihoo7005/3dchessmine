@@ -97,7 +97,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0;
   let hintClues=new Set();
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
-  let successTimer=null;
+  let successTimer=null,zeroTimer=null;
   const DOUBLE_TAP_MS=450,LONG_PRESS_MS=500;
   const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
   const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
@@ -117,6 +117,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     $("weightSummary").textContent=validWeights(weights)?"생성 비율: "+PIECES.map(p=>`${NAMES[p]} ${(weights[p]/total*100).toFixed(1)}%`).join(" · "):"가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";
   }
   function startGame(){
+    stopZeroExpansion();
     hideSuccess();
     if(noGuess)stopGeneration();
     const size=Number(sizeInput.value),count=Number(mineInput.value),capacity=size**3;
@@ -182,20 +183,29 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     selectedClue=k;clueRange=new Set(cluePositions(parse(k),c.piece).map(p=>key(...p)));draw();showCellInfo(k);
     cellInfo.textContent+=" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
   }
+  function stopZeroExpansion(){if(zeroTimer!==null){clearTimeout(zeroTimer);zeroTimer=null;if(cellInfo.textContent.startsWith("0 확장 중"))cellInfo.textContent="0 확장을 중단했습니다.";}}
   function expandZeroClues(){
-    const queue=[...cells].filter(([id,c])=>c.revealed&&!mines.has(id)&&countMines(parse(id),c.piece)===0).map(([id])=>id);let opened=0;
-    for(let i=0;i<queue.length&&!ended;i++){
-      const id=queue[i],piece=cells.get(id).piece;
-      for(const pos of cluePositions(parse(id),piece)){
-        const target=key(...pos),cell=cells.get(target);if(cell.revealed||cell.flagged)continue;
-        reveal(target,true);opened++;if(ended)break;
-        if(countMines(pos,cell.piece)===0)queue.push(target);
+    stopZeroExpansion();const queue=[...cells].filter(([id,c])=>c.revealed&&!mines.has(id)&&countMines(parse(id),c.piece)===0).map(([id])=>id);
+    let opened=0,queueIndex=0,targets=[],targetIndex=0;
+    function step(){
+      zeroTimer=null;
+      while(!ended){
+        if(targetIndex>=targets.length){
+          if(queueIndex>=queue.length)break;
+          const id=queue[queueIndex++];targets=cluePositions(parse(id),cells.get(id).piece);targetIndex=0;continue;
+        }
+        const pos=targets[targetIndex++],target=key(...pos),cell=cells.get(target);if(cell.revealed||cell.flagged)continue;
+        reveal(target,true);opened++;if(!ended&&countMines(pos,cell.piece)===0)queue.push(target);
+        draw();cellInfo.textContent=ended?`0 확장 완료: ${opened}칸 열기`:`0 확장 중: ${opened}칸 열기`;
+        if(!ended)zeroTimer=setTimeout(step,45);return;
       }
+      draw();cellInfo.textContent=queue.length?`0 확장 완료: ${opened}칸 열기`:"열린 숫자 0인 기물이 없습니다.";
     }
-    draw();cellInfo.textContent=queue.length?`숫자 0인 기물 확장: ${opened}칸 열기`:"열린 숫자 0인 기물이 없습니다.";
+    step();
   }
   function activate(k,flag){
     if(ended)return;
+    stopZeroExpansion();
     const c=cells.get(k);
     if(!c){
       const hadSelection=selectedClue!==null||selectedClosed!==null,now=performance.now(),doubleTap=!flag&&lastTapKey==="background"&&now-lastTapAt<=DOUBLE_TAP_MS;
@@ -321,7 +331,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       if(data.type==="progress"){message.textContent=`추측 없이 풀 수 있는 보드 생성 중… ${data.attempt}/100`;return;}
       stopGeneration();message.textContent="";
       if(data.type!=="ready"){settingError.textContent="이 설정에서 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";return;}
-      N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개 · 추측 없이 풀이 가능`;
+      stopZeroExpansion();N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개 · 추측 없이 풀이 가능`;
       mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
       layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
       if(!data.hasSurface)layer.value=String(data.opening[2]);
@@ -363,6 +373,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     $("hintOtherDetails").hidden=!other.length;$("hintOtherDetails").open=false;$("hintExplanation").hidden=false;
   }
   function showHint(){
+    stopZeroExpansion();
     if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
     clearClueSelection();
@@ -558,10 +569,11 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   canvas.addEventListener("pointerup",e=>finishFlatPointer(e,false));canvas.addEventListener("pointercancel",e=>finishFlatPointer(e,true));canvas.addEventListener("lostpointercapture",e=>finishFlatPointer(e,true));
   for(const board of[canvas,canvas3d])board.addEventListener("contextmenu",e=>e.preventDefault());
   $("start").addEventListener("click",startGame);$("view3d").addEventListener("click",()=>setView("3d"));$("view2d").addEventListener("click",()=>setView("2d"));
-  $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
+  $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){stopZeroExpansion();resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
+  $("helpDialog").addEventListener("click",e=>{const dialog=$("helpDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
   $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
   $("hintButton").addEventListener("click",showHint);
-  flagButton.addEventListener("click",()=>{resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
+  flagButton.addEventListener("click",()=>{stopZeroExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
   layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{
