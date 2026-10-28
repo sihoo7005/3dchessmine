@@ -342,7 +342,7 @@
   }
   function tileStyle(k,c){
     let style;if(mines.has(k)&&(c.revealed||ended))style={fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style={fill:"#5b6d84",text:"·",color:"#b0bfd1"};else style={fill:"#52657d",text:"",color:"#fff"};
-    if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k)&&k!==hintKey)style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";else if(c.revealed&&hintClues.has(k))style.fill="#364b5d";
+    if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";else if(c.revealed&&hintClues.has(k))style.fill="#364b5d";
     return style;
   }
   function paintLabel(context,s,cx,cy,size){

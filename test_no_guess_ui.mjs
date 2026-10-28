@@ -124,6 +124,8 @@ hintApp.setRandom(()=>.9);hintApp.setInference(()=>({moves:[{key:hintCell,mine:t
 assert.equal(hintApp.state.hintKey,hintCell,'Hints must not prefer safe cells over mines');
 hintApp.setInference(()=>({moves:[{key:'1,1,0',mine:false,sources:['0,0,0','0,1,0']},{key:hintCell,mine:true,sources:['0,0,0'],method:'direct'}],conflict:false}));hintApp.showHint();
 assert.equal(hintApp.state.hintKey,hintCell,'Hints with fewer source clues must be preferred independently of their type');
+hintPage.elements.hintEvidence.children[0].children[0].click();
+assert.equal(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell)).fill,'#438c80');assert.equal(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell)).text,'·');
 const proofPage=page(''),proofBoard=setBoard(proofPage,['2,2,1','2,2,2']),proofApp=proofPage.window.__game;
 proofApp.showHint();assert.equal(proofPage.elements.hintExplanation.hidden,false);
 assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#364b5d','A related clue must be subtly highlighted');
@@ -131,6 +133,8 @@ assert.equal(proofApp.tileStyle(proofApp.state.hintKey,proofBoard.cells.get(proo
 assert.match(proofPage.elements.hintExplanationSummary.textContent,/숫자와 깃발 수/);
 const proofRow=proofPage.elements.hintEvidence.children[0];assert.match(proofRow.children[0].textContent,/0 − 0 = 0/);assert.match(proofRow.children[1].textContent,/\[힌트\]/);
 const savedHint=proofApp.state.hintKey;proofRow.children[0].click();assert.equal(proofApp.state.selectedClue,'0,0,0');assert.equal(proofApp.state.hintKey,savedHint);
+assert.equal(proofApp.tileStyle(savedHint,proofBoard.cells.get(savedHint)).fill,'#438c80','A hinted cell inside the movement range must show the range color');
+assert.equal(proofApp.tileStyle(savedHint,proofBoard.cells.get(savedHint)).text,'·','The hint marker must remain visible inside the movement range');
 assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#356a89','Selecting a clue must take priority over the hint color');
 proofApp.activate('2,0,0',true);assert.equal(proofPage.elements.hintExplanation.hidden,true,'Changing flags must clear stale hint evidence');
 assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#26374a','Changing flags must remove the clue highlight');
