@@ -10,11 +10,12 @@
 <style>fieldset.settings{min-width:0;border:1px solid #35465d;border-radius:8px;padding:10px 12px}fieldset.settings legend{padding:0 6px}#weightSummary{flex-basis:100%}</style>
 </head>
 <body><main>
-<header><h1>♟ 3D 체스 지뢰찾기</h1><div class="hint" id="boardInfo"></div></header>
+<header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><a id="modeLink" href="no_guess.html" style="color:#68c7ff">추측 없는 게임</a><div class="hint" id="boardInfo"></div></header>
 <div class="settings">
   <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
   <label>지뢰 수 <input id="mineInput" type="number" min="1" max="215" value="35"></label>
   <button id="start">새 게임 시작</button>
+  <button id="cancelGeneration" hidden>생성 취소</button>
   <span id="settingError" role="alert"></span>
 </div>
 <fieldset class="settings">
@@ -42,6 +43,7 @@
 <canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas>
 <div id="cellInfo" aria-live="polite">칸을 눌러 열기 · 안쪽 칸은 표시할 층을 선택해서 열 수 있습니다.</div>
 <footer>
+  <p id="modeDescription" hidden>시작 칸에서 올바른 단서와 깃발을 따라가면 추측 없이 모든 안전한 칸을 열 수 있는 보드만 생성합니다.</p>
   추론 힌트는 공개된 기물 숫자와 깃발로 가능한 배치를 비교하고, 남은 지뢰 수와 맞춰 확정 칸을 찾습니다.<br>
   열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
   <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
@@ -52,6 +54,8 @@
 <script>
 (() => {
   "use strict";
+  const noGuess=new URLSearchParams(location.search).get("mode")==="no-guess";
+  if(noGuess){document.title="추측 없는 3D 체스 지뢰찾기";document.getElementById("gameTitle").textContent="♟ 추측 없는 3D 체스 지뢰찾기";document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, hintKey=null, cellSize=40, width=0, height=0;
   const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
   const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
@@ -71,6 +75,7 @@
     $("weightSummary").textContent=validWeights(weights)?"생성 비율: "+PIECES.map(p=>`${NAMES[p]} ${(weights[p]/total*100).toFixed(1)}%`).join(" · "):"가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";
   }
   function startGame(){
+    if(noGuess)stopGeneration();
     const size=Number(sizeInput.value),count=Number(mineInput.value),capacity=size**3;
     if(!Number.isInteger(size)||size<3||size>10){settingError.textContent="칸 수는 3–10 사이의 정수로 입력하세요.";return;}
     if(!Number.isInteger(count)||count<1||count>=capacity){settingError.textContent=`지뢰 수는 1–${capacity-1} 사이의 정수로 입력하세요.`;return;}
@@ -84,6 +89,7 @@
     if(!options.length){settingError.textContent=`이 가중치에서 숫자 0인 칸으로 시작하려면 지뢰 수를 ${capacity-minimumClues-1}개 이하로 설정하세요.`;return;}
     // Prefer the faces visible from the initial camera so the opening is visible.
     const surface=options.filter(({pos})=>pos.some(v=>v===size-1)),choices=surface.length?surface:options;
+    if(noGuess){startNoGuessGame({size,count,weights,positions,choices,hasSurface:!!surface.length});return;}
     const startPiece=pickPiece(weights,PIECES.filter(p=>choices.some(c=>c.piece===p))),pieceChoices=choices.filter(c=>c.piece===startPiece);
     const opening=pieceChoices[Math.floor(Math.random()*pieceChoices.length)],openingKey=key(...opening.pos);
     const reserved=new Set([openingKey,...cluePositions(opening.pos,opening.piece,size).map(p=>key(...p))]);
@@ -125,7 +131,7 @@
   }
   function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;c.flagged=!c.flagged;if(k===hintKey)hintKey=null;draw();showCellInfo(k);}
   function activate(k,flag){if(!k)return;flag?toggleFlag(k):reveal(k);}
-  function inferMoves(){
+  function inferMoves(nodeLimit=500000){
     if(ended)return{moves:[],conflict:false};
     const unknown=[...cells].filter(([,c])=>!c.revealed&&!c.flagged).map(([k])=>k),constraints=new Map();let conflict=false;
     function add(ids,total){
@@ -172,8 +178,8 @@
     for(const ids of components){
       const indexes=new Map(ids.map((id,i)=>[id,i])),equations=[...constraints.values()].filter(e=>e.ids.some(id=>indexes.has(id))).map(e=>({ids:e.ids.map(id=>indexes.get(id)),total:e.total})),possible=Array(ids.length+1),counts=new Set();let aborted=false,solutions=0;
       function search(state){
-        // ponytail: cap exact search at 500k nodes; improve propagation if normal boards hit this ceiling.
-        if(++searchNodes>500000){aborted=true;return;}
+        // ponytail: cap exact search; improve propagation if normal boards hit this ceiling.
+        if(++searchNodes>nodeLimit){aborted=true;return;}
         let changed=true;
         while(changed){changed=false;for(const e of equations){let mines=0,open=[];for(const i of e.ids)if(state[i]===1)mines++;else if(state[i]<0)open.push(i);if(mines>e.total||mines+open.length<e.total)return;const value=mines===e.total?0:mines+open.length===e.total?1:-1;if(value>=0)for(const i of open){state[i]=value;changed=true;}}}
         const branch=state.findIndex(v=>v<0);
@@ -194,7 +200,51 @@
     if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine})));}
     return{moves,conflict:false};
   }
+  // ponytail: retries and time are bounded; use a constructive generator if difficult settings need better coverage.
+  function generateNoGuessBoard({size,count,weights,positions,choices,hasSurface}){
+    N=size;MINE_COUNT=count;ended=false;
+    for(let attempt=1;attempt<=100;attempt++){
+      postMessage({type:"progress",attempt});
+      const piece=pickPiece(weights,PIECES.filter(p=>choices.some(c=>c.piece===p))),openings=choices.filter(c=>c.piece===piece),opening=openings[Math.floor(Math.random()*openings.length)],openingKey=key(...opening.pos);
+      const reserved=new Set([openingKey,...cluePositions(opening.pos,piece).map(p=>key(...p))]),eligible=positions.filter(p=>!reserved.has(key(...p)));
+      for(let i=eligible.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[eligible[i],eligible[j]]=[eligible[j],eligible[i]];}
+      mines=new Set(eligible.slice(0,count).map(p=>key(...p)));cells=new Map(positions.map(p=>[key(...p),{revealed:false,flagged:false,piece:pickPiece(weights)}]));
+      cells.get(openingKey).piece=piece;cells.get(openingKey).revealed=true;
+      let valid=true;
+      while([...cells].some(([id,c])=>!mines.has(id)&&!c.revealed)){
+        const result=inferMoves(20000);if(result.conflict||result.limited||!result.moves.length){valid=false;break;}
+        for(const move of result.moves){const cell=cells.get(move.key);if(!cell||cell.revealed||cell.flagged||mines.has(move.key)!==move.mine){valid=false;break;}if(move.mine)cell.flagged=true;else cell.revealed=true;}
+        if(!valid)break;
+      }
+      if(valid){postMessage({type:"ready",size,count,opening:opening.pos,openingKey,hasSurface,mines:[...mines],pieces:[...cells].map(([id,c])=>[id,c.piece])});return;}
+    }
+    postMessage({type:"failed"});
+  }
+  let generationWorker=null,generationTimer=null,generationUrl=null;
+  function stopGeneration(){
+    if(generationWorker)generationWorker.terminate();generationWorker=null;clearTimeout(generationTimer);generationTimer=null;
+    if(generationUrl)URL.revokeObjectURL(generationUrl);generationUrl=null;$("start").disabled=false;$("cancelGeneration").hidden=true;
+  }
+  function startNoGuessGame(options){
+    settingError.textContent="";message.textContent="추측 없이 풀 수 있는 보드를 생성하고 있습니다…";$("start").disabled=true;$("cancelGeneration").hidden=false;
+    const source=`let N,MINE_COUNT,cells,mines,ended;const PIECES=${JSON.stringify(PIECES)},key=${key.toString()},parse=${parse.toString()};${pickPiece.toString()}\n${cluePositions.toString()}\n${countMines.toString()}\n${inferMoves.toString()}\n${generateNoGuessBoard.toString()}\nonmessage=e=>generateNoGuessBoard(e.data);`;
+    try{generationUrl=URL.createObjectURL(new Blob([source],{type:"text/javascript"}));generationWorker=new Worker(generationUrl);}catch(error){stopGeneration();message.textContent="";settingError.textContent="보드 생성 기능을 시작하지 못했습니다. 브라우저를 확인하세요.";return;}
+    generationWorker.onmessage=({data})=>{
+      if(data.type==="progress"){message.textContent=`추측 없이 풀 수 있는 보드 생성 중… ${data.attempt}/100`;return;}
+      stopGeneration();message.textContent="";
+      if(data.type!=="ready"){settingError.textContent="이 설정에서 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";return;}
+      N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개 · 추측 없이 풀이 가능`;
+      mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
+      layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
+      if(!data.hasSurface)layer.value=String(data.opening[2]);
+      ended=false;hintKey=null;hintMine=false;message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    };
+    generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="보드 생성 중 오류가 발생했습니다. 다시 시도하세요.";};
+    generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";},45000);
+    generationWorker.postMessage(options);
+  }
   function showHint(){
+    if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
     const result=inferMoves();hintKey=null;hintMine=false;
     if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
@@ -315,6 +365,7 @@
   }
   function zoom(factor){distance=Math.max(N*Number(spacing.value)*.95,Math.min(N*Number(spacing.value)*10,distance*factor));render3d();}
   function draw(){
+    if(!cells.size){stats.textContent="보드를 준비하고 있습니다.";if(view==="2d"&&width&&height)ctx.clearRect(0,0,width,height);else if(gl)gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);return;}
     const f=[...cells.values()].filter(c=>c.flagged).length;
     stats.textContent=`칸 ${N**3}개 · 지뢰 ${MINE_COUNT}개 · 깃발 ${f}개 · 연 칸 ${[...cells].filter(([k,c])=>c.revealed&&!mines.has(k)).length}/${N**3-MINE_COUNT}개`;
     if(view==="3d"){build3d();render3d();}else if(width&&height)draw2d();
@@ -363,6 +414,7 @@
   canvas.addEventListener("pointerdown",e=>{if(e.button!==0&&e.button!==2)return;const r=canvas.getBoundingClientRect();activate(find2d(e.clientX-r.left,e.clientY-r.top),flagMode||e.button===2);});
   for(const board of[canvas,canvas3d])board.addEventListener("contextmenu",e=>e.preventDefault());
   $("start").addEventListener("click",startGame);$("view3d").addEventListener("click",()=>setView("3d"));$("view2d").addEventListener("click",()=>setView("2d"));
+  $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
   $("hintButton").addEventListener("click",showHint);
   flagButton.addEventListener("click",()=>{flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
   layer.addEventListener("change",draw);spacing.addEventListener("input",()=>{resetCamera();draw();});$("resetCamera").addEventListener("click",resetCamera);
