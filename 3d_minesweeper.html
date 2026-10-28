@@ -64,6 +64,7 @@
   const noGuess=new URLSearchParams(location.search).get("mode")==="no-guess";
   if(noGuess){document.title="추측 없는 3D 체스 지뢰찾기";document.getElementById("gameTitle").textContent="♟ 추측 없는 3D 체스 지뢰찾기";document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, hintKey=null, cellSize=40, width=0, height=0;
+  let hintClues=new Set();
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
   const DOUBLE_TAP_MS=450,LONG_PRESS_MS=500;
   const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
@@ -133,7 +134,7 @@
     }return out;
   }
   function countMines(pos,piece){return cluePositions(pos,piece).filter(p=>mines.has(key(...p))).length;}
-  function clearHint(){hintKey=null;$("hintExplanation").hidden=true;}
+  function clearHint(){hintKey=null;hintClues.clear();$("hintExplanation").hidden=true;}
   function reveal(k,deferDraw=false){if(ended)return;const c=cells.get(k);if(!c||c.revealed||c.flagged)return;clearHint();c.revealed=true;
     if(mines.has(k)){ended=true;message.textContent="지뢰를 밟았습니다! 새 게임으로 다시 도전하세요.";}
     else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;message.textContent="성공! 모든 안전한 칸을 열었습니다.";}
@@ -290,10 +291,11 @@
       while(changed){changed=false;for(const e of equations)if(!relevant.has(e.id)&&e.unknown.some(id=>connected.has(id))){relevant.add(e.id);for(const id of e.unknown)connected.add(id);changed=true;}}
     }
     const primary=equations.filter(e=>relevant.has(e.id)),other=equations.filter(e=>!relevant.has(e.id)),evidence=$("hintEvidence"),otherEvidence=$("hintOtherEvidence");
+    hintClues=new Set(primary.map(e=>e.id));
     evidence.replaceChildren();otherEvidence.replaceChildren();
     let method=choice.method==="direct"?"이 기물의 숫자와 깃발 수를 비교하세요.":choice.method==="compare"?"아래 기물들이 가리키는 미확인 칸의 겹침과 차이를 비교하세요.":"연결된 단서와 전체 지뢰 수를 만족하는 배치를 비교하세요. 다른 공개 단서도 전체 지뢰 수 계산에 영향을 줄 수 있습니다. 힌트 칸을 각각 지뢰와 안전한 칸으로 가정하고 모순을 확인해 보세요.";
     if(choice.method==="compare"&&primary.length===2){const [a,b]=primary.map(e=>new Set(e.unknown));if([...a].every(id=>b.has(id))||[...b].every(id=>a.has(id)))method+=" 한 범위가 다른 범위에 포함됩니다. 넓은 범위의 식에서 좁은 범위의 식을 빼 보세요.";}
-    $("hintExplanationSummary").textContent=`${method} 각 줄은 숫자 − 깃발 = 그 범위의 미확인 칸에 남은 지뢰 수입니다. 깃발은 올바르다고 가정합니다. 전체: 미확인 ${unknownCount}칸, 남은 지뢰 ${MINE_COUNT-flagCount}개.`;
+    $("hintExplanationSummary").textContent=`${method}${primary.length?" 관련 기물은 보드에 은은하게 표시됩니다.":""} 각 줄은 숫자 − 깃발 = 그 범위의 미확인 칸에 남은 지뢰 수입니다. 깃발은 올바르다고 가정합니다. 전체: 미확인 ${unknownCount}칸, 남은 지뢰 ${MINE_COUNT-flagCount}개.`;
     function addEvidence(container,e){
       const row=document.createElement("div"),button=document.createElement("button"),description=document.createElement("div");
       row.style.margin="8px 0";button.textContent=`${SYMBOLS[e.piece]} (${parse(e.id).join(", ")}) · ${e.total} − ${e.flags} = ${e.total-e.flags} · 미확인 ${e.unknown.length}칸`;
@@ -330,8 +332,8 @@
       });
     }
     const choice=visibleHint||choices[0];hintKey=choice.key;
-    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(view==="3d"&&!visibleHint?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
     explainHint(choice);
+    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(view==="3d"&&!visibleHint?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
   }
   function setView(v){
     resetTap();
@@ -340,7 +342,7 @@
   }
   function tileStyle(k,c){
     let style;if(mines.has(k)&&(c.revealed||ended))style={fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style={fill:"#5b6d84",text:"·",color:"#b0bfd1"};else style={fill:"#52657d",text:"",color:"#fff"};
-    if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k)&&k!==hintKey)style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";
+    if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k)&&k!==hintKey)style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";else if(c.revealed&&hintClues.has(k))style.fill="#364b5d";
     return style;
   }
   function paintLabel(context,s,cx,cy,size){

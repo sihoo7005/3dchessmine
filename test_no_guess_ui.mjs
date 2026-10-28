@@ -126,15 +126,20 @@ hintApp.setInference(()=>({moves:[{key:'1,1,0',mine:false,sources:['0,0,0','0,1,
 assert.equal(hintApp.state.hintKey,hintCell,'Hints with fewer source clues must be preferred independently of their type');
 const proofPage=page(''),proofBoard=setBoard(proofPage,['2,2,1','2,2,2']),proofApp=proofPage.window.__game;
 proofApp.showHint();assert.equal(proofPage.elements.hintExplanation.hidden,false);
+assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#364b5d','A related clue must be subtly highlighted');
+assert.equal(proofApp.tileStyle(proofApp.state.hintKey,proofBoard.cells.get(proofApp.state.hintKey)).fill,'#5b6d84','The target must keep its neutral hint color');
 assert.match(proofPage.elements.hintExplanationSummary.textContent,/숫자와 깃발 수/);
 const proofRow=proofPage.elements.hintEvidence.children[0];assert.match(proofRow.children[0].textContent,/0 − 0 = 0/);assert.match(proofRow.children[1].textContent,/\[힌트\]/);
 const savedHint=proofApp.state.hintKey;proofRow.children[0].click();assert.equal(proofApp.state.selectedClue,'0,0,0');assert.equal(proofApp.state.hintKey,savedHint);
+assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#356a89','Selecting a clue must take priority over the hint color');
 proofApp.activate('2,0,0',true);assert.equal(proofPage.elements.hintExplanation.hidden,true,'Changing flags must clear stale hint evidence');
+assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#26374a','Changing flags must remove the clue highlight');
 const comparePage=page(''),compareApp=comparePage.window.__game,compare=compareApp.state,compareIds=[...compare.cells.keys()],[p,q,a,b,c]=compareIds;
 for(const cell of compare.cells.values()){cell.revealed=false;cell.flagged=false;cell.piece='K';}compare.cells.get(p).revealed=true;compare.cells.get(q).revealed=true;compare.mines.clear();compare.mines.add(b);compare.mines.add(c);
 const clueMap=new Map([[p,[a,b]],[q,[a,b,c]]]);compareApp.setCluePositions(pos=>(clueMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
 const inferred=compareApp.inferMoves().moves.find(move=>move.key===c);assert.equal(inferred.method,'compare');assert.deepEqual([...inferred.sources].sort(),[p,q].sort());
 compareApp.showHint();assert.equal(comparePage.elements.hintEvidence.children.length,2);assert.match(comparePage.elements.hintExplanationSummary.textContent,/겹침과 차이/);assert.match(comparePage.elements.hintExplanationSummary.textContent,/식을 빼/);
+assert.equal(compareApp.tileStyle(p,compare.cells.get(p)).fill,'#364b5d');assert.equal(compareApp.tileStyle(q,compare.cells.get(q)).fill,'#364b5d');
 const searchPage=page(''),searchApp=searchPage.window.__game,search=searchApp.state,searchIds=[...search.cells.keys()],[p1,p2,p3,p4,a1,b1,c1,a2,b2,c2]=searchIds;
 for(const cell of search.cells.values()){cell.revealed=false;cell.flagged=false;cell.piece='K';}for(const id of [p1,p2,p3,p4])search.cells.get(id).revealed=true;
 search.mines.clear();search.mines.add(b1);search.mines.add(b2);const searchMap=new Map([[p1,[a1,b1]],[p2,[b1,c1]],[p3,[a2,b2]],[p4,[b2,c2]]]);
@@ -142,4 +147,5 @@ searchApp.setCluePositions(pos=>(searchMap.get(pos.join(','))||[]).map(id=>id.sp
 const searchMove=searchApp.inferMoves().moves.find(move=>move.key===b1);assert.equal(searchMove.method,'search');
 searchApp.setInference(()=>({moves:[searchMove],conflict:false}));searchApp.showHint();
 assert.equal(searchPage.elements.hintEvidence.children.length,2);assert.equal(searchPage.elements.hintOtherEvidence.children.length,2);assert.match(searchPage.elements.hintExplanationSummary.textContent,/다른 공개 단서/);
+assert.equal(searchApp.tileStyle(p1,search.cells.get(p1)).fill,'#364b5d');assert.equal(searchApp.tileStyle(p3,search.cells.get(p3)).fill,'#26374a');
 console.log('Verified both modes, fast double taps, long-press flags, and drag cancellation');
