@@ -8,10 +8,10 @@ const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search){
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
   class Element{
-    constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.textContent='';this.listeners={};this.children=[];this.style={};this.classList={toggle(){},add(){},remove(){}};}
+    constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.open=false;this.textContent='';this.listeners={};this.children=[];this.style={};this.classList={toggle(){},add(){},remove(){}};}
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
-    setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(){} setPointerCapture(){} focus(){}
+    setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(){} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;}
     getContext(kind){return kind==='2d'?ctx2d:null;} getBoundingClientRect(){return{width:800,height:600,left:0,top:0};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
@@ -25,7 +25,7 @@ function page(search){
     terminate(){this.terminated=true;}
     postMessage(data){setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
   }
-  let tick=0;const window={devicePixelRatio:1,addEventListener(){}};
+  let tick=0;const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
   const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:''};
   const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
@@ -35,10 +35,14 @@ function page(search){
 const original=page('');
 assert.equal(original.workers,0);assert.equal(original.window.__game.state.cells.size,27);
 assert.equal(original.elements.weightK.value,'10');for(const piece of ['R','B','Q','N'])assert.equal(original.elements['weight'+piece].value,'1');
+const boardBeforeHelp=original.window.__game.state.cells;original.elements.helpButton.click();assert.equal(original.elements.helpDialog.open,true,'Help must open as a dialog');
+original.window.listeners.keydown({key:'r',target:{matches:()=>false}});assert.equal(original.window.__game.state.cells,boardBeforeHelp,'Game shortcuts must not run while help is open');
+original.elements.helpClose.click();assert.equal(original.elements.helpDialog.open,false,'The help dialog must close');assert.equal(original.window.__game.state.cells,boardBeforeHelp);
 const game=page('?mode=no-guess');
 assert.equal(game.elements.start.disabled,true);assert.equal(game.window.__game.state.cells.size,0);
 for(let i=0;i<100&&game.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
 assert.equal(game.elements.start.disabled,false);assert.match(game.elements.boardInfo.textContent,/추측 없이/);
+game.elements.helpButton.click();assert.equal(game.elements.helpDialog.open,true);game.elements.helpClose.click();assert.equal(game.elements.helpDialog.open,false);
 const state=game.window.__game.state,opened=[...state.cells].filter(([,cell])=>cell.revealed);
 assert.equal(state.cells.size,27);assert.equal(opened.length,1);assert.equal(state.mines.size,2);
 assert.equal(game.window.__game.countMines(opened[0][0].split(',').map(Number),opened[0][1].piece),0);
