@@ -42,6 +42,12 @@
 <canvas id="board3d" class="board" tabindex="0" aria-label="3D 지뢰찾기. 드래그 또는 방향키로 회전, 빠르게 두 번 눌러 칸 열기"></canvas>
 <canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas>
 <div id="cellInfo" aria-live="polite">칸을 빠르게 두 번 눌러 열기 · 길게 눌러 깃발 표시</div>
+<section id="hintExplanation" hidden style="margin:10px 0;padding:12px;border:1px solid #35465d;border-radius:8px;background:#172333;line-height:1.6" aria-live="polite">
+  <strong>추론에 쓸 단서</strong>
+  <p id="hintExplanationSummary" style="margin:6px 0"></p>
+  <div id="hintEvidence"></div>
+  <details id="hintOtherDetails"><summary>다른 공개 단서 보기</summary><div id="hintOtherEvidence"></div></details>
+</section>
 <footer>
   <p id="modeDescription" hidden>시작 칸에서 올바른 단서와 깃발을 따라가면 추측 없이 모든 안전한 칸을 열 수 있는 보드만 생성합니다.</p>
   추론 힌트는 공개된 기물 숫자와 깃발로 가능한 배치를 비교하고, 남은 지뢰 수와 맞춰 확정 칸을 찾습니다.<br>
@@ -104,7 +110,7 @@
     cells.get(openingKey).piece=opening.piece;
     layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
     if(!surface.length)layer.value=String(opening.pos[2]);
-    ended=false;hintKey=null;clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    ended=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
   }
   function cluePositions([x,y,z],piece,size=N){
     const out=[];
@@ -127,12 +133,13 @@
     }return out;
   }
   function countMines(pos,piece){return cluePositions(pos,piece).filter(p=>mines.has(key(...p))).length;}
-  function reveal(k,deferDraw=false){if(ended)return;const c=cells.get(k);if(!c||c.revealed||c.flagged)return;c.revealed=true;if(k===hintKey)hintKey=null;
+  function clearHint(){hintKey=null;$("hintExplanation").hidden=true;}
+  function reveal(k,deferDraw=false){if(ended)return;const c=cells.get(k);if(!c||c.revealed||c.flagged)return;clearHint();c.revealed=true;
     if(mines.has(k)){ended=true;message.textContent="지뢰를 밟았습니다! 새 게임으로 다시 도전하세요.";}
     else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;message.textContent="성공! 모든 안전한 칸을 열었습니다.";}
     if(ended)hintKey=null;if(!deferDraw){draw();showCellInfo(k);}
   }
-  function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;c.flagged=!c.flagged;if(k===hintKey)hintKey=null;draw();showCellInfo(k);}
+  function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;clearHint();c.flagged=!c.flagged;draw();showCellInfo(k);}
   function resetTap(){lastTapKey=null;lastTapAt=0;}
   function clearClueSelection(){selectedClue=null;selectedClosed=null;clueRange.clear();resetTap();}
   function selectClue(k,c){
@@ -159,29 +166,30 @@
   function inferMoves(nodeLimit=500000){
     if(ended)return{moves:[],conflict:false};
     const unknown=[...cells].filter(([,c])=>!c.revealed&&!c.flagged).map(([k])=>k),constraints=new Map();let conflict=false;
-    function add(ids,total){
+    function add(ids,total,sources=[],method="direct"){
       const sorted=[...ids].sort();if(total<0||total>sorted.length){conflict=true;return false;}
       const id=sorted.join("|");if(!id){if(total!==0)conflict=true;return !conflict;}
       if(constraints.has(id))return constraints.get(id).total===total||(conflict=true,false);
-      constraints.set(id,{ids:sorted,total});return true;
+      constraints.set(id,{ids:sorted,total,sources,method});return true;
     }
     for(const[k,c]of cells)if(c.revealed&&!mines.has(k)){
       const candidates=[],flags=cluePositions(parse(k),c.piece);let total=countMines(parse(k),c.piece);
       for(const p of flags){const neighbor=cells.get(key(...p));if(neighbor.flagged)total--;else if(!neighbor.revealed)candidates.push(key(...p));}
-      add(candidates,total);if(conflict)return{moves:[],conflict};
+      add(candidates,total,[k]);if(conflict)return{moves:[],conflict};
     }
     const remainingMines=MINE_COUNT-[...cells.values()].filter(c=>c.flagged).length;
     if(remainingMines<0||remainingMines>unknown.length)return{moves:[],conflict:true};
     for(let round=0;round<=unknown.length;round++){
       const forced=new Map();
-      for(const{ids,total}of constraints.values())if(total===0||total===ids.length)for(const id of ids){const mine=total>0;if(forced.has(id)&&forced.get(id)!==mine)return{moves:[],conflict:true};forced.set(id,mine);}
-      if(forced.size)return{moves:[...forced].map(([key,mine])=>({key,mine})),conflict:false};
+      for(const{ids,total,sources,method}of constraints.values())if(total===0||total===ids.length)for(const id of ids){const mine=total>0;if(forced.has(id)&&forced.get(id).mine!==mine)return{moves:[],conflict:true};if(!forced.has(id))forced.set(id,{mine,sources,method});}
+      if(forced.size)return{moves:[...forced].map(([key,proof])=>({key,...proof})),conflict:false};
       const equations=[...constraints.values()],sets=equations.map(e=>new Set(e.ids)),byCell=new Map(),pairs=new Set();let changed=false;
       equations.forEach((equation,i)=>equation.ids.forEach(id=>{if(!byCell.has(id))byCell.set(id,[]);for(const j of byCell.get(id))pairs.add(j*equations.length+i);byCell.get(id).push(i);}));
       for(const pair of pairs){
         const i=Math.floor(pair/equations.length),j=pair%equations.length,A=equations[i],B=equations[j],setA=sets[i],setB=sets[j];
+        const sources=[...new Set([...A.sources,...B.sources])];
         for(const[small,large,largeSet,smallSet]of[[A,B,setB,setA],[B,A,setA,setB]])if(small.ids.length<large.ids.length&&small.ids.every(id=>largeSet.has(id))){
-          const before=constraints.size;add(large.ids.filter(id=>!smallSet.has(id)),large.total-small.total);
+          const before=constraints.size;add(large.ids.filter(id=>!smallSet.has(id)),large.total-small.total,sources,"compare");
           if(conflict)return{moves:[],conflict};if(constraints.size!==before)changed=true;
         }
         const intersection=A.ids.filter(id=>setB.has(id));if(!intersection.length)continue;
@@ -191,7 +199,7 @@
         if(low>high)return{moves:[],conflict:true};
         for(const[ids,min,max]of[[intersection,low,high],[onlyA,A.total-high,A.total-low],[onlyB,B.total-high,B.total-low]]){
           const total=min===max?min:max===0?0:min===ids.length?ids.length:null;
-          if(total===null)continue;const before=constraints.size;add(ids,total);
+          if(total===null)continue;const before=constraints.size;add(ids,total,sources,"compare");
           if(conflict)return{moves:[],conflict};if(constraints.size!==before)changed=true;
         }
       }
@@ -221,8 +229,8 @@
     function compatible(left,right,target,freeCount=free.length){for(const a of left){const low=Math.max(0,target-a-freeCount),high=target-a;for(let b=low;b<=high;b++)if(right.has(b))return true;}return false;}
     if(!compatible(prefix.at(-1),new Set([0]),remainingMines))return{moves:[],conflict:true};
     const moves=[];
-    for(let i=0;i<solved.length;i++){const c=solved[i],otherCounts=new Set();for(const a of prefix[i])for(const b of suffix[i+1])otherCounts.add(a+b);for(let j=0;j<c.ids.length;j++){let safe=false,mine=false;for(const total of c.counts){if(!compatible(new Set([total]),otherCounts,remainingMines))continue;const mask=c.possible[total][j];safe||=!!(mask&1);mine||=!!(mask&2);}if(safe!==mine)moves.push({key:c.ids[j],mine});}}
-    if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine})));}
+    for(let i=0;i<solved.length;i++){const c=solved[i],otherCounts=new Set();for(const a of prefix[i])for(const b of suffix[i+1])otherCounts.add(a+b);for(let j=0;j<c.ids.length;j++){let safe=false,mine=false;for(const total of c.counts){if(!compatible(new Set([total]),otherCounts,remainingMines))continue;const mask=c.possible[total][j];safe||=!!(mask&1);mine||=!!(mask&2);}if(safe!==mine)moves.push({key:c.ids[j],mine,method:"search"});}}
+    if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine,method:"search"})));}
     return{moves,conflict:false};
   }
   // ponytail: retries and time are bounded; use a constructive generator if difficult settings need better coverage.
@@ -262,21 +270,52 @@
       mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
       layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
       if(!data.hasSurface)layer.value=String(data.opening[2]);
-      ended=false;hintKey=null;clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+      ended=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
     };
     generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="보드 생성 중 오류가 발생했습니다. 다시 시도하세요.";};
     generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";},45000);
     generationWorker.postMessage(options);
   }
+  function explainHint(choice){
+    const equations=[];let flagCount=0,unknownCount=0;
+    for(const c of cells.values()){if(c.flagged)flagCount++;else if(!c.revealed)unknownCount++;}
+    for(const[id,c]of cells)if(c.revealed&&!mines.has(id)){
+      const range=cluePositions(parse(id),c.piece).map(p=>key(...p)),unknown=range.filter(k=>!cells.get(k).revealed&&!cells.get(k).flagged),flags=range.filter(k=>cells.get(k).flagged).length;
+      if(unknown.length)equations.push({id,piece:c.piece,unknown,flags,total:countMines(parse(id),c.piece)});
+    }
+    const relevant=new Set(choice.sources||[]);
+    if(!relevant.size){
+      const connected=new Set([choice.key]);let changed=true;
+      while(changed){changed=false;for(const e of equations)if(!relevant.has(e.id)&&e.unknown.some(id=>connected.has(id))){relevant.add(e.id);for(const id of e.unknown)connected.add(id);changed=true;}}
+    }
+    const primary=equations.filter(e=>relevant.has(e.id)),other=equations.filter(e=>!relevant.has(e.id)),evidence=$("hintEvidence"),otherEvidence=$("hintOtherEvidence");
+    evidence.replaceChildren();otherEvidence.replaceChildren();
+    let method=choice.method==="direct"?"이 기물의 숫자와 깃발 수를 비교하세요.":choice.method==="compare"?"아래 기물들이 가리키는 미확인 칸의 겹침과 차이를 비교하세요.":"연결된 단서와 전체 지뢰 수를 만족하는 배치를 비교하세요. 다른 공개 단서도 전체 지뢰 수 계산에 영향을 줄 수 있습니다. 힌트 칸을 각각 지뢰와 안전한 칸으로 가정하고 모순을 확인해 보세요.";
+    if(choice.method==="compare"&&primary.length===2){const [a,b]=primary.map(e=>new Set(e.unknown));if([...a].every(id=>b.has(id))||[...b].every(id=>a.has(id)))method+=" 한 범위가 다른 범위에 포함됩니다. 넓은 범위의 식에서 좁은 범위의 식을 빼 보세요.";}
+    $("hintExplanationSummary").textContent=`${method} 각 줄은 숫자 − 깃발 = 그 범위의 미확인 칸에 남은 지뢰 수입니다. 깃발은 올바르다고 가정합니다. 전체: 미확인 ${unknownCount}칸, 남은 지뢰 ${MINE_COUNT-flagCount}개.`;
+    function addEvidence(container,e){
+      const row=document.createElement("div"),button=document.createElement("button"),description=document.createElement("div");
+      row.style.margin="8px 0";button.textContent=`${SYMBOLS[e.piece]} (${parse(e.id).join(", ")}) · ${e.total} − ${e.flags} = ${e.total-e.flags} · 미확인 ${e.unknown.length}칸`;
+      button.addEventListener("click",()=>{clearClueSelection();selectClue(e.id,cells.get(e.id));});
+      description.style.overflowWrap="anywhere";description.style.color="#b9c8d9";
+      description.textContent="미확인: "+e.unknown.map(id=>`(${parse(id).join(", ")})${id===choice.key?" [힌트]":""}`).join(" · ");
+      row.append(button,description);container.append(row);
+    }
+    if(primary.length)for(const e of primary)addEvidence(evidence,e);
+    else evidence.textContent="힌트 칸을 직접 가리키는 공개 단서가 없습니다. 전체 지뢰 수와 다른 공개 단서를 함께 확인하세요.";
+    for(const e of other)addEvidence(otherEvidence,e);
+    $("hintOtherDetails").hidden=!other.length;$("hintOtherDetails").open=false;$("hintExplanation").hidden=false;
+  }
   function showHint(){
     if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
     clearClueSelection();
-    const result=inferMoves();hintKey=null;
+    clearHint();const result=inferMoves();
     if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
     if(result.limited){draw();cellInfo.textContent="가능한 배치가 너무 많아 이번 추론을 끝내지 못했습니다. 더 많은 칸을 열어 단서를 늘려 보세요.";return;}
     if(!result.moves.length){draw();cellInfo.textContent="현재 공개된 단서만으로 확정할 수 있는 칸이 없습니다.";return;}
     let choices=result.moves;
+    if(choices.every(move=>move.sources?.length)){const fewest=Math.min(...choices.map(move=>move.sources.length));choices=choices.filter(move=>move.sources.length===fewest);}
     for(let i=choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}
     let visibleHint=null;
     if(view==="3d"){
@@ -291,6 +330,7 @@
     }
     const choice=visibleHint||choices[0];hintKey=choice.key;
     draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(view==="3d"&&!visibleHint?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
+    explainHint(choice);
   }
   function setView(v){
     resetTap();

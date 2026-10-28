@@ -3,15 +3,15 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const html=readFileSync('3d_minesweeper.html','utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,activate,tileStyle,layout2d,showHint,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,layout2d,showHint,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search){
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
   class Element{
-    constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.textContent='';this.listeners={};this.classList={toggle(){},add(){},remove(){}};}
+    constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.textContent='';this.listeners={};this.children=[];this.style={};this.classList={toggle(){},add(){},remove(){}};}
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
-    setAttribute(){} replaceChildren(option){this.value=option.value;} add(){} setPointerCapture(){} focus(){}
+    setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(){} setPointerCapture(){} focus(){}
     getContext(kind){return kind==='2d'?ctx2d:null;} getBoundingClientRect(){return{width:800,height:600,left:0,top:0};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
@@ -26,7 +26,7 @@ function page(search){
     postMessage(data){setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
   }
   let tick=0;const window={devicePixelRatio:1,addEventListener(){}};
-  const document={getElementById:id=>elements[id],createElement:()=>new Element('canvas'),title:''};
+  const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:''};
   const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
   return{window,elements,advance(ms){tick+=ms;},get workers(){return workers;}};
@@ -106,4 +106,24 @@ assert.equal(hintPage.elements.cellInfo.textContent,mineMessage,'Mine and safe h
 assert.doesNotMatch(mineMessage,/지뢰|안전|깃발/);
 hintApp.setRandom(()=>.9);hintApp.setInference(()=>({moves:[{key:hintCell,mine:true},{key:'1,1,0',mine:false}],conflict:false}));hintApp.showHint();
 assert.equal(hintApp.state.hintKey,hintCell,'Hints must not prefer safe cells over mines');
+hintApp.setInference(()=>({moves:[{key:'1,1,0',mine:false,sources:['0,0,0','0,1,0']},{key:hintCell,mine:true,sources:['0,0,0'],method:'direct'}],conflict:false}));hintApp.showHint();
+assert.equal(hintApp.state.hintKey,hintCell,'Hints with fewer source clues must be preferred independently of their type');
+const proofPage=page(''),proofBoard=setBoard(proofPage,['2,2,1','2,2,2']),proofApp=proofPage.window.__game;
+proofApp.showHint();assert.equal(proofPage.elements.hintExplanation.hidden,false);
+assert.match(proofPage.elements.hintExplanationSummary.textContent,/숫자와 깃발 수/);
+const proofRow=proofPage.elements.hintEvidence.children[0];assert.match(proofRow.children[0].textContent,/0 − 0 = 0/);assert.match(proofRow.children[1].textContent,/\[힌트\]/);
+const savedHint=proofApp.state.hintKey;proofRow.children[0].click();assert.equal(proofApp.state.selectedClue,'0,0,0');assert.equal(proofApp.state.hintKey,savedHint);
+proofApp.activate('2,0,0',true);assert.equal(proofPage.elements.hintExplanation.hidden,true,'Changing flags must clear stale hint evidence');
+const comparePage=page(''),compareApp=comparePage.window.__game,compare=compareApp.state,compareIds=[...compare.cells.keys()],[p,q,a,b,c]=compareIds;
+for(const cell of compare.cells.values()){cell.revealed=false;cell.flagged=false;cell.piece='K';}compare.cells.get(p).revealed=true;compare.cells.get(q).revealed=true;compare.mines.clear();compare.mines.add(b);compare.mines.add(c);
+const clueMap=new Map([[p,[a,b]],[q,[a,b,c]]]);compareApp.setCluePositions(pos=>(clueMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
+const inferred=compareApp.inferMoves().moves.find(move=>move.key===c);assert.equal(inferred.method,'compare');assert.deepEqual([...inferred.sources].sort(),[p,q].sort());
+compareApp.showHint();assert.equal(comparePage.elements.hintEvidence.children.length,2);assert.match(comparePage.elements.hintExplanationSummary.textContent,/겹침과 차이/);assert.match(comparePage.elements.hintExplanationSummary.textContent,/식을 빼/);
+const searchPage=page(''),searchApp=searchPage.window.__game,search=searchApp.state,searchIds=[...search.cells.keys()],[p1,p2,p3,p4,a1,b1,c1,a2,b2,c2]=searchIds;
+for(const cell of search.cells.values()){cell.revealed=false;cell.flagged=false;cell.piece='K';}for(const id of [p1,p2,p3,p4])search.cells.get(id).revealed=true;
+search.mines.clear();search.mines.add(b1);search.mines.add(b2);const searchMap=new Map([[p1,[a1,b1]],[p2,[b1,c1]],[p3,[a2,b2]],[p4,[b2,c2]]]);
+searchApp.setCluePositions(pos=>(searchMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
+const searchMove=searchApp.inferMoves().moves.find(move=>move.key===b1);assert.equal(searchMove.method,'search');
+searchApp.setInference(()=>({moves:[searchMove],conflict:false}));searchApp.showHint();
+assert.equal(searchPage.elements.hintEvidence.children.length,2);assert.equal(searchPage.elements.hintOtherEvidence.children.length,2);assert.match(searchPage.elements.hintExplanationSummary.textContent,/다른 공개 단서/);
 console.log('Verified both modes, fast double taps, long-press flags, and drag cancellation');
