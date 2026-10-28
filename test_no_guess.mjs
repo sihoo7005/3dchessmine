@@ -15,7 +15,7 @@ const context=vm.createContext({postMessage:message=>{if(message.type!=='progres
 vm.runInContext(source,context);
 const size=process.argv.includes('--default')?6:3,count=size===6?35:2;
 const positions=[];for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++)positions.push([x,y,z]);
-const weights={K:1,R:1,B:1,Q:1,N:1},choices=[];
+const weights=Object.fromEntries(['K','R','B','Q','N'].map(piece=>[piece,Number(html.match(new RegExp(`id="weight${piece}"[^>]*value="([^"]+)"`))[1])])),choices=[];
 for(const piece of Object.keys(weights))for(const pos of positions)if(pos.some(v=>v===size-1)&&context.cluePositions(pos,piece,size).length<=size**3-count-1)choices.push({piece,pos});
 context.options={size,count,weights,positions,choices,hasSurface:true};
 vm.runInContext('generateNoGuessBoard(options)',context,{timeout:40000});

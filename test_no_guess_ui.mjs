@@ -16,7 +16,7 @@ function page(search){
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
   elements.sizeInput.value='3';elements.mineInput.value='2';elements.spacing.value='1.3';elements.layer.value='all';
-  for(const piece of ['K','R','B','Q','N'])elements['weight'+piece].value='1';
+  for(const piece of ['K','R','B','Q','N'])elements['weight'+piece].value=html.match(new RegExp(`id="weight${piece}"[^>]*value="([^"]+)"`))[1];
   const urls=new Map();let nextUrl=0,workers=0;
   class FakeBlob{constructor(parts){this.text=parts.join('');}}
   const fakeURL={createObjectURL(blob){const id=String(++nextUrl);urls.set(id,blob.text);return id;},revokeObjectURL(id){urls.delete(id);}};
@@ -34,6 +34,7 @@ function page(search){
 
 const original=page('');
 assert.equal(original.workers,0);assert.equal(original.window.__game.state.cells.size,27);
+assert.equal(original.elements.weightK.value,'10');for(const piece of ['R','B','Q','N'])assert.equal(original.elements['weight'+piece].value,'1');
 const game=page('?mode=no-guess');
 assert.equal(game.elements.start.disabled,true);assert.equal(game.window.__game.state.cells.size,0);
 for(let i=0;i<100&&game.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
