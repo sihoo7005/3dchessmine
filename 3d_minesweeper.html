@@ -78,7 +78,7 @@
   "use strict";
   const noGuess=new URLSearchParams(location.search).get("mode")==="no-guess";
   if(noGuess){document.title="추측 없는 3D 체스 지뢰찾기";document.getElementById("gameTitle").textContent="♟ 추측 없는 3D 체스 지뢰찾기";document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
-  let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, hintKey=null, cellSize=40, width=0, height=0;
+  let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0;
   let hintClues=new Set();
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
   let successTimer=null;
@@ -128,7 +128,7 @@
     cells.get(openingKey).piece=opening.piece;
     layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
     if(!surface.length)layer.value=String(opening.pos[2]);
-    ended=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
   }
   function cluePositions([x,y,z],piece,size=N){
     const out=[];
@@ -155,8 +155,8 @@
   function showSuccess(){const effect=$("successEffect");hideSuccess();void effect.offsetWidth;effect.hidden=false;successTimer=setTimeout(hideSuccess,4000);}
   function clearHint(){hintKey=null;hintClues.clear();$("hintExplanation").hidden=true;}
   function reveal(k,deferDraw=false){if(ended)return;const c=cells.get(k);if(!c||c.revealed||c.flagged)return;clearHint();c.revealed=true;
-    if(mines.has(k)){ended=true;message.textContent="지뢰를 밟았습니다! 새 게임으로 다시 도전하세요.";}
-    else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;message.textContent="성공! 모든 안전한 칸을 열었습니다.";showSuccess();}
+    if(mines.has(k)){ended=true;won=false;message.textContent="지뢰를 밟았습니다! 새 게임으로 다시 도전하세요.";}
+    else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;won=true;message.textContent="성공! 모든 안전한 칸을 열었습니다.";showSuccess();}
     if(ended)hintKey=null;if(!deferDraw){draw();showCellInfo(k);}
   }
   function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;clearHint();c.flagged=!c.flagged;draw();showCellInfo(k);}
@@ -291,7 +291,7 @@
       mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
       layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
       if(!data.hasSurface)layer.value=String(data.opening[2]);
-      hideSuccess();ended=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+      hideSuccess();ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
     };
     generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="보드 생성 중 오류가 발생했습니다. 다시 시도하세요.";};
     generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";},45000);
@@ -360,7 +360,7 @@
     for(const mode of ["3d","2d"]){$("view"+mode).classList.toggle("active",mode===view);$("view"+mode).setAttribute("aria-pressed",String(mode===view));}resize();
   }
   function tileStyle(k,c){
-    let style;if(mines.has(k)&&(c.revealed||ended))style={fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style={fill:"#5b6d84",text:"·",color:"#b0bfd1"};else style={fill:"#52657d",text:"",color:"#fff"};
+    let style;if(mines.has(k)&&(c.revealed||ended))style=won?{fill:"#405f57",text:"✿",color:"#ffe0ed"}:{fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style={fill:"#5b6d84",text:"·",color:"#b0bfd1"};else style={fill:"#52657d",text:"",color:"#fff"};
     if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";else if(c.revealed&&hintClues.has(k))style.fill="#364b5d";
     return style;
   }
@@ -479,7 +479,7 @@
       if(far>=near&&near<closest){closest=near;best=cell.key;}
     }return best;
   }
-  function showCellInfo(k){const c=cells.get(k);if(!c)return;const pos=`(${parse(k).join(", ")})`;cellInfo.textContent=c.revealed&&!mines.has(k)?`${pos} · ${SYMBOLS[c.piece]} ${NAMES[c.piece]} 규칙으로 센 지뢰: ${countMines(parse(k),c.piece)}개`:`${pos} · ${c.flagged?"깃발 표시":mines.has(k)&&(c.revealed||ended)?"지뢰":"닫힌 칸"}`;}
+  function showCellInfo(k){const c=cells.get(k);if(!c)return;const pos=`(${parse(k).join(", ")})`;cellInfo.textContent=c.revealed&&!mines.has(k)?`${pos} · ${SYMBOLS[c.piece]} ${NAMES[c.piece]} 규칙으로 센 지뢰: ${countMines(parse(k),c.piece)}개`:`${pos} · ${won&&mines.has(k)?"꽃":c.flagged?"깃발 표시":mines.has(k)&&(c.revealed||ended)?"지뢰":"닫힌 칸"}`;}
   const pointers=new Map();let gesture=null;
   const pointerDistance=()=>{const p=[...pointers.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);};
   canvas3d.addEventListener("pointerdown",e=>{

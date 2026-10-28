@@ -91,14 +91,17 @@ const wrongPage=page(''),wrong=setBoard(wrongPage,['0,0,1','2,2,2']);
 wrongPage.window.__game.activate('0,1,0',true);wrongPage.window.__game.activate('0,0,0',false);wrongPage.window.__game.activate('0,0,0',false);
 assert.equal(wrongPage.window.__game.state.ended,true);assert.equal(wrong.cells.get('0,0,1').revealed,true,'An incorrect flag must not protect another mine');
 assert.equal(wrongPage.elements.successEffect.hidden,true,'Losing must not show the success effect');
+assert.equal(wrongPage.window.__game.tileStyle('0,0,1',wrong.cells.get('0,0,1')).text,'✹','A lost game must still show mines');
 const successNoGuess=page('?mode=no-guess');
 for(let i=0;i<100&&successNoGuess.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
 for(const p of [page(''),successNoGuess]){
   const s=setBoard(p,['0,0,1','2,2,2']);for(const[id,cell]of s.cells)if(!s.mines.has(id))cell.revealed=id!=='0,1,0';
   s.cells.get('0,0,1').flagged=true;p.window.__game.activate('0,0,0',false);p.window.__game.activate('0,0,0',false);
   assert.equal(p.window.__game.state.ended,true);assert.equal(p.elements.successEffect.hidden,false,'Winning by chord must show the success effect');
+  for(const id of s.mines){const style=p.window.__game.tileStyle(id,s.cells.get(id));assert.equal(style.text,'✿','Every mine, including flagged mines, must become a flower on success');assert.equal(style.fill,'#405f57');}
   p.elements.start.click();assert.equal(p.elements.successEffect.hidden,true,'Starting a new game must dismiss the success effect');
-  if(!p.elements.cancelGeneration.hidden)p.elements.cancelGeneration.click();
+  for(let i=0;i<100&&p.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
+  const next=p.window.__game.state,nextMine=[...next.mines][0];assert.equal(p.window.__game.tileStyle(nextMine,next.cells.get(nextMine)).text,'','A new game must hide its mines again');
 }
 const directWinPage=page(''),directWin=setBoard(directWinPage,['0,0,1','2,2,2']);
 for(const[id,cell]of directWin.cells)if(!directWin.mines.has(id))cell.revealed=id!=='0,1,0';
