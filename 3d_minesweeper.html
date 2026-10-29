@@ -78,7 +78,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     <dt>깃발</dt><dd>칸을 길게 누르거나 오른쪽 클릭하세요. 깃발 모드에서는 한 번 누릅니다.</dd>
     <dt>탐지 범위</dt><dd>열린 기물을 한 번 누르면 범위가 나타납니다.</dd>
     <dt>범위 열기</dt><dd>열린 기물을 빠르게 두 번 누르세요. 깃발 수와 숫자가 같아야 합니다. 깃발이 틀리면 지뢰가 열릴 수 있습니다.</dd>
-    <dt>0 확장</dt><dd>보드의 빈 배경을 빠르게 두 번 누르면 열린 0 기물의 범위를 확장합니다.</dd>
+    <dt>자동 열기</dt><dd>빈 배경을 빠르게 두 번 누르면 깃발 수와 숫자가 같은 기물의 범위를 차례로 엽니다.</dd>
     <dt>시점 조작</dt><dd>드래그로 회전하고, 휠이나 두 손가락으로 확대·축소하세요.</dd>
     <dt>층 선택</dt><dd>층별 보기로 전환하거나 3D 보기에서 표시할 층을 고르세요.</dd>
     <dt>추론 힌트</dt><dd>버튼을 누르면 추론할 칸과 관련 단서가 표시됩니다.</dd>
@@ -97,7 +97,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   let N=4, MINE_COUNT=7, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0;
   let hintClues=new Set();
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
-  let successTimer=null,zeroTimer=null;
+  let successTimer=null,expansionTimer=null;
   const DOUBLE_TAP_MS=450,LONG_PRESS_MS=500;
   const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
   const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
@@ -117,7 +117,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     $("weightSummary").textContent=validWeights(weights)?"생성 비율: "+PIECES.map(p=>`${NAMES[p]} ${(weights[p]/total*100).toFixed(1)}%`).join(" · "):"가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";
   }
   function startGame(){
-    stopZeroExpansion();
+    stopExpansion();
     hideSuccess();
     if(noGuess)stopGeneration();
     const size=Number(sizeInput.value),count=Number(mineInput.value),capacity=size**3;
@@ -183,34 +183,36 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     selectedClue=k;clueRange=new Set(cluePositions(parse(k),c.piece).map(p=>key(...p)));draw();showCellInfo(k);
     cellInfo.textContent+=" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
   }
-  function stopZeroExpansion(){if(zeroTimer!==null){clearTimeout(zeroTimer);zeroTimer=null;if(cellInfo.textContent.startsWith("0 확장 중"))cellInfo.textContent="0 확장을 중단했습니다.";}}
-  function expandZeroClues(){
-    stopZeroExpansion();const queue=[...cells].filter(([id,c])=>c.revealed&&!mines.has(id)&&countMines(parse(id),c.piece)===0).map(([id])=>id);
-    let opened=0,queueIndex=0,targets=[],targetIndex=0;
+  function stopExpansion(){if(expansionTimer!==null){clearTimeout(expansionTimer);expansionTimer=null;if(cellInfo.textContent.startsWith("자동 개방 중"))cellInfo.textContent="자동 개방을 중단했습니다.";}}
+  function expandClues(){
+    stopExpansion();const queue=[...cells].filter(([id,c])=>c.revealed&&!mines.has(id)).map(([id])=>id);
+    let opened=0,matched=0,queueIndex=0,targets=[],targetIndex=0;
     function step(){
-      zeroTimer=null;
+      expansionTimer=null;
       while(!ended){
         if(targetIndex>=targets.length){
           if(queueIndex>=queue.length)break;
-          const id=queue[queueIndex++];targets=cluePositions(parse(id),cells.get(id).piece);targetIndex=0;continue;
+          const id=queue[queueIndex++],piece=cells.get(id).piece,range=cluePositions(parse(id),piece),flags=range.filter(pos=>cells.get(key(...pos)).flagged).length;
+          if(flags!==countMines(parse(id),piece))continue;
+          matched++;targets=range;targetIndex=0;continue;
         }
         const pos=targets[targetIndex++],target=key(...pos),cell=cells.get(target);if(cell.revealed||cell.flagged)continue;
-        reveal(target,true);opened++;if(!ended&&countMines(pos,cell.piece)===0)queue.push(target);
-        draw();cellInfo.textContent=ended?`0 확장 완료: ${opened}칸 열기`:`0 확장 중: ${opened}칸 열기`;
-        if(!ended)zeroTimer=setTimeout(step,45);return;
+        reveal(target,true);opened++;if(!ended)queue.push(target);
+        draw();if(ended&&!won){showCellInfo(target);cellInfo.textContent+=" · 자동 개방 중 지뢰가 열렸습니다.";}else cellInfo.textContent=ended?`자동 개방 완료: ${opened}칸 열기`:`자동 개방 중: ${opened}칸 열기`;
+        if(!ended)expansionTimer=setTimeout(step,45);return;
       }
-      draw();cellInfo.textContent=queue.length?`0 확장 완료: ${opened}칸 열기`:"열린 숫자 0인 기물이 없습니다.";
+      draw();cellInfo.textContent=matched?`자동 개방 완료: ${opened}칸 열기`:"깃발 수가 숫자와 같은 열린 기물이 없습니다.";
     }
     step();
   }
   function activate(k,flag){
     if(ended)return;
-    stopZeroExpansion();
+    stopExpansion();
     const c=cells.get(k);
     if(!c){
       const hadSelection=selectedClue!==null||selectedClosed!==null,now=performance.now(),doubleTap=!flag&&lastTapKey==="background"&&now-lastTapAt<=DOUBLE_TAP_MS;
-      clearClueSelection();if(doubleTap){expandZeroClues();return;}
-      if(!flag){lastTapKey="background";lastTapAt=now;cellInfo.textContent="배경을 빠르게 두 번 누르면 숫자 0인 기물을 확장합니다.";}
+      clearClueSelection();if(doubleTap){expandClues();return;}
+      if(!flag){lastTapKey="background";lastTapAt=now;cellInfo.textContent="배경을 빠르게 두 번 누르면 조건에 맞는 기물의 범위를 엽니다.";}
       if(hadSelection)draw();return;
     }
     if(flag){const hadSelection=selectedClue!==null||selectedClosed!==null;clearClueSelection();toggleFlag(k);if(hadSelection)draw();return;}
@@ -331,7 +333,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       if(data.type==="progress"){message.textContent=`추측 없이 풀 수 있는 보드 생성 중… ${data.attempt}/100`;return;}
       stopGeneration();message.textContent="";
       if(data.type!=="ready"){settingError.textContent="이 설정에서 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";return;}
-      stopZeroExpansion();N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개 · 추측 없이 풀이 가능`;
+      stopExpansion();N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개 · 추측 없이 풀이 가능`;
       mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
       layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
       if(!data.hasSurface)layer.value=String(data.opening[2]);
@@ -373,7 +375,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     $("hintOtherDetails").hidden=!other.length;$("hintOtherDetails").open=false;$("hintExplanation").hidden=false;
   }
   function showHint(){
-    stopZeroExpansion();
+    stopExpansion();
     if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
     clearClueSelection();
@@ -569,11 +571,11 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   canvas.addEventListener("pointerup",e=>finishFlatPointer(e,false));canvas.addEventListener("pointercancel",e=>finishFlatPointer(e,true));canvas.addEventListener("lostpointercapture",e=>finishFlatPointer(e,true));
   for(const board of[canvas,canvas3d])board.addEventListener("contextmenu",e=>e.preventDefault());
   $("start").addEventListener("click",startGame);$("view3d").addEventListener("click",()=>setView("3d"));$("view2d").addEventListener("click",()=>setView("2d"));
-  $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){stopZeroExpansion();resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
+  $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){stopExpansion();resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
   $("helpDialog").addEventListener("click",e=>{const dialog=$("helpDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
   $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
   $("hintButton").addEventListener("click",showHint);
-  flagButton.addEventListener("click",()=>{stopZeroExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
+  flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
   layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{

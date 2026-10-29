@@ -87,31 +87,47 @@ const zeroPage=page(''),zero=setBoard(zeroPage,['2,2,1','2,2,2']);
 zeroPage.window.__game.activate('0,0,0',false);zeroPage.window.__game.activate('0,0,0',false);
 assert.equal([...zero.cells.values()].filter(c=>c.revealed).length,8,'A zero clue must open its entire unflagged range');
 for(const p of [page(''),game]){
-  const s=setBoard(p,['2,2,1','2,2,2']);s.cells.get('1,1,0').flagged=true;
+  const s=setBoard(p,['2,2,1','2,2,2']);s.cells.get('2,2,1').flagged=true;
   const canvas=p.elements.board,event={pointerId:12,button:0,clientX:1,clientY:1};
   function backgroundTap(){canvas.listeners.pointerdown(event);canvas.listeners.pointerup(event);}
   backgroundTap();assert.equal([...s.cells.values()].filter(c=>c.revealed).length,1,'One background tap must not expand');
   p.advance(451);backgroundTap();assert.equal([...s.cells.values()].filter(c=>c.revealed).length,1,'Slow background taps must not expand');
   backgroundTap();assert.equal([...s.cells.values()].filter(c=>c.revealed).length,2,'Expansion must open only one cell at first');
-  for(let i=0;i<150&&!p.elements.cellInfo.textContent.includes('확장 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
-  assert.match(p.elements.cellInfo.textContent,/확장 완료/);assert.equal(s.cells.get('0,0,2').revealed,true,'Quick background taps must recursively expand zero clues across layers');
-  assert.equal(s.cells.get('1,1,0').flagged,true);assert.equal(s.cells.get('1,1,0').revealed,false,'Expansion must leave flagged cells closed');
+  for(let i=0;i<150&&!p.elements.cellInfo.textContent.includes('개방 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
+  assert.match(p.elements.cellInfo.textContent,/개방 완료/);assert.equal(s.cells.get('0,0,2').revealed,true,'Quick background taps must recursively expand zero clues across layers');
+  assert.equal(s.cells.get('2,2,1').flagged,true);assert.equal(s.cells.get('2,2,1').revealed,false,'Expansion must leave flagged cells closed');
   for(const id of s.mines)assert.equal(s.cells.get(id).revealed,false,'Zero expansion must not open a mine');
+  if(p.window.__game.state.ended){p.elements.start.click();for(let i=0;i<100&&p.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));}
 }
-const background3dPage=page(''),background3d=setBoard(background3dPage,['2,2,1','2,2,2']);background3d.cells.get('1,1,0').flagged=true;background3dPage.window.__game.setFind3d(()=>null);
+const background3dPage=page(''),background3d=setBoard(background3dPage,['2,2,1','2,2,2']);background3d.cells.get('2,2,1').flagged=true;background3dPage.window.__game.setFind3d(()=>null);
 const background3dEvent={pointerId:13,button:0,clientX:10,clientY:10};
 for(let i=0;i<2;i++){background3dPage.elements.board3d.listeners.pointerdown(background3dEvent);background3dPage.elements.board3d.listeners.pointerup(background3dEvent);}
-for(let i=0;i<150&&!background3dPage.elements.cellInfo.textContent.includes('확장 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
+for(let i=0;i<150&&!background3dPage.elements.cellInfo.textContent.includes('개방 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
 assert.equal(background3d.cells.get('0,0,2').revealed,true,'Double tapping empty 3D space must expand zero clues');
+if(background3dPage.window.__game.state.ended)background3dPage.elements.start.click();
 const nonzeroPage=page(''),nonzero=setBoard(nonzeroPage,['0,0,1','2,2,2']);nonzeroPage.window.__game.activate(null,false);nonzeroPage.window.__game.activate(null,false);
 assert.equal([...nonzero.cells.values()].filter(c=>c.revealed).length,1,'Hidden zero clues must not be expanded');
 const chainPage=page(''),chain=setBoard(chainPage,['2,2,1','2,2,2']),chainMap=new Map([['0,0,0',['1,0,0']],['1,0,0',['2,0,0']],['2,0,0',['2,2,2']]]);
 chainPage.window.__game.setCluePositions(pos=>(chainMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
 chainPage.window.__game.activate(null,false);chainPage.window.__game.activate(null,false);
 assert.equal(chain.cells.get('1,0,0').revealed,true);assert.equal(chain.cells.get('2,0,0').revealed,false,'The next cell must wait for the animation');
-for(let i=0;i<100&&!chainPage.elements.cellInfo.textContent.includes('확장 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
+for(let i=0;i<100&&!chainPage.elements.cellInfo.textContent.includes('개방 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
 assert.equal(chain.cells.get('1,0,0').revealed,true);assert.equal(chain.cells.get('2,0,0').revealed,true,'New zero clues must continue the chain');
 assert.equal(chain.cells.get('1,1,1').revealed,false,'Expansion must stop beyond a nonzero clue');
+const matchedPage=page(''),matched=setBoard(matchedPage,['0,0,1','2,2,2']);matched.cells.get('0,0,1').flagged=true;
+matchedPage.window.__game.activate(null,false);matchedPage.window.__game.activate(null,false);
+assert.equal(matched.cells.get('0,1,0').revealed,true,'A nonzero clue with the matching flag count must open its unflagged range');
+assert.equal(matched.cells.get('0,0,1').flagged,true);matchedPage.window.__game.activate('2,0,0',true);
+const flaggedChainPage=page(''),flaggedChain=setBoard(flaggedChainPage,['2,2,1','2,2,2']);flaggedChain.cells.get('2,2,2').flagged=true;
+const flaggedChainMap=new Map([['0,0,0',['1,0,0']],['1,0,0',['2,0,0','2,2,2']],['2,0,0',['2,2,1']]]);
+flaggedChainPage.window.__game.setCluePositions(pos=>(flaggedChainMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
+flaggedChainPage.window.__game.activate(null,false);flaggedChainPage.window.__game.activate(null,false);
+for(let i=0;i<100&&!flaggedChainPage.elements.cellInfo.textContent.includes('개방 완료');i++)await new Promise(resolve=>setTimeout(resolve,20));
+assert.equal(flaggedChain.cells.get('2,0,0').revealed,true,'Newly opened nonzero clues with matching flags must also expand');
+assert.equal(flaggedChain.cells.get('2,2,1').revealed,false,'A clue with a mismatched flag count must not expand');
+const badFlagPage=page(''),badFlag=setBoard(badFlagPage,['0,0,1','2,2,2']);badFlag.cells.get('0,1,0').flagged=true;
+badFlagPage.window.__game.activate(null,false);badFlagPage.window.__game.activate(null,false);
+assert.equal(badFlagPage.window.__game.state.ended,true);assert.equal(badFlag.cells.get('0,0,1').revealed,true,'Incorrect flags must cause the same loss as manually opening a clue range');
 const interruptPage=page(''),interrupt=setBoard(interruptPage,['2,2,1','2,2,2']);interruptPage.window.__game.activate(null,false);interruptPage.window.__game.activate(null,false);
 assert.equal([...interrupt.cells.values()].filter(c=>c.revealed).length,2);interruptPage.window.__game.activate('2,1,0',true);
 await new Promise(resolve=>setTimeout(resolve,100));assert.equal([...interrupt.cells.values()].filter(c=>c.revealed).length,2,'A player action must stop the pending expansion');
