@@ -83,7 +83,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     <dt>시점 조작</dt><dd>드래그로 회전하고, 휠이나 두 손가락으로 확대·축소하세요.</dd>
     <dt>층 선택</dt><dd>층별 보기는 스크롤해서 보고, 3D 보기에서는 표시할 층을 고르세요.</dd>
     <dt>추론 힌트</dt><dd>버튼을 누르면 추론할 칸과 관련 단서가 표시됩니다.</dd>
-    <dt>자동 깃발</dt><dd>추론으로 찾은 지뢰에 깃발을 표시합니다. 기존 깃발이 틀리면 결과도 틀릴 수 있습니다.</dd>
+    <dt>자동 깃발</dt><dd>기물의 남은 닫힌 칸 수가 남은 지뢰 수와 같으면 깃발을 표시합니다. 기존 깃발이 틀리면 결과도 틀릴 수 있습니다.</dd>
     <dt>키보드</dt><dd>V: 보기 · F: 깃발 · R: 새 게임 · 방향키: 회전 · + / −: 확대·축소</dd>
   </dl>
 </dialog>
@@ -411,11 +411,16 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     stopExpansion();resetTap();
     if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
     if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
-    clearClueSelection();clearHint();const result=inferMoves();
-    if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
-    if(result.limited){draw();cellInfo.textContent="가능한 배치가 너무 많아 이번 추론을 끝내지 못했습니다.";return;}
-    let count=0;for(const move of result.moves)if(move.mine){const cell=cells.get(move.key);if(cell&&!cell.revealed&&!cell.flagged){cell.flagged=true;count++;}}
-    draw();cellInfo.textContent=count?`자동 깃발: ${count}칸 표시`:'지금 추론한 칸 중 지뢰로 확정된 칸이 없습니다.';
+    clearClueSelection();clearHint();const targets=new Set();
+    for(const [id,cell] of cells)if(cell.revealed&&!mines.has(id)){
+      const range=cluePositions(parse(id),cell.piece).map(p=>key(...p));
+      const closed=range.filter(k=>!cells.get(k).revealed&&!cells.get(k).flagged);
+      const remaining=countMines(parse(id),cell.piece)-range.filter(k=>cells.get(k).flagged).length;
+      if(remaining<0||remaining>closed.length){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
+      if(remaining>0&&remaining===closed.length)for(const k of closed)targets.add(k);
+    }
+    for(const k of targets)cells.get(k).flagged=true;
+    draw();cellInfo.textContent=targets.size?`자동 깃발: ${targets.size}칸 표시`:"남은 칸 수와 남은 지뢰 수가 같은 기물이 없습니다.";
   }
   function setView(v){
     resetTap();
