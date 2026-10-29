@@ -8,7 +8,7 @@ const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search,useDefaults=false){
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
   class Element{
-    constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.open=false;this.textContent='';this.listeners={};this.children=[];this.style={};this.classList={toggle(){},add(){},remove(){}};}
+    constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.open=false;this.textContent='';this.listeners={};this.children=[];this.style={};const classes=new Set();this.classList={toggle(name,on){if(on)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains(name){return classes.has(name);}};}
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
     setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(){} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;}
@@ -27,10 +27,10 @@ function page(search,useDefaults=false){
     postMessage(data){setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
   }
   let tick=0;const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
-  const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:''};
+  const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:'',listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
   const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
-  return{window,elements,advance(ms){tick+=ms;},get workers(){return workers;}};
+  return{window,document,elements,advance(ms){tick+=ms;},get workers(){return workers;}};
 }
 
 const original=page('');
@@ -267,3 +267,23 @@ const subtractPage=page(''),subtractBoard=setBoard(subtractPage,['0,0,1','1,0,1'
 for(const id of ['1,0,0','0,1,0','1,1,0','0,1,1','1,1,1'])subtractBoard.cells.get(id).revealed=true;
 subtractBoard.cells.get('0,0,1').flagged=true;subtractPage.elements.autoFlagButton.click();
 assert.equal(subtractBoard.cells.get('1,0,1').flagged,true,'Existing flags must be subtracted from the clue');
+
+const fullscreenPage=page(''),fullscreenArea=fullscreenPage.elements.gameArea,fullscreenButton=fullscreenPage.elements.fullscreenButton;
+fullscreenButton.click();
+assert.equal(fullscreenArea.classList.contains('expanded'),true,'Unsupported fullscreen should use expanded layout');
+assert.equal(fullscreenButton.textContent,'전체화면 종료');
+fullscreenPage.window.listeners.keydown({key:'Escape',target:{matches:()=>false}});
+assert.equal(fullscreenArea.classList.contains('expanded'),false,'Escape should exit expanded layout');
+assert.equal(fullscreenButton.textContent,'전체화면');
+fullscreenButton.click();fullscreenButton.click();
+assert.equal(fullscreenArea.classList.contains('expanded'),false,'Button should exit expanded layout');
+
+const nativePage=page(''),nativeArea=nativePage.elements.gameArea,nativeButton=nativePage.elements.fullscreenButton;
+nativeArea.requestFullscreen=async()=>{nativePage.document.fullscreenElement=nativeArea;nativePage.document.listeners.fullscreenchange();};
+nativePage.document.exitFullscreen=async()=>{nativePage.document.fullscreenElement=null;nativePage.document.listeners.fullscreenchange();};
+nativeButton.click();
+assert.equal(nativePage.document.fullscreenElement,nativeArea,'Button should enter native fullscreen when available');
+assert.equal(nativeButton.textContent,'전체화면 종료');
+nativeButton.click();
+assert.equal(nativePage.document.fullscreenElement,null,'Button should exit native fullscreen');
+assert.equal(nativeButton.textContent,'전체화면');
