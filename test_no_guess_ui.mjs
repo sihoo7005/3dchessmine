@@ -250,3 +250,19 @@ const targetX=largeLayout.left+2.5*largeLayout.s,targetY=largeLayout.top+(9*10.7
 assert.equal(largeApp.find2d(targetX,targetY),'2,3,9','The final layer must remain selectable');
 largeApp.setInference(()=>({moves:[{key:'2,3,9',mine:false}],conflict:false}));largeApp.showHint();
 assert.match(largePage.elements.cellInfo.textContent,/스크롤/, 'Off-screen hints should explain how to find them');
+
+const autoFlagPage=page(''),autoFlagBoard=setBoard(autoFlagPage,['0,0,1','2,2,2']),autoFlagApp=autoFlagPage.window.__game;
+autoFlagApp.setInference(()=>({moves:[{key:'0,0,1',mine:true},{key:'1,1,0',mine:false}],conflict:false}));
+autoFlagPage.elements.autoFlagButton.click();
+assert.equal(autoFlagBoard.cells.get('0,0,1').flagged,true,'A deduced mine should be flagged');
+assert.equal(autoFlagBoard.cells.get('1,1,0').flagged,false,'A deduced safe cell should stay unflagged');
+assert.match(autoFlagPage.elements.cellInfo.textContent,/1칸/);
+autoFlagBoard.cells.get('0,0,1').flagged=false;
+autoFlagApp.setInference(()=>({moves:[{key:'0,0,1',mine:true}],conflict:true}));autoFlagPage.elements.autoFlagButton.click();
+assert.equal(autoFlagBoard.cells.get('0,0,1').flagged,false,'Conflicting clues must not place flags');
+autoFlagApp.setInference(()=>({moves:[{key:'0,0,1',mine:true}],limited:true}));autoFlagPage.elements.autoFlagButton.click();
+assert.equal(autoFlagBoard.cells.get('0,0,1').flagged,false,'Incomplete inference must not place flags');
+const realAutoFlagPage=page(''),realAutoFlagBoard=setBoard(realAutoFlagPage,['0,0,1','2,2,2']);
+for(const id of ['1,0,0','0,1,0','1,1,0','1,0,1','0,1,1','1,1,1'])realAutoFlagBoard.cells.get(id).revealed=true;
+realAutoFlagPage.elements.autoFlagButton.click();
+assert.equal(realAutoFlagBoard.cells.get('0,0,1').flagged,true,'Actual clue inference should flag the forced mine');

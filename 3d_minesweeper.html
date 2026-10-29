@@ -46,7 +46,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
 </fieldset>
 <div class="toolbar">
   <div class="buttons"><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button></div>
-  <div class="buttons"><button id="hintButton">추론 가능한 칸</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
+  <div class="buttons"><button id="hintButton">추론 가능한 칸</button><button id="autoFlagButton">자동 깃발</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
 </div>
 <div class="camera-controls" id="cameraControls">
   <label>표시할 층 <select id="layer" aria-label="표시할 층"><option value="all">모든 층</option></select></label>
@@ -83,6 +83,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     <dt>시점 조작</dt><dd>드래그로 회전하고, 휠이나 두 손가락으로 확대·축소하세요.</dd>
     <dt>층 선택</dt><dd>층별 보기는 스크롤해서 보고, 3D 보기에서는 표시할 층을 고르세요.</dd>
     <dt>추론 힌트</dt><dd>버튼을 누르면 추론할 칸과 관련 단서가 표시됩니다.</dd>
+    <dt>자동 깃발</dt><dd>추론으로 찾은 지뢰에 깃발을 표시합니다. 기존 깃발이 틀리면 결과도 틀릴 수 있습니다.</dd>
     <dt>키보드</dt><dd>V: 보기 · F: 깃발 · R: 새 게임 · 방향키: 회전 · + / −: 확대·축소</dd>
   </dl>
 </dialog>
@@ -406,6 +407,16 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     explainHint(choice);
     draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(!visibleHint?(view==="3d"?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":" 표시된 좌표를 찾으려면 보드를 스크롤하세요."):"");
   }
+  function autoFlag(){
+    stopExpansion();resetTap();
+    if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
+    if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
+    clearClueSelection();clearHint();const result=inferMoves();
+    if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
+    if(result.limited){draw();cellInfo.textContent="가능한 배치가 너무 많아 이번 추론을 끝내지 못했습니다.";return;}
+    let count=0;for(const move of result.moves)if(move.mine){const cell=cells.get(move.key);if(cell&&!cell.revealed&&!cell.flagged){cell.flagged=true;count++;}}
+    draw();cellInfo.textContent=count?`자동 깃발: ${count}칸 표시`:'지금 추론한 칸 중 지뢰로 확정된 칸이 없습니다.';
+  }
   function setView(v){
     resetTap();
     view=v==="3d"&&gl?"3d":"2d";scroller.hidden=view!=="2d";$("board2dHint").hidden=true;canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
@@ -588,7 +599,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){stopExpansion();resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
   $("helpDialog").addEventListener("click",e=>{const dialog=$("helpDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
   $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
-  $("hintButton").addEventListener("click",showHint);
+  $("hintButton").addEventListener("click",showHint);$("autoFlagButton").addEventListener("click",autoFlag);
   flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
   layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
