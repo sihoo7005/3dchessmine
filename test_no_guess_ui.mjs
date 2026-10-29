@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const html=readFileSync('3d_minesweeper.html','utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,layout2d,showHint,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,layout2d,find2d,showHint,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search,useDefaults=false){
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
@@ -12,7 +12,7 @@ function page(search,useDefaults=false){
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
     setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(){} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;}
-    getContext(kind){return kind==='2d'?ctx2d:null;} getBoundingClientRect(){return{width:800,height:600,left:0,top:0,right:800,bottom:600};}
+    getContext(kind){return kind==='2d'?ctx2d:null;} getBoundingClientRect(){return this.rect||{width:800,height:600,left:0,top:0,right:800,bottom:600};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
   for(const [id,fallback] of [['sizeInput','3'],['mineInput','2']])elements[id].value=useDefaults?html.match(new RegExp(`id="${id}"[^>]*value="([^"]+)"`))[1]:fallback;
@@ -237,3 +237,16 @@ searchApp.setInference(()=>({moves:[searchMove],conflict:false}));searchApp.show
 assert.equal(searchPage.elements.hintEvidence.children.length,2);assert.equal(searchPage.elements.hintOtherEvidence.children.length,2);assert.match(searchPage.elements.hintExplanationSummary.textContent,/다른 공개 단서/);
 assert.equal(searchApp.tileStyle(p1,search.cells.get(p1)).fill,'#364b5d');assert.equal(searchApp.tileStyle(p3,search.cells.get(p3)).fill,'#26374a');
 console.log('Verified both modes, fast double taps, long-press flags, and drag cancellation');
+
+const largePage=page(''),largeApp=largePage.window.__game;
+largePage.elements.board2dScroller.rect={width:390,height:400,left:0,top:0};
+largePage.elements.sizeInput.value='10';largePage.elements.mineInput.value='50';largePage.elements.start.click();
+const largeLayout=largeApp.layout2d();
+assert.ok(largeLayout.s>=36,'Large boards must keep cells at least 36 pixels wide');
+assert.equal(largeLayout.cols,1,'Narrow screens should fit a layer across the viewport when possible');
+assert.ok(parseFloat(largePage.elements.board.style.height)>400,'Large boards must be scrollable');
+assert.equal(largePage.elements.board2dHint.hidden,false);
+const targetX=largeLayout.left+2.5*largeLayout.s,targetY=largeLayout.top+(9*10.72+.42+3.5)*largeLayout.s;
+assert.equal(largeApp.find2d(targetX,targetY),'2,3,9','The final layer must remain selectable');
+largeApp.setInference(()=>({moves:[{key:'2,3,9',mine:false}],conflict:false}));largeApp.showHint();
+assert.match(largePage.elements.cellInfo.textContent,/스크롤/, 'Off-screen hints should explain how to find them');

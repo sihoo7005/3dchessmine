@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>3D 체스 지뢰찾기</title>
 <style>
-*{box-sizing:border-box}body{margin:0;padding:18px;background:#101722;color:#edf3fb;font-family:system-ui,"Malgun Gothic",sans-serif}main{max-width:1100px;margin:auto}header,.toolbar,.status{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{margin:0;font-size:1.4rem}.hint,footer{color:#9eafc3;font-size:.88rem}.toolbar{margin:14px 0 8px}.buttons{display:flex;gap:8px;flex-wrap:wrap}button,input,select{border:1px solid #35465d;border-radius:8px;padding:8px 12px;background:#1b2838;color:#eaf2ff;font:inherit}button{cursor:pointer}button:hover{background:#26384d}button.active{background:#2862a1;border-color:#55a1f3}button.flag.active{background:#815f19;border-color:#e9bd4a}button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid #68c7ff;outline-offset:3px}.settings,.camera-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0;color:#b9c8d9;font-size:.9rem}.settings input{width:82px}.camera-controls label{display:flex;align-items:center;gap:8px}input[type=range]{width:110px;padding:0;accent-color:#68c7ff}.status{min-height:40px;color:#b9c8d9;font-size:.92rem}#message,#settingError{color:#ffd66a;font-weight:700}canvas.board{display:block;width:100%;height:min(68vh,650px);min-height:420px;border:1px solid #2b3a4d;border-radius:14px;background:radial-gradient(ellipse at 50% 40%,#1b2a3c,#111923 75%);touch-action:none}#board3d{cursor:grab}#board3d.dragging{cursor:grabbing}[hidden]{display:none!important}#cellInfo{min-height:24px;margin:8px 0;color:#b9c8d9;font-size:.88rem}footer{margin-top:12px;line-height:1.8}kbd{padding:1px 5px;border:1px solid #526276;border-radius:4px}.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}.legend b{white-space:nowrap}@media(max-width:600px){body{padding:12px}canvas.board{min-height:380px;height:60vh}.settings{gap:8px}.settings input{width:66px}}
+*{box-sizing:border-box}body{margin:0;padding:18px;background:#101722;color:#edf3fb;font-family:system-ui,"Malgun Gothic",sans-serif}main{max-width:1100px;margin:auto}header,.toolbar,.status{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{margin:0;font-size:1.4rem}.hint,footer{color:#9eafc3;font-size:.88rem}.toolbar{margin:14px 0 8px}.buttons{display:flex;gap:8px;flex-wrap:wrap}button,input,select{border:1px solid #35465d;border-radius:8px;padding:8px 12px;background:#1b2838;color:#eaf2ff;font:inherit}button{cursor:pointer}button:hover{background:#26384d}button.active{background:#2862a1;border-color:#55a1f3}button.flag.active{background:#815f19;border-color:#e9bd4a}button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid #68c7ff;outline-offset:3px}.settings,.camera-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0;color:#b9c8d9;font-size:.9rem}.settings input{width:82px}.camera-controls label{display:flex;align-items:center;gap:8px}input[type=range]{width:110px;padding:0;accent-color:#68c7ff}.status{min-height:40px;color:#b9c8d9;font-size:.92rem}#message,#settingError{color:#ffd66a;font-weight:700}canvas.board{display:block;width:100%;height:min(68vh,650px);min-height:420px;border:1px solid #2b3a4d;border-radius:14px;background:radial-gradient(ellipse at 50% 40%,#1b2a3c,#111923 75%);touch-action:none}#board2dScroller{height:min(68vh,650px);min-height:420px;overflow:auto}#board{min-height:0;touch-action:pan-x pan-y}#board3d{cursor:grab}#board3d.dragging{cursor:grabbing}[hidden]{display:none!important}#cellInfo{min-height:24px;margin:8px 0;color:#b9c8d9;font-size:.88rem}footer{margin-top:12px;line-height:1.8}kbd{padding:1px 5px;border:1px solid #526276;border-radius:4px}.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}.legend b{white-space:nowrap}@media(max-width:600px){body{padding:12px}canvas.board{min-height:380px;height:60vh}#board2dScroller{min-height:380px;height:60vh}#board{min-height:0}.settings{gap:8px}.settings input{width:66px}}
 </style>
 <style>fieldset.settings{min-width:0;border:1px solid #35465d;border-radius:8px;padding:10px 12px}fieldset.settings legend{padding:0 6px}#weightSummary{flex-basis:100%}</style>
 <style>
@@ -56,7 +56,8 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
 </div>
 <div class="status"><span id="stats"></span><span id="message" role="status" aria-live="polite"></span></div>
 <canvas id="board3d" class="board" tabindex="0" aria-label="3D 지뢰찾기. 드래그 또는 방향키로 회전, 빠르게 두 번 눌러 칸 열기"></canvas>
-<canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas>
+<div id="board2dHint" class="hint" hidden>층별 보드를 스크롤해서 이동하세요.</div>
+<div id="board2dScroller" hidden><canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas></div>
 <div id="cellInfo" aria-live="polite">칸을 빠르게 두 번 눌러 열기 · 길게 눌러 깃발 표시</div>
 <section id="hintExplanation" hidden style="margin:10px 0;padding:12px;border:1px solid #35465d;border-radius:8px;background:#172333;line-height:1.6" aria-live="polite">
   <strong>추론에 쓸 단서</strong>
@@ -80,7 +81,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     <dt>범위 열기</dt><dd>열린 기물을 빠르게 두 번 누르세요. 깃발 수와 숫자가 같아야 합니다. 깃발이 틀리면 지뢰가 열릴 수 있습니다.</dd>
     <dt>자동 열기</dt><dd>빈 배경을 빠르게 두 번 누르면 깃발 수와 숫자가 같은 기물의 범위를 차례로 엽니다.</dd>
     <dt>시점 조작</dt><dd>드래그로 회전하고, 휠이나 두 손가락으로 확대·축소하세요.</dd>
-    <dt>층 선택</dt><dd>층별 보기로 전환하거나 3D 보기에서 표시할 층을 고르세요.</dd>
+    <dt>층 선택</dt><dd>층별 보기는 스크롤해서 보고, 3D 보기에서는 표시할 층을 고르세요.</dd>
     <dt>추론 힌트</dt><dd>버튼을 누르면 추론할 칸과 관련 단서가 표시됩니다.</dd>
     <dt>키보드</dt><dd>V: 보기 · F: 깃발 · R: 새 게임 · 방향키: 회전 · + / −: 확대·축소</dd>
   </dl>
@@ -94,7 +95,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   "use strict";
   const noGuess=new URLSearchParams(location.search).get("mode")==="no-guess";
   if(noGuess){document.title="추측 없는 3D 체스 지뢰찾기";document.getElementById("gameTitle").textContent="♟ 추측 없는 3D 체스 지뢰찾기";document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
-  let N=4, MINE_COUNT=7, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0;
+  let N=4, MINE_COUNT=7, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0, twoDCols=2;
   let hintClues=new Set();
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
   let successTimer=null,expansionTimer=null;
@@ -102,7 +103,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
   const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
   const $=id=>document.getElementById(id);
-  const canvas=$("board"),canvas3d=$("board3d"),ctx=canvas.getContext("2d"),stats=$("stats"),message=$("message");
+  const canvas=$("board"),canvas3d=$("board3d"),scroller=$("board2dScroller"),ctx=canvas.getContext("2d"),stats=$("stats"),message=$("message");
   const sizeInput=$("sizeInput"),mineInput=$("mineInput"),settingError=$("settingError"),boardInfo=$("boardInfo"),flagButton=$("flagMode"),layer=$("layer"),spacing=$("spacing"),cellInfo=$("cellInfo");
   const key=(x,y,z)=>`${x},${y},${z}`,parse=k=>k.split(",").map(Number);
   function allPositions(size=N){const a=[];for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++)a.push([x,y,z]);return a;}
@@ -145,7 +146,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     cells.get(openingKey).piece=opening.piece;
     layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
     if(!surface.length)layer.value=String(opening.pos[2]);
-    ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(openingKey);if(view==="2d")resize();cellInfo.textContent="시작 칸: "+cellInfo.textContent;
   }
   function cluePositions([x,y,z],piece,size=N){
     const out=[];
@@ -337,7 +338,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
       layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
       if(!data.hasSurface)layer.value=String(data.opening[2]);
-      hideSuccess();ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+      hideSuccess();ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();reveal(data.openingKey);if(view==="2d")resize();cellInfo.textContent="시작 칸: "+cellInfo.textContent;
     };
     generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="보드 생성 중 오류가 발생했습니다. 다시 시도하세요.";};
     generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";},45000);
@@ -396,14 +397,18 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
         const x=width/2+dot(offset,right)*scale/depth,y=height/2-dot(offset,up)*scale/depth;
         return x>=0&&x<width&&y>=0&&y<height&&find3d(x,y)===k;
       });
+    }else{
+      const {cols,s,left,top}=layout2d(),r=scroller.getBoundingClientRect(),scrollX=scroller.scrollLeft||0,scrollY=scroller.scrollTop||0;
+      visibleHint=choices.find(({key})=>{const [x,y,z]=parse(key),cx=left+(z%cols)*(N+.58)*s+(x+.5)*s,cy=top+Math.floor(z/cols)*(N+.72)*s+(.42+y+.5)*s;
+        return cx>=scrollX&&cx<scrollX+(scroller.clientWidth||r.width)&&cy>=scrollY&&cy<scrollY+(scroller.clientHeight||r.height);});
     }
     const choice=visibleHint||choices[0];hintKey=choice.key;
     explainHint(choice);
-    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(view==="3d"&&!visibleHint?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":"");
+    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(!visibleHint?(view==="3d"?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":" 표시된 좌표를 찾으려면 보드를 스크롤하세요."):"");
   }
   function setView(v){
     resetTap();
-    view=v==="3d"&&gl?"3d":"2d";canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
+    view=v==="3d"&&gl?"3d":"2d";scroller.hidden=view!=="2d";$("board2dHint").hidden=true;canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
     for(const mode of ["3d","2d"]){$("view"+mode).classList.toggle("active",mode===view);$("view"+mode).setAttribute("aria-pressed",String(mode===view));}resize();
   }
   function tileStyle(k,c){
@@ -418,7 +423,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     if(lines.length===2){context.font=`700 ${size*.31}px system-ui`;context.fillText(lines[1],cx,cy+size*.27);}
   }
   function layout2d(){
-    const cols=width<600?2:3,rows=Math.ceil(N/cols),gap=.58,label=.42;
+    const cols=twoDCols,rows=Math.ceil(N/cols),gap=.58,label=.42;
     const s=Math.min((width-24)/(cols*N+(cols-1)*gap),(height-24)/(rows*(N+label)+(rows-1)*.3),58);
     return{cols,s,left:(width-(cols*N+(cols-1)*gap)*s)/2,top:(height-(rows*(N+label)+(rows-1)*.3)*s)/2};
   }
@@ -509,7 +514,16 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     if(view==="3d"){build3d();render3d();}else if(width&&height)draw2d();
   }
   function resize(){
-    const active=view==="3d"?canvas3d:canvas,r=active.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);width=r.width;height=r.height;
+    const active=view==="3d"?canvas3d:canvas,d=Math.min(window.devicePixelRatio||1,2);
+    if(view==="2d"){
+      const r=scroller.getBoundingClientRect(),w=scroller.clientWidth||r.width,h=scroller.clientHeight||r.height,min=36;
+      twoDCols=Math.min(w<600?2:3,Math.max(1,Math.floor(((w-24)/min+.58)/(N+.58))));
+      const rows=Math.ceil(N/twoDCols);
+      width=Math.max(w,Math.ceil(24+(twoDCols*N+(twoDCols-1)*.58)*min));
+      height=Math.max(h,Math.ceil(24+(rows*(N+.42)+(rows-1)*.3)*min));
+      canvas.style.width=width+"px";canvas.style.height=height+"px";
+      $("board2dHint").hidden=width<=w&&height<=h;
+    }else{const r=active.getBoundingClientRect();width=r.width;height=r.height;}
     active.width=Math.round(width*d);active.height=Math.round(height*d);if(view==="2d")ctx.setTransform(d,0,0,d,0,0);draw();
   }
   function find2d(px,py){const{cols,s,left,top}=layout2d();for(let z=0;z<N;z++){const bx=left+(z%cols)*(N+.58)*s,by=top+Math.floor(z/cols)*(N+.42+.3)*s+.42*s,x=Math.floor((px-bx)/s),y=Math.floor((py-by)/s);if(x>=0&&x<N&&y>=0&&y<N)return key(x,y,z);}return null;}
