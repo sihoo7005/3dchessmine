@@ -35,8 +35,8 @@ function page(search,useDefaults=false){
 
 const original=page('');
 assert.equal(original.workers,0);assert.equal(original.window.__game.state.cells.size,27);
-const defaultPage=page('',true);assert.equal(defaultPage.window.__game.state.cells.size,64);assert.equal(defaultPage.window.__game.state.mines.size,7);
-assert.equal(original.elements.weightK.value,'10');for(const piece of ['R','B','Q','N'])assert.equal(original.elements['weight'+piece].value,'1');
+const defaultPage=page('',true);assert.equal(defaultPage.window.__game.state.cells.size,216);assert.equal(defaultPage.window.__game.state.mines.size,35);
+assert.equal(original.elements.weightK.value,'7');for(const piece of ['R','B','Q','N'])assert.equal(original.elements['weight'+piece].value,'1');
 const boardBeforeHelp=original.window.__game.state.cells;original.elements.helpButton.click();assert.equal(original.elements.helpDialog.open,true,'Help must open as a dialog');
 original.window.listeners.keydown({key:'r',target:{matches:()=>false}});assert.equal(original.window.__game.state.cells,boardBeforeHelp,'Game shortcuts must not run while help is open');
 original.elements.helpDialog.listeners.click({target:original.elements.helpDialog,clientX:400,clientY:300});assert.equal(original.elements.helpDialog.open,true,'Clicking inside the dialog must keep it open');
@@ -48,7 +48,7 @@ for(let i=0;i<100&&game.elements.start.disabled;i++)await new Promise(resolve=>s
 assert.equal(game.elements.start.disabled,false);assert.match(game.elements.boardInfo.textContent,/추측 없이/);
 game.elements.helpButton.click();assert.equal(game.elements.helpDialog.open,true);game.elements.helpClose.click();assert.equal(game.elements.helpDialog.open,false);
 const defaultNoGuess=page('?mode=no-guess',true);for(let i=0;i<100&&defaultNoGuess.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
-assert.equal(defaultNoGuess.window.__game.state.cells.size,64);assert.equal(defaultNoGuess.window.__game.state.mines.size,7);
+assert.equal(defaultNoGuess.window.__game.state.cells.size,216);assert.equal(defaultNoGuess.window.__game.state.mines.size,35);
 const state=game.window.__game.state,opened=[...state.cells].filter(([,cell])=>cell.revealed);
 assert.equal(state.cells.size,27);assert.equal(opened.length,1);assert.equal(state.mines.size,2);
 assert.equal(game.window.__game.countMines(opened[0][0].split(',').map(Number),opened[0][1].piece),0);
