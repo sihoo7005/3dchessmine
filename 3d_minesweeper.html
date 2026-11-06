@@ -541,8 +541,9 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   function resize(){
     const active=view==="3d"?canvas3d:canvas,d=Math.min(window.devicePixelRatio||1,2);
     if(view==="2d"){
-      const r=scroller.getBoundingClientRect(),w=scroller.clientWidth||r.width,h=scroller.clientHeight||r.height,min=36;
-      twoDCols=Math.min(w<600?2:3,Math.max(1,Math.floor(((w-24)/min+.58)/(N+.58))));
+      const r=scroller.getBoundingClientRect(),w=scroller.clientWidth||r.width,h=scroller.clientHeight||r.height;
+      const mobile=w<600,min=mobile?Math.max(24,Math.min(36,(w-24)/(2*N+.58))):36;
+      twoDCols=mobile?2:Math.min(3,Math.max(1,Math.floor(((w-24)/min+.58)/(N+.58))));
       const rows=Math.ceil(N/twoDCols);
       width=Math.max(w,Math.ceil(24+(twoDCols*N+(twoDCols-1)*.58)*min));
       height=Math.max(h,Math.ceil(24+(rows*(N+.42)+(rows-1)*.3)*min));
