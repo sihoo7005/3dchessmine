@@ -308,7 +308,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     if(!compatible(prefix.at(-1),new Set([0]),remainingMines))return{moves:[],conflict:true};
     const moves=[];
     for(let i=0;i<solved.length;i++){const c=solved[i],otherCounts=new Set();for(const a of prefix[i])for(const b of suffix[i+1])otherCounts.add(a+b);for(let j=0;j<c.ids.length;j++){let safe=false,mine=false;for(const total of c.counts){if(!compatible(new Set([total]),otherCounts,remainingMines))continue;const mask=c.possible[total][j];safe||=!!(mask&1);mine||=!!(mask&2);}if(safe!==mine)moves.push({key:c.ids[j],mine,method:"search"});}}
-    if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine,method:"search"})));}
+    if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines,free.length-1),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine,method:"search"})));}
     return{moves,conflict:false};
   }
   // ponytail: retries and time are bounded; use a constructive generator if difficult settings need better coverage.

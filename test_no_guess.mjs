@@ -13,6 +13,23 @@ const source=`let N,MINE_COUNT,cells,mines,ended;
 let answer;
 const context=vm.createContext({postMessage:message=>{if(message.type!=='progress')answer=message;}});
 vm.runInContext(source,context);
+// With no clue-connected cells, the total mine count alone can decide each cell.
+for(const [mineCount,expected] of [[0,false],[1,null],[2,true]]){
+  const ids=['0,0,0','2,2,2'],mineSet=new Set(ids.slice(0,mineCount));
+  const board=new Map(ids.map(id=>[id,{piece:'K',revealed:false,flagged:false}]));
+  const result=context.solveBoard(3,mineCount,board,mineSet);
+  assert.equal(result.conflict,false);
+  assert.equal(result.moves.length,expected===null?0:2);
+  for(const move of result.moves)assert.equal(move.mine,expected,'Free cells must respect the remaining mine count');
+}
+const originalCluePositions=context.cluePositions;
+context.cluePositions=()=>[[1,0,0],[0,1,0]];
+const frontierIds=['1,0,0','0,1,0'],freeIds=['2,2,1','2,2,2'];
+const mixedBoard=new Map([['0,0,0',{piece:'K',revealed:true,flagged:false}],...frontierIds.concat(freeIds).map(id=>[id,{piece:'K',revealed:false,flagged:false}])]);
+const mixedResult=context.solveBoard(3,3,mixedBoard,new Set([frontierIds[0],...freeIds]));
+assert.deepEqual([...mixedResult.moves].map(move=>move.key).sort(),freeIds.sort());
+assert.ok([...mixedResult.moves].every(move=>move.mine),'Free cells must be mines when the frontier uses the other mine');
+context.cluePositions=originalCluePositions;
 const useDefaults=process.argv.includes('--default');
 const inputValue=id=>Number(html.match(new RegExp(`id="${id}"[^>]*value="([^"]+)"`))[1]);
 const size=useDefaults?inputValue('sizeInput'):3,count=useDefaults?inputValue('mineInput'):2;
