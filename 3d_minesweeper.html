@@ -465,6 +465,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   }
   // WebGL renders real cube geometry with perspective and a depth buffer.
   let gl=null,program,buffer,texture,vertexCount=0,visibleCells=[],yaw=.72,pitch=.48,distance=20;
+  let geometryKey=null,atlas,atlasContext,tileCanvas,tileContext,tileCols,tileStyles=[];
   const HALF=.43,FOV=Math.PI/4;
   const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
   const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
@@ -497,25 +498,44 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   }
   function center([x,y,z]){const s=Number(spacing.value),mid=(N-1)/2;return[(x-mid)*s,(z-mid)*s,(y-mid)*s];}
   function build3d(){
-    if(!gl)return;visibleCells=allPositions().filter(p=>layer.value==="all"||p[2]===Number(layer.value)).map(p=>({key:key(...p),center:center(p)}));
-    const tile=64,cols=Math.ceil(Math.sqrt(visibleCells.length)),atlas=document.createElement("canvas");
-    atlas.width=atlas.height=2**Math.ceil(Math.log2(cols*tile));const context=atlas.getContext("2d"),vertices=[];
-    const faces=[
-      [[0,0,1],[[-1,1,1],[1,1,1],[1,-1,1],[-1,-1,1]]],
-      [[0,0,-1],[[1,1,-1],[-1,1,-1],[-1,-1,-1],[1,-1,-1]]],
-      [[1,0,0],[[1,1,1],[1,1,-1],[1,-1,-1],[1,-1,1]]],
-      [[-1,0,0],[[-1,1,-1],[-1,1,1],[-1,-1,1],[-1,-1,-1]]],
-      [[0,1,0],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]]],
-      [[0,-1,0],[[-1,-1,1],[1,-1,1],[1,-1,-1],[-1,-1,-1]]]
-    ];
+    if(!gl)return;
+    const nextKey=`${N}|${layer.value}|${spacing.value}`,tile=64;
+    if(geometryKey!==nextKey){
+      visibleCells=allPositions().filter(p=>layer.value==="all"||p[2]===Number(layer.value)).map(p=>({key:key(...p),center:center(p)}));
+      tileCols=Math.ceil(Math.sqrt(visibleCells.length));atlas=document.createElement("canvas");
+      atlas.width=atlas.height=2**Math.ceil(Math.log2(tileCols*tile));atlasContext=atlas.getContext("2d");
+      tileCanvas=document.createElement("canvas");tileCanvas.width=tileCanvas.height=tile;tileContext=tileCanvas.getContext("2d");tileStyles=[];
+      const vertices=[],faces=[
+        [[0,0,1],[[-1,1,1],[1,1,1],[1,-1,1],[-1,-1,1]]],
+        [[0,0,-1],[[1,1,-1],[-1,1,-1],[-1,-1,-1],[1,-1,-1]]],
+        [[1,0,0],[[1,1,1],[1,1,-1],[1,-1,-1],[1,-1,1]]],
+        [[-1,0,0],[[-1,1,-1],[-1,1,1],[-1,-1,1],[-1,-1,-1]]],
+        [[0,1,0],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]]],
+        [[0,-1,0],[[-1,-1,1],[1,-1,1],[1,-1,-1],[-1,-1,-1]]]
+      ];
+      visibleCells.forEach((cell,index)=>{
+        const tx=(index%tileCols)*tile,ty=Math.floor(index/tileCols)*tile;
+        const uv=[[tx+.5,ty+.5],[tx+tile-.5,ty+.5],[tx+tile-.5,ty+tile-.5],[tx+.5,ty+tile-.5]];
+        for(const[normal,corners]of faces)for(const i of[0,3,2,0,2,1])vertices.push(...corners[i].map((v,axis)=>cell.center[axis]+v*HALF),...normal,uv[i][0]/atlas.width,uv[i][1]/atlas.height);
+      });
+      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);vertexCount=vertices.length/8;
+      geometryKey=nextKey;
+    }
+    const changed=[];
     visibleCells.forEach((cell,index)=>{
-      const tx=(index%cols)*tile,ty=Math.floor(index/cols)*tile,style=tileStyle(cell.key,cells.get(cell.key));
-      context.fillStyle="#172333";context.fillRect(tx,ty,tile,tile);context.fillStyle=style.fill;context.fillRect(tx+2,ty+2,tile-4,tile-4);paintLabel(context,style,tx+tile/2,ty+tile/2,tile);
-      const uv=[[tx+.5,ty+.5],[tx+tile-.5,ty+.5],[tx+tile-.5,ty+tile-.5],[tx+.5,ty+tile-.5]];
-      for(const[normal,corners]of faces)for(const i of[0,3,2,0,2,1])vertices.push(...corners[i].map((v,axis)=>cell.center[axis]+v*HALF),...normal,uv[i][0]/atlas.width,uv[i][1]/atlas.height);
+      const style=tileStyle(cell.key,cells.get(cell.key)),signature=JSON.stringify([style.fill,style.text,style.color]);
+      if(tileStyles[index]!==signature){tileStyles[index]=signature;changed.push({index,style});}
     });
-    gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);
-    gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);vertexCount=vertices.length/8;
+    if(!changed.length)return;
+    const fullUpload=changed.length>32||changed.length===visibleCells.length;
+    gl.bindTexture(gl.TEXTURE_2D,texture);
+    for(const {index,style} of changed){
+      const tx=(index%tileCols)*tile,ty=Math.floor(index/tileCols)*tile;
+      tileContext.fillStyle="#172333";tileContext.fillRect(0,0,tile,tile);tileContext.fillStyle=style.fill;tileContext.fillRect(2,2,tile-4,tile-4);paintLabel(tileContext,style,tile/2,tile/2,tile);
+      atlasContext.drawImage(tileCanvas,tx,ty);
+      if(!fullUpload)gl.texSubImage2D(gl.TEXTURE_2D,0,tx,ty,gl.RGBA,gl.UNSIGNED_BYTE,tileCanvas);
+    }
+    if(fullUpload)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);
   }
   function cameraBasis(){const eye=[distance*Math.cos(pitch)*Math.sin(yaw),distance*Math.sin(pitch),distance*Math.cos(pitch)*Math.cos(yaw)],forward=normalize(eye.map(v=>-v)),right=normalize(cross(forward,[0,1,0])),up=cross(right,forward);return{eye,forward,right,up};}
   function render3d(){

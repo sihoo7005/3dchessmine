@@ -3,16 +3,18 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const html=readFileSync('3d_minesweeper.html','utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,layout2d,find2d,showHint,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,layout2d,find2d,showHint,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
-function page(search,useDefaults=false){
+function page(search,useDefaults=false,webgl=false){
+  const glCalls={bufferData:0,texImage2D:0,texSubImage2D:0};
+  const gl=new Proxy({}, {get(target,key){if(key==='getShaderParameter'||key==='getProgramParameter')return ()=>true;if(key in glCalls)return (...args)=>{glCalls[key]++;};if(typeof key==='string'&&key.toUpperCase()===key)return 1;return ()=>({});}});
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
   class Element{
     constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.open=false;this.textContent='';this.listeners={};this.children=[];this.style={};const classes=new Set();this.classList={toggle(name,on){if(on)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains(name){return classes.has(name);}};}
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
     setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(){} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;}
-    getContext(kind){return kind==='2d'?ctx2d:null;} getBoundingClientRect(){return this.rect||{width:800,height:600,left:0,top:0,right:800,bottom:600};}
+    getContext(kind){return kind==='2d'?ctx2d:kind==='webgl'&&webgl?gl:null;} getBoundingClientRect(){return this.rect||{width:800,height:600,left:0,top:0,right:800,bottom:600};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
   for(const [id,fallback] of [['sizeInput','3'],['mineInput','2']])elements[id].value=useDefaults?html.match(new RegExp(`id="${id}"[^>]*value="([^"]+)"`))[1]:fallback;
@@ -30,7 +32,7 @@ function page(search,useDefaults=false){
   const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:'',listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
   const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
-  return{window,document,elements,advance(ms){tick+=ms;},get workers(){return workers;}};
+  return{window,document,elements,glCalls,advance(ms){tick+=ms;},get workers(){return workers;}};
 }
 
 const original=page('');
@@ -287,3 +289,27 @@ assert.equal(nativeButton.textContent,'전체화면 종료');
 nativeButton.click();
 assert.equal(nativePage.document.fullscreenElement,null,'Button should exit native fullscreen');
 assert.equal(nativeButton.textContent,'전체화면');
+
+const renderPage=page('',false,true),renderApp=renderPage.window.__game,renderCalls=renderPage.glCalls;
+const geometryUploads=renderCalls.bufferData,textureUploads=renderCalls.texImage2D,partialUploads=renderCalls.texSubImage2D;
+renderApp.draw();
+assert.equal(renderCalls.bufferData,geometryUploads,'An unchanged board must reuse geometry');
+assert.equal(renderCalls.texImage2D,textureUploads,'An unchanged board must reuse its texture');
+assert.equal(renderCalls.texSubImage2D,partialUploads,'An unchanged board must not upload tile images');
+const closedId=[...renderApp.state.cells].find(([,c])=>!c.revealed)[0];
+renderApp.toggleFlag(closedId);
+assert.equal(renderCalls.bufferData,geometryUploads,'Flagging must reuse geometry');
+assert.equal(renderCalls.texImage2D,textureUploads,'Flagging must not upload the whole texture');
+assert.equal(renderCalls.texSubImage2D,partialUploads+1,'Flagging must upload only the changed tile');
+renderPage.elements.spacing.value='1.5';renderPage.elements.spacing.listeners.input();
+assert.equal(renderCalls.bufferData,geometryUploads+1,'Changing spacing must rebuild geometry');
+renderPage.elements.layer.value='0';renderPage.elements.layer.listeners.change();
+assert.equal(renderCalls.bufferData,geometryUploads+2,'Changing layers must rebuild geometry');
+const uploadsAfterLayout=renderCalls.bufferData;
+renderApp.setView('2d');
+const anotherClosed=[...renderApp.state.cells].find(([id,c])=>!c.revealed&&!c.flagged&&!renderApp.state.mines.has(id))[0];
+renderApp.toggleFlag(anotherClosed);
+const beforeReturnPartial=renderCalls.texSubImage2D;
+renderApp.setView('3d');
+assert.equal(renderCalls.bufferData,uploadsAfterLayout,'Returning from 2D must reuse unchanged 3D geometry');
+assert.equal(renderCalls.texSubImage2D,beforeReturnPartial+1,'Returning from 2D must update changed visible tiles');
