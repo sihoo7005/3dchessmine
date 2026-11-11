@@ -101,7 +101,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     <dt>층 선택</dt><dd>층별 보기는 스크롤해서 보고, 3D 보기에서는 표시할 층을 고르세요.</dd>
     <dt>추론 힌트</dt><dd>버튼을 누르면 추론할 칸과 관련 단서가 표시됩니다.</dd>
     <dt>자동 깃발</dt><dd>기물의 남은 닫힌 칸 수가 남은 지뢰 수와 같으면 깃발을 표시합니다. 기존 깃발이 틀리면 결과도 틀릴 수 있습니다.</dd>
-    <dt id="groupHelp" hidden>컬러 묶음</dt><dd id="groupHelpText" hidden>묶음 만들기를 누르고 닫힌 칸을 선택한 뒤 지뢰 수를 입력해 저장하세요. 모든 묶음이 표시되며 깃발과 열린 칸에 따라 숫자가 바뀝니다.</dd>
+    <dt id="groupHelp" hidden>컬러 묶음</dt><dd id="groupHelpText" hidden>묶음 만들기에서 열린 기물의 범위를 확인하고 닫힌 칸을 선택한 뒤 지뢰 수를 입력해 저장하세요. 모든 묶음이 표시되며 깃발과 열린 칸에 따라 숫자가 바뀝니다.</dd>
     <dt>키보드</dt><dd>V: 보기 · F: 깃발 · R: 새 게임 · 방향키: 회전 · + / −: 확대·축소</dd>
   </dl>
 </dialog>
@@ -204,7 +204,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   function clearClueSelection(){selectedClue=null;selectedClosed=null;clueRange.clear();resetTap();}
   function selectClue(k,c){
     selectedClue=k;clueRange=new Set(cluePositions(parse(k),c.piece).map(p=>key(...p)));draw();showCellInfo(k);
-    cellInfo.textContent+=" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
+    cellInfo.textContent+=editingGroup?" · 범위 표시 중. 닫힌 칸을 눌러 묶음에 추가하세요.":" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
   }
   function stopExpansion(){if(expansionTimer!==null){clearTimeout(expansionTimer);expansionTimer=null;if(cellInfo.textContent.startsWith("자동 개방 중"))cellInfo.textContent="자동 개방을 중단했습니다.";}}
   function expandClues(){
@@ -233,7 +233,8 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     stopExpansion();
     const c=cells.get(k);
     if(colorMode&&editingGroup){
-      if(c&&!c.revealed&&!c.flagged&&!flag){if(groupDraft.has(k))groupDraft.delete(k);else groupDraft.add(k);updateGroups();draw();}
+      if(c&&c.revealed&&!flag)selectClue(k,c);
+      else if(c&&!c.revealed&&!c.flagged&&!flag){if(groupDraft.has(k))groupDraft.delete(k);else groupDraft.add(k);updateGroups();draw();}
       else if(c)$("groupStatus").textContent="깃발이 없는 닫힌 칸을 선택하세요.";
       return;
     }
@@ -467,8 +468,8 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       context.font=`600 ${size*(lines.length===2?.49:.55)}px "DejaVu Sans","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif`;
       context.fillText(lines[0],cx,cy+(lines.length===2?-size*.15:0));
       if(lines.length===2){context.font=`700 ${size*.31}px system-ui`;context.fillText(lines[1],cx,cy+size*.27);}}
-    if(s.badges?.length){const fontSize=size*Math.min(.22,.82/s.badges.length);context.font=`700 ${fontSize}px system-ui`;context.textAlign="right";context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
-      s.badges.forEach((badge,i)=>{const x=cx+size*.43,y=cy+size*.43-i*fontSize;context.strokeText(badge.text,x,y,size*.86);context.fillStyle=badge.color;context.fillText(badge.text,x,y,size*.86);});}
+    if(s.badges?.length){const twoColumns=s.badges.length>=3,rows=twoColumns?Math.ceil(s.badges.length/2):s.badges.length,fontSize=size*Math.min(.22,.82/rows);context.font=`700 ${fontSize}px system-ui`;context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
+      s.badges.forEach((badge,i)=>{const left=twoColumns&&i%2===1,x=cx+size*(left?-.43:.43),y=cy+size*.43-(twoColumns?Math.floor(i/2):i)*fontSize,maxWidth=size*(twoColumns?.43:.86);context.textAlign=left?"left":"right";context.strokeText(badge.text,x,y,maxWidth);context.fillStyle=badge.color;context.fillText(badge.text,x,y,maxWidth);});}
   }
   function layout2d(){
     const cols=twoDCols,rows=Math.ceil(N/cols),gap=.58,label=.42;

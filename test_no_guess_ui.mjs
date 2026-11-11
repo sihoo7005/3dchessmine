@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const html=readFileSync('3d_minesweeper.html','utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,layout2d,find2d,showHint,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,paintLabel,layout2d,find2d,showHint,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search,useDefaults=false,webgl=false){
   const glCalls={bufferData:0,texImage2D:0,texSubImage2D:0};
@@ -370,3 +370,22 @@ const groupTap={pointerId:17,button:0,clientX:gLayout.left+(gz%gLayout.cols)*(3+
 colorPage.elements.board.listeners.pointerdown(groupTap);colorPage.elements.board.listeners.pointerup(groupTap);
 assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택','Selection must work even while flag mode is enabled');
 assert.equal(colorApp.state.cells.get(pointerId).flagged,false,'Selection must not place a flag');
+
+const shownClue=[...colorApp.state.cells].find(([,cell])=>cell.revealed)[0];
+colorApp.activate(shownClue,false);
+assert.equal(colorApp.state.selectedClue,shownClue,'An open piece must show its range while editing a group');
+assert.ok(colorApp.state.clueRange.size>0);
+assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택','Showing a range must preserve the draft group');
+const rangeCell=[...colorApp.state.clueRange].find(id=>!colorApp.state.cells.get(id).revealed&&!colorApp.state.cells.get(id).flagged);
+if(rangeCell)assert.equal(colorApp.tileStyle(rangeCell,colorApp.state.cells.get(rangeCell)).fill,'#438c80','The clue range must be green while editing');
+colorApp.activate(shownClue,false);
+assert.equal(colorApp.state.selectedClue,shownClue,'A second tap in group mode must not auto-open cells');
+const painted=[];const paintContext={strokeText(){},fillText(text,x,y,maxWidth){painted.push({text,x,y,maxWidth,font:this.font,align:this.textAlign});}};
+colorApp.paintLabel(paintContext,{badges:[{text:'1/2',color:'red'},{text:'1/3',color:'blue'},{text:'2/5',color:'green'}]},50,50,100);
+assert.equal(painted.length,3);assert.ok(painted.some(b=>b.align==='left'&&b.x<50));assert.ok(painted.some(b=>b.align==='right'&&b.x>50));
+assert.equal(painted[0].font,'700 22px system-ui','Three badges must use two rows instead of shrinking to three');
+const color3dClue=[...color3dState.cells].find(([,cell])=>cell.revealed)[0];
+const beforeRangeOpen=[...color3dState.cells.values()].filter(cell=>cell.revealed).length;
+color3dApp.activate(color3dClue,false);color3dApp.activate(color3dClue,false);
+assert.equal(color3dApp.state.selectedClue,color3dClue,'3D group editing must show the piece range');
+assert.equal([...color3dState.cells.values()].filter(cell=>cell.revealed).length,beforeRangeOpen,'Repeated taps must not open the range during group editing');
