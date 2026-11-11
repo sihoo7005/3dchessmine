@@ -114,7 +114,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   if(colorMode){document.title="추측 없는 3D 체스 지뢰찾기 · 컬러 묶음";document.getElementById("gameTitle").textContent="♟ 추측 없는 게임 · 컬러 묶음";for(const id of ["groupPanel","groupHelp","groupHelpText"])document.getElementById(id).hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0, twoDCols=2;
   let hintClues=new Set();
-  let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0;
+  let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="";
   const groupColors=[["노랑","#ffd166"],["청록","#81e6d9"],["분홍","#ff9bbd"],["보라","#c3adff"],["연두","#b4ef8a"],["주황","#ffb77c"]];
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
   let successTimer=null,expansionTimer=null,clockTimer=null,gameStartedAt=0;
@@ -470,8 +470,14 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       context.font=`600 ${size*(lines.length===2?.49:.55)}px "DejaVu Sans","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif`;
       context.fillText(lines[0],cx,cy+(lines.length===2?-size*.15:0));
       if(lines.length===2){context.font=`700 ${size*.31}px system-ui`;context.fillText(lines[1],cx,cy+size*.27);}}
-    if(s.badges?.length){const count=s.badgeCount??s.badges.length,twoColumns=count>=3,rows=twoColumns?Math.ceil(count/2):count,fontSize=size*Math.min(.22,.82/rows);context.font=`700 ${fontSize}px system-ui`;context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
-      s.badges.forEach((badge,index)=>{const i=badge.slot??index,left=twoColumns&&i%2===1,x=cx+size*(left?-.43:.43),y=cy+size*.43-(twoColumns?Math.floor(i/2):i)*fontSize,maxWidth=size*(twoColumns?.43:.86);context.textAlign=left?"left":"right";context.strokeText(badge.text,x,y,maxWidth);context.fillStyle=badge.color;context.fillText(badge.text,x,y,maxWidth);});}
+    if(s.badges?.length){
+      const count=s.badgeCount??s.badges.length,twoColumns=count>=3,rows=twoColumns?Math.ceil(count/2):count,step=Math.min(.22,.82/rows);
+      const entries=s.badges.map((badge,index)=>{const i=badge.slot??index;return{badge,left:twoColumns&&i%2===1,row:twoColumns?Math.floor(i/2):i};});
+      let fontScale=.22;
+      for(let i=0;i<entries.length;i++){const a=entries[i];fontScale=Math.min(fontScale,.86-a.row*step);for(let j=0;j<i;j++)if(entries[j].left===a.left)fontScale=Math.min(fontScale,Math.abs(a.row-entries[j].row)*step);}
+      context.font=`700 ${size*fontScale}px system-ui`;context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
+      for(const {badge,left,row} of entries){const x=cx+size*(left?-.43:.43),y=cy+size*(.43-row*step),maxWidth=size*(entries.some(other=>other.row===row&&other.left!==left)?.43:.86);context.textAlign=left?"left":"right";context.strokeText(badge.text,x,y,maxWidth);context.fillStyle=badge.color;context.fillText(badge.text,x,y,maxWidth);}
+    }
   }
   function layout2d(){
     const cols=twoDCols,rows=Math.ceil(N/cols),gap=.58,label=.42;
@@ -680,14 +686,16 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       group.remaining=group.mines-flags;group.closed=closed;group.invalid=group.remaining<0||group.remaining>closed;
     }
     visibleGroupCount=0;for(const group of groups)if(group.remaining!==0||group.invalid)group.slot=visibleGroupCount++;
+    if(JSON.stringify(groupLabels())!==groupOptionsKey)refreshGroupOptions();
     $("groupEdit").textContent=editingGroup?"선택 중":"묶음 만들기";$("groupEdit").setAttribute("aria-pressed",String(editingGroup));
     for(const id of ["groupDraft","groupCountLabel","groupSave","groupCancel"])$(id).hidden=!editingGroup;
     $("groupDraft").textContent=`칸 ${groupDraft.size}개 선택`;$("groupMineCount").max=groupDraft.size;
     const group=groups[activeGroup];$("groupDelete").disabled=!group||editingGroup;
     $("groupStatus").textContent=editingGroup?"닫힌 칸을 눌러 선택하세요.":groups.some(g=>g.invalid)?"깃발이나 열린 칸이 묶음과 맞지 않습니다. 기록을 확인하세요.":groups.length?"깃발은 지뢰로 계산합니다. 단서가 바뀌면 묶음을 확인하세요.":"";
   }
+  function groupLabels(){return groups.map((group,i)=>`묶음 ${i+1} · ${group.colorName} · ${group.remaining??group.mines}/${group.closed??group.ids.size}${group.invalid?" · 확인 필요":group.remaining===0?" · 숨김":""}`);}
   function refreshGroupOptions(){
-    const select=$("groupSelect");select.replaceChildren(new Option("없음",""));groups.forEach((group,i)=>select.add(new Option(`묶음 ${i+1} · ${group.colorName} · ${group.mines}/${group.ids.size}`,String(i))));select.value=activeGroup<0?"":String(activeGroup);
+    const select=$("groupSelect"),labels=groupLabels();groupOptionsKey=JSON.stringify(labels);select.replaceChildren(new Option("없음",""));labels.forEach((label,i)=>select.add(new Option(label,String(i))));select.value=activeGroup<0?"":String(activeGroup);
   }
   function resetGroups(){if(!colorMode)return;groups=[];groupDraft.clear();editingGroup=false;activeGroup=-1;nextGroupColor=0;refreshGroupOptions();updateGroups();}
   $("groupEdit").addEventListener("click",()=>{if(!cells.size||ended){cellInfo.textContent="진행 중인 게임에서 묶음을 만드세요.";return;}stopExpansion();resetTap();editingGroup=true;groupDraft.clear();clearClueSelection();clearHint();updateGroups();draw();});

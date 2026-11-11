@@ -13,7 +13,7 @@ function page(search,useDefaults=false,webgl=false){
     constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.open=false;this.textContent='';this.listeners={};this.children=[];this.style={};const classes=new Set();this.classList={toggle(name,on){if(on)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains(name){return classes.has(name);}};}
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
-    setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(){} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;}
+    setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(child){this.children.push(child);} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;}
     getContext(kind){return kind==='2d'?ctx2d:kind==='webgl'&&webgl?gl:null;} getBoundingClientRect(){return this.rect||{width:800,height:600,left:0,top:0,right:800,bottom:600};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
@@ -347,11 +347,16 @@ assert.equal(firstOnly.badgeCount,overlap.badgeCount,'Badge layout must use the 
 colorPage.elements.groupSelect.value='0';colorPage.elements.groupSelect.listeners.change();
 assert.equal(badges(colorIds[2]).length,2,'Choosing a group for management must not hide other groups');
 colorApp.toggleFlag(colorIds[0]);assert.equal(badges(colorIds[1]).find(b=>b.color===firstColor).text,'1/3');
+assert.match(colorPage.elements.groupSelect.children[1].text,/1\/3/,'Group list must reflect flags');
 colorApp.toggleFlag(colorIds[2]);assert.equal(badges(colorIds[1]).some(b=>b.color===firstColor),false,'A zero-mine group must be hidden');
+assert.match(colorPage.elements.groupSelect.children[1].text,/0\/2 · 숨김/,'Hidden groups must remain in the list');
 colorApp.toggleFlag(colorIds[2]);assert.equal(badges(colorIds[1]).find(b=>b.color===firstColor).text,'1/3','Unflagging must restore a hidden group');
 colorApp.activate(colorIds[1],false);colorApp.activate(colorIds[1],false);
 assert.equal(badges(colorIds[3]).find(b=>b.color===firstColor).text,'1/2','Opening a safe cell must reduce the denominator');
+assert.match(colorPage.elements.groupSelect.children[1].text,/1\/2/,'Group list must reflect opened cells');
 colorApp.toggleFlag(colorIds[0]);assert.equal(badges(colorIds[3]).find(b=>b.color===firstColor).text,'2/3','Unflagging must restore numerator and denominator');
+assert.match(colorPage.elements.groupSelect.children[1].text,/2\/3/,'Group list must restore counts after unflagging');
+assert.equal(colorPage.elements.groupSelect.value,'0','Updating group counts must preserve the selected group');
 colorPage.elements.groupDelete.click();
 assert.equal(badges(colorIds[3]).length,1,'Deleting one group must leave the other visible');
 colorPage.elements.start.click();for(let i=0;i<100&&colorPage.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
@@ -410,3 +415,12 @@ const oneStyle=stableApp.tileStyle(stableIds[0],stableState.cells.get(stableIds[
 const positions=style=>{const out=[];const context={strokeText(){},fillText(text,x,y){out.push({color:this.fillStyle,x,y,font:this.font});}};stableApp.paintLabel(context,style,50,50,100);return out;};
 const onePosition=positions(oneStyle)[0],samePosition=positions(manyStyle).find(p=>p.color===onePosition.color);
 assert.deepEqual(onePosition,samePosition,'The same color must have the same position and size across differently overlapping cells');
+
+const sparseLabels={badgeCount:12,badges:[{text:'1/2',color:'red',slot:0}]};
+const denseLabels={badgeCount:12,badges:[0,2,4,6,8,10].map(slot=>({text:'1/2',color:slot===0?'red':'blue',slot}))};
+const sparsePosition=positions(sparseLabels)[0],densePosition=positions(denseLabels).find(p=>p.color==='red');
+assert.equal(sparsePosition.x,densePosition.x,'A color must keep the same horizontal position');
+assert.equal(sparsePosition.y,densePosition.y,'A color must keep the same vertical position');
+assert.equal(sparsePosition.font,'700 22px system-ui','A single label must stay large despite many groups elsewhere');
+const widthChecks=[];stableApp.paintLabel({strokeText(){},fillText(text,x,y,maxWidth){widthChecks.push(maxWidth);}},sparseLabels,50,50,100);assert.equal(widthChecks[0],86,'A lone label may use the full cell width');
+assert.ok(parseFloat(densePosition.font.split(' ')[1])<22,'Crowded labels may shrink to fit');
