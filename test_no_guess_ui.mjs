@@ -28,11 +28,11 @@ function page(search,useDefaults=false,webgl=false){
     terminate(){this.terminated=true;}
     postMessage(data){setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
   }
-  let tick=0;const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
+  let tick=0,nextInterval=0;const intervals=new Map();const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
   const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:'',listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
-  const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,performance:{now:()=>tick},console:{error(){}}};
+  const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
-  return{window,document,elements,glCalls,advance(ms){tick+=ms;},get workers(){return workers;}};
+  return{window,document,elements,glCalls,advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;}};
 }
 
 const original=page('');
@@ -313,3 +313,15 @@ const beforeReturnPartial=renderCalls.texSubImage2D;
 renderApp.setView('3d');
 assert.equal(renderCalls.bufferData,uploadsAfterLayout,'Returning from 2D must reuse unchanged 3D geometry');
 assert.equal(renderCalls.texSubImage2D,beforeReturnPartial+1,'Returning from 2D must update changed visible tiles');
+
+const clockPage=page(''),clockState=clockPage.window.__game.state;
+assert.equal(clockPage.elements.gameTime.textContent,'시간 00:00');
+clockPage.advance(65000);assert.equal(clockPage.elements.gameTime.textContent,'시간 01:05');
+clockPage.elements.fullscreenButton.click();
+const oldClockBoard=clockState.cells;clockPage.elements.start.click();
+assert.notEqual(clockPage.window.__game.state.cells,oldClockBoard,'Starting a game in fullscreen must replace the board');
+assert.equal(clockPage.elements.gameTime.textContent,'시간 00:00','A new game must reset the clock');
+clockPage.advance(2500);const clockMine=[...clockPage.window.__game.state.mines][0];
+clockPage.window.__game.activate(clockMine,false);clockPage.window.__game.activate(clockMine,false);
+assert.equal(clockPage.elements.gameTime.textContent,'시간 00:02');clockPage.advance(10000);
+assert.equal(clockPage.elements.gameTime.textContent,'시간 00:02','The clock must stop when the game ends');
