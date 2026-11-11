@@ -233,7 +233,8 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     stopExpansion();
     const c=cells.get(k);
     if(colorMode&&editingGroup){
-      if(c&&c.revealed&&!flag)selectClue(k,c);
+      if(!c&&!flag){clearClueSelection();draw();}
+      else if(c&&c.revealed&&!flag)selectClue(k,c);
       else if(c&&!c.revealed&&!c.flagged&&!flag){if(groupDraft.has(k))groupDraft.delete(k);else groupDraft.add(k);updateGroups();draw();}
       else if(c)$("groupStatus").textContent="깃발이 없는 닫힌 칸을 선택하세요.";
       return;

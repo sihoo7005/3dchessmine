@@ -389,3 +389,11 @@ const beforeRangeOpen=[...color3dState.cells.values()].filter(cell=>cell.reveale
 color3dApp.activate(color3dClue,false);color3dApp.activate(color3dClue,false);
 assert.equal(color3dApp.state.selectedClue,color3dClue,'3D group editing must show the piece range');
 assert.equal([...color3dState.cells.values()].filter(cell=>cell.revealed).length,beforeRangeOpen,'Repeated taps must not open the range during group editing');
+
+colorApp.activate(null,false);
+assert.equal(colorApp.state.selectedClue,null,'Tapping the background must clear the selected piece while editing');
+assert.equal(colorApp.state.clueRange.size,0,'Tapping the background must clear the green range');
+assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택','Clearing the range must preserve the group draft');
+color3dApp.activate(null,false);
+assert.equal(color3dApp.state.selectedClue,null,'Background tapping must also clear the 3D range');
+assert.equal(color3dApp.state.clueRange.size,0);
