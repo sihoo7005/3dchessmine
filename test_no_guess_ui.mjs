@@ -416,11 +416,20 @@ const positions=style=>{const out=[];const context={strokeText(){},fillText(text
 const onePosition=positions(oneStyle)[0],samePosition=positions(manyStyle).find(p=>p.color===onePosition.color);
 assert.deepEqual(onePosition,samePosition,'The same color must have the same position and size across differently overlapping cells');
 
-const sparseLabels={badgeCount:12,badges:[{text:'1/2',color:'red',slot:0}]};
-const denseLabels={badgeCount:12,badges:[0,2,4,6,8,10].map(slot=>({text:'1/2',color:slot===0?'red':'blue',slot}))};
-const sparsePosition=positions(sparseLabels)[0],densePosition=positions(denseLabels).find(p=>p.color==='red');
-assert.equal(sparsePosition.x,densePosition.x,'A color must keep the same horizontal position');
-assert.equal(sparsePosition.y,densePosition.y,'A color must keep the same vertical position');
-assert.equal(sparsePosition.font,'700 22px system-ui','A single label must stay large despite many groups elsewhere');
-const widthChecks=[];stableApp.paintLabel({strokeText(){},fillText(text,x,y,maxWidth){widthChecks.push(maxWidth);}},sparseLabels,50,50,100);assert.equal(widthChecks[0],86,'A lone label may use the full cell width');
-assert.ok(parseFloat(densePosition.font.split(' ')[1])<22,'Crowded labels may shrink to fit');
+const disjointPage=page('?mode=no-guess-color');
+for(let i=0;i<100&&disjointPage.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
+const disjointApp=disjointPage.window.__game,disjointState=disjointApp.state,groupTestIds=[...disjointState.cells].filter(([,c])=>!c.revealed).slice(0,4).map(([id])=>id);
+function saveGroup(groupIds){disjointPage.elements.groupEdit.click();for(const id of groupIds)disjointApp.activate(id,false);disjointPage.elements.groupMineCount.value='1';disjointPage.elements.groupSave.click();}
+saveGroup([groupTestIds[0],groupTestIds[1]]);saveGroup([groupTestIds[2],groupTestIds[3]]);
+const firstDisjoint=disjointApp.tileStyle(groupTestIds[0],disjointState.cells.get(groupTestIds[0])).badges[0],secondDisjoint=disjointApp.tileStyle(groupTestIds[2],disjointState.cells.get(groupTestIds[2])).badges[0];
+assert.notEqual(firstDisjoint.color,secondDisjoint.color);
+assert.equal(firstDisjoint.slot,secondDisjoint.slot,'Disjoint groups should reuse a label position');
+for(let i=0;i<10;i++)saveGroup([groupTestIds[1]]);
+saveGroup([groupTestIds[0]]);
+const sparseStyle=disjointApp.tileStyle(groupTestIds[0],disjointState.cells.get(groupTestIds[0])),crowdedStyle=disjointApp.tileStyle(groupTestIds[1],disjointState.cells.get(groupTestIds[1]));
+const sparsePos=positions(sparseStyle).find(p=>p.color===firstDisjoint.color),crowdedPos=positions(crowdedStyle).find(p=>p.color===firstDisjoint.color);
+assert.deepEqual(sparsePos,crowdedPos,'A group must keep its position and font size even when overlap varies');
+const sparsePositions=positions(sparseStyle);assert.ok(sparsePositions.some(p=>p.font!==sparsePos.font),'One cell can contain labels of different sizes');
+const disjointPos=positions(disjointApp.tileStyle(groupTestIds[2],disjointState.cells.get(groupTestIds[2])))[0];
+assert.equal(disjointPos.x,sparsePos.x);assert.equal(disjointPos.y,sparsePos.y);
+assert.equal(disjointPos.font,'700 22px system-ui','An independent group should remain large');

@@ -114,7 +114,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   if(colorMode){document.title="추측 없는 3D 체스 지뢰찾기 · 컬러 묶음";document.getElementById("gameTitle").textContent="♟ 추측 없는 게임 · 컬러 묶음";for(const id of ["groupPanel","groupHelp","groupHelpText"])document.getElementById(id).hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0, twoDCols=2;
   let hintClues=new Set();
-  let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="";
+  let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="",draftLayout=null;
   const groupColors=[["노랑","#ffd166"],["청록","#81e6d9"],["분홍","#ff9bbd"],["보라","#c3adff"],["연두","#b4ef8a"],["주황","#ffb77c"]];
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
   let successTimer=null,expansionTimer=null,clockTimer=null,gameStartedAt=0;
@@ -458,9 +458,9 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   function tileStyle(k,c){
     let style;if(mines.has(k)&&(c.revealed||ended))style=won?{fill:"#405f57",text:"✿",color:"#ffe0ed"}:{fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style={fill:"#5b6d84",text:"·",color:"#b0bfd1"};else style={fill:"#52657d",text:"",color:"#fff"};
     if(colorMode&&!c.revealed&&!c.flagged){
-      style.badgeCount=visibleGroupCount+(editingGroup?1:0);
-      style.badges=groups.filter(group=>group.ids.has(k)&&(group.remaining!==0||group.invalid)).map(group=>({text:group.invalid?"!":`${group.remaining}/${group.closed}`,color:group.color,slot:group.slot}));
-      if(editingGroup&&groupDraft.has(k))style.badges.push({text:"●",color:"#fff2a8",slot:visibleGroupCount});
+      style.badgeCount=visibleGroupCount;
+      style.badges=groups.filter(group=>group.ids.has(k)&&(group.remaining!==0||group.invalid)).map(group=>({text:group.invalid?"!":`${group.remaining}/${group.closed}`,color:group.color,slot:group.slot,fontScale:group.fontScale,widthScale:group.widthScale}));
+      if(draftLayout&&groupDraft.has(k))style.badges.push({text:"●",color:"#fff2a8",slot:draftLayout.slot,fontScale:draftLayout.fontScale,widthScale:draftLayout.widthScale});
     }
     if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";else if(c.revealed&&hintClues.has(k))style.fill="#364b5d";
     return style;
@@ -473,10 +473,8 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     if(s.badges?.length){
       const count=s.badgeCount??s.badges.length,twoColumns=count>=3,rows=twoColumns?Math.ceil(count/2):count,step=Math.min(.22,.82/rows);
       const entries=s.badges.map((badge,index)=>{const i=badge.slot??index;return{badge,left:twoColumns&&i%2===1,row:twoColumns?Math.floor(i/2):i};});
-      let fontScale=.22;
-      for(let i=0;i<entries.length;i++){const a=entries[i];fontScale=Math.min(fontScale,.86-a.row*step);for(let j=0;j<i;j++)if(entries[j].left===a.left)fontScale=Math.min(fontScale,Math.abs(a.row-entries[j].row)*step);}
-      context.font=`700 ${size*fontScale}px system-ui`;context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
-      for(const {badge,left,row} of entries){const x=cx+size*(left?-.43:.43),y=cy+size*(.43-row*step),maxWidth=size*(entries.some(other=>other.row===row&&other.left!==left)?.43:.86);context.textAlign=left?"left":"right";context.strokeText(badge.text,x,y,maxWidth);context.fillStyle=badge.color;context.fillText(badge.text,x,y,maxWidth);}
+      context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
+      for(const {badge,left,row} of entries){const x=cx+size*(left?-.43:.43),y=cy+size*(.43-row*step),maxWidth=size*(badge.widthScale??(entries.some(other=>other.row===row&&other.left!==left)?.43:.86));context.font=`700 ${size*(badge.fontScale??.22)}px system-ui`;context.textAlign=left?"left":"right";context.strokeText(badge.text,x,y,maxWidth);context.fillStyle=badge.color;context.fillText(badge.text,x,y,maxWidth);}
     }
   }
   function layout2d(){
@@ -685,7 +683,21 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       let flags=0,closed=0;for(const id of group.ids){const cell=cells.get(id);if(cell?.flagged)flags++;else if(cell&&!cell.revealed)closed++;}
       group.remaining=group.mines-flags;group.closed=closed;group.invalid=group.remaining<0||group.remaining>closed;
     }
-    visibleGroupCount=0;for(const group of groups)if(group.remaining!==0||group.invalid)group.slot=visibleGroupCount++;
+    const visible=groups.filter(group=>(group.remaining!==0||group.invalid)&&group.closed>0);
+    draftLayout=editingGroup&&groupDraft.size?{ids:groupDraft}:null;if(draftLayout)visible.push(draftLayout);
+    const byCell=new Map();visibleGroupCount=0;
+    for(const group of visible){
+      const used=new Set();for(const id of group.ids){const cell=cells.get(id);if(cell&&!cell.revealed&&!cell.flagged)for(const other of byCell.get(id)||[])used.add(other.slot);}
+      group.slot=0;while(used.has(group.slot))group.slot++;visibleGroupCount=Math.max(visibleGroupCount,group.slot+1);
+      for(const id of group.ids){const cell=cells.get(id);if(cell&&!cell.revealed&&!cell.flagged){if(!byCell.has(id))byCell.set(id,[]);byCell.get(id).push(group);}}
+    }
+    const twoColumns=visibleGroupCount>=3,rows=twoColumns?Math.ceil(visibleGroupCount/2):visibleGroupCount,step=rows?Math.min(.22,.82/rows):.22;
+    for(const group of visible){const row=twoColumns?Math.floor(group.slot/2):group.slot;group.fontScale=Math.min(.22,.86-row*step);group.widthScale=.86;}
+    for(const members of byCell.values())for(let i=0;i<members.length;i++)for(let j=0;j<i;j++){
+      const a=members[i],b=members[j],leftA=twoColumns&&a.slot%2===1,leftB=twoColumns&&b.slot%2===1,rowA=twoColumns?Math.floor(a.slot/2):a.slot,rowB=twoColumns?Math.floor(b.slot/2):b.slot;
+      if(leftA===leftB){const limit=Math.abs(rowA-rowB)*step;a.fontScale=Math.min(a.fontScale,limit);b.fontScale=Math.min(b.fontScale,limit);}
+      else if(rowA===rowB){a.widthScale=.43;b.widthScale=.43;}
+    }
     if(JSON.stringify(groupLabels())!==groupOptionsKey)refreshGroupOptions();
     $("groupEdit").textContent=editingGroup?"선택 중":"묶음 만들기";$("groupEdit").setAttribute("aria-pressed",String(editingGroup));
     for(const id of ["groupDraft","groupCountLabel","groupSave","groupCancel"])$(id).hidden=!editingGroup;
