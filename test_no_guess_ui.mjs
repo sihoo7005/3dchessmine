@@ -340,6 +340,10 @@ colorPage.elements.groupEdit.click();colorApp.activate(colorIds[2],false);colorA
 colorPage.elements.groupMineCount.value='1';colorPage.elements.groupSave.click();
 assert.equal(badges(colorIds[2]).length,2,'Overlapping groups must both be shown');
 assert.notEqual(badges(colorIds[2])[0].color,badges(colorIds[2])[1].color);
+const firstOnly=colorApp.tileStyle(colorIds[0],colorBoard.cells.get(colorIds[0])),overlap=colorApp.tileStyle(colorIds[2],colorBoard.cells.get(colorIds[2]));
+assert.equal(firstOnly.badges[0].slot,overlap.badges.find(b=>b.color===firstColor).slot,'A group must use the same slot on every cell');
+assert.equal(firstOnly.badgeCount,overlap.badgeCount,'Badge layout must use the same board-wide slot count');
+
 colorPage.elements.groupSelect.value='0';colorPage.elements.groupSelect.listeners.change();
 assert.equal(badges(colorIds[2]).length,2,'Choosing a group for management must not hide other groups');
 colorApp.toggleFlag(colorIds[0]);assert.equal(badges(colorIds[1]).find(b=>b.color===firstColor).text,'1/3');
@@ -397,3 +401,12 @@ assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택','Cleari
 color3dApp.activate(null,false);
 assert.equal(color3dApp.state.selectedClue,null,'Background tapping must also clear the 3D range');
 assert.equal(color3dApp.state.clueRange.size,0);
+
+const stablePage=page('?mode=no-guess-color');
+for(let i=0;i<100&&stablePage.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
+const stableApp=stablePage.window.__game,stableState=stableApp.state,stableIds=[...stableState.cells].filter(([,c])=>!c.revealed).slice(0,4).map(([id])=>id);
+for(const ids of [[stableIds[0],stableIds[1]],[stableIds[1],stableIds[2]],[stableIds[1],stableIds[3]]]){stablePage.elements.groupEdit.click();for(const id of ids)stableApp.activate(id,false);stablePage.elements.groupMineCount.value='1';stablePage.elements.groupSave.click();}
+const oneStyle=stableApp.tileStyle(stableIds[0],stableState.cells.get(stableIds[0])),manyStyle=stableApp.tileStyle(stableIds[1],stableState.cells.get(stableIds[1]));
+const positions=style=>{const out=[];const context={strokeText(){},fillText(text,x,y){out.push({color:this.fillStyle,x,y,font:this.font});}};stableApp.paintLabel(context,style,50,50,100);return out;};
+const onePosition=positions(oneStyle)[0],samePosition=positions(manyStyle).find(p=>p.color===onePosition.color);
+assert.deepEqual(onePosition,samePosition,'The same color must have the same position and size across differently overlapping cells');

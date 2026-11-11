@@ -114,7 +114,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   if(colorMode){document.title="추측 없는 3D 체스 지뢰찾기 · 컬러 묶음";document.getElementById("gameTitle").textContent="♟ 추측 없는 게임 · 컬러 묶음";for(const id of ["groupPanel","groupHelp","groupHelpText"])document.getElementById(id).hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0, twoDCols=2;
   let hintClues=new Set();
-  let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0;
+  let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0;
   const groupColors=[["노랑","#ffd166"],["청록","#81e6d9"],["분홍","#ff9bbd"],["보라","#c3adff"],["연두","#b4ef8a"],["주황","#ffb77c"]];
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
   let successTimer=null,expansionTimer=null,clockTimer=null,gameStartedAt=0;
@@ -458,8 +458,9 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   function tileStyle(k,c){
     let style;if(mines.has(k)&&(c.revealed||ended))style=won?{fill:"#405f57",text:"✿",color:"#ffe0ed"}:{fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style={fill:"#5b6d84",text:"·",color:"#b0bfd1"};else style={fill:"#52657d",text:"",color:"#fff"};
     if(colorMode&&!c.revealed&&!c.flagged){
-      style.badges=groups.filter(group=>group.ids.has(k)&&(group.remaining!==0||group.invalid)).map(group=>({text:group.invalid?"!":`${group.remaining}/${group.closed}`,color:group.color}));
-      if(editingGroup&&groupDraft.has(k))style.badges.push({text:"●",color:"#fff2a8"});
+      style.badgeCount=visibleGroupCount+(editingGroup?1:0);
+      style.badges=groups.filter(group=>group.ids.has(k)&&(group.remaining!==0||group.invalid)).map(group=>({text:group.invalid?"!":`${group.remaining}/${group.closed}`,color:group.color,slot:group.slot}));
+      if(editingGroup&&groupDraft.has(k))style.badges.push({text:"●",color:"#fff2a8",slot:visibleGroupCount});
     }
     if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";else if(c.revealed&&hintClues.has(k))style.fill="#364b5d";
     return style;
@@ -469,8 +470,8 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       context.font=`600 ${size*(lines.length===2?.49:.55)}px "DejaVu Sans","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif`;
       context.fillText(lines[0],cx,cy+(lines.length===2?-size*.15:0));
       if(lines.length===2){context.font=`700 ${size*.31}px system-ui`;context.fillText(lines[1],cx,cy+size*.27);}}
-    if(s.badges?.length){const twoColumns=s.badges.length>=3,rows=twoColumns?Math.ceil(s.badges.length/2):s.badges.length,fontSize=size*Math.min(.22,.82/rows);context.font=`700 ${fontSize}px system-ui`;context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
-      s.badges.forEach((badge,i)=>{const left=twoColumns&&i%2===1,x=cx+size*(left?-.43:.43),y=cy+size*.43-(twoColumns?Math.floor(i/2):i)*fontSize,maxWidth=size*(twoColumns?.43:.86);context.textAlign=left?"left":"right";context.strokeText(badge.text,x,y,maxWidth);context.fillStyle=badge.color;context.fillText(badge.text,x,y,maxWidth);});}
+    if(s.badges?.length){const count=s.badgeCount??s.badges.length,twoColumns=count>=3,rows=twoColumns?Math.ceil(count/2):count,fontSize=size*Math.min(.22,.82/rows);context.font=`700 ${fontSize}px system-ui`;context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
+      s.badges.forEach((badge,index)=>{const i=badge.slot??index,left=twoColumns&&i%2===1,x=cx+size*(left?-.43:.43),y=cy+size*.43-(twoColumns?Math.floor(i/2):i)*fontSize,maxWidth=size*(twoColumns?.43:.86);context.textAlign=left?"left":"right";context.strokeText(badge.text,x,y,maxWidth);context.fillStyle=badge.color;context.fillText(badge.text,x,y,maxWidth);});}
   }
   function layout2d(){
     const cols=twoDCols,rows=Math.ceil(N/cols),gap=.58,label=.42;
@@ -548,7 +549,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
     }
     const changed=[];
     visibleCells.forEach((cell,index)=>{
-      const style=tileStyle(cell.key,cells.get(cell.key)),signature=JSON.stringify([style.fill,style.text,style.color,style.badges]);
+      const style=tileStyle(cell.key,cells.get(cell.key)),signature=JSON.stringify([style.fill,style.text,style.color,style.badges,style.badgeCount]);
       if(tileStyles[index]!==signature){tileStyles[index]=signature;changed.push({index,style});}
     });
     if(!changed.length)return;
@@ -678,6 +679,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
       let flags=0,closed=0;for(const id of group.ids){const cell=cells.get(id);if(cell?.flagged)flags++;else if(cell&&!cell.revealed)closed++;}
       group.remaining=group.mines-flags;group.closed=closed;group.invalid=group.remaining<0||group.remaining>closed;
     }
+    visibleGroupCount=0;for(const group of groups)if(group.remaining!==0||group.invalid)group.slot=visibleGroupCount++;
     $("groupEdit").textContent=editingGroup?"선택 중":"묶음 만들기";$("groupEdit").setAttribute("aria-pressed",String(editingGroup));
     for(const id of ["groupDraft","groupCountLabel","groupSave","groupCancel"])$(id).hidden=!editingGroup;
     $("groupDraft").textContent=`칸 ${groupDraft.size}개 선택`;$("groupMineCount").max=groupDraft.size;
@@ -693,7 +695,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
   $("groupSave").addEventListener("click",()=>{
     const raw=$("groupMineCount").value,n=Number(raw);
     if(!groupDraft.size||[...groupDraft].some(id=>!cells.has(id)||cells.get(id).revealed||cells.get(id).flagged)||raw.trim()===""||!Number.isInteger(n)||n<0||n>groupDraft.size){$("groupStatus").textContent="칸을 선택하고 지뢰 수를 0부터 선택한 칸 수 사이로 입력하세요.";return;}
-    const [colorName,color]=groupColors[nextGroupColor++%groupColors.length];
+    const colorIndex=nextGroupColor++, [colorName,color]=groupColors[colorIndex]||[`색상 ${colorIndex+1}`,`hsl(${Math.round(colorIndex*137.508)%360}, 90%, 75%)`];
     groups.push({ids:new Set(groupDraft),mines:n,colorName,color});activeGroup=groups.length-1;groupDraft.clear();editingGroup=false;refreshGroupOptions();updateGroups();draw();
   });
   $("groupSelect").addEventListener("change",()=>{activeGroup=$("groupSelect").value===""?-1:Number($("groupSelect").value);updateGroups();draw();});
