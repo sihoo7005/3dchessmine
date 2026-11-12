@@ -99,7 +99,6 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   <p id="modeDescription" hidden>시작 칸에서 올바른 단서와 깃발을 따라가면 추측 없이 모든 안전한 칸을 열 수 있는 보드만 생성합니다.</p>
   추론 힌트는 공개된 기물 숫자와 깃발로 가능한 배치를 비교하고, 남은 지뢰 수와 맞춰 확정 칸을 찾습니다.<br>
   열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
-
   <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
 </footer>
 </main>
@@ -169,7 +168,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     if(!options.length){settingError.textContent=`이 가중치에서 숫자 0인 칸으로 시작하려면 지뢰 수를 ${capacity-minimumClues-1}개 이하로 설정하세요.`;return;}
     // Prefer the faces visible from the initial camera so the opening is visible.
     const surface=options.filter(({pos})=>pos.some(v=>v===size-1)),choices=surface.length?surface:options;
-    if(noGuess){startNoGuessGame({size,count,weights,positions,choices,hasSurface:!!surface.length});return;}
+    if(noGuess){startNoGuessGame({size,count,weights,positions,choices,hasSurface:!!surface.length,directOnly:$("difficulty").value==="easy"});return;}
     const startPiece=pickPiece(weights,PIECES.filter(p=>choices.some(c=>c.piece===p))),pieceChoices=choices.filter(c=>c.piece===startPiece);
     const opening=pieceChoices[Math.floor(Math.random()*pieceChoices.length)],openingKey=key(...opening.pos);
     const reserved=new Set([openingKey,...cluePositions(opening.pos,opening.piece,size).map(p=>key(...p))]);
@@ -279,7 +278,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   }
   function activateTap(k,rightClick){const cell=cells.get(k);activate(k,rightClick||(!editingGroup&&flagMode&&!!cell&&!cell.revealed));}
   function activateLongPress(k){const cell=cells.get(k);if(colorMode&&cell?.revealed&&!mines.has(k)){autoGroup(k,true);return;}activate(k,true);}
-  function inferMoves(nodeLimit=500000){
+  function inferMoves(nodeLimit=500000,directOnly=false){
     if(ended)return{moves:[],conflict:false};
     const unknown=[...cells].filter(([,c])=>!c.revealed&&!c.flagged).map(([k])=>k),constraints=new Map();let conflict=false;
     function add(ids,total,sources=[],method="direct"){
@@ -299,6 +298,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       const forced=new Map();
       for(const{ids,total,sources,method}of constraints.values())if(total===0||total===ids.length)for(const id of ids){const mine=total>0;if(forced.has(id)&&forced.get(id).mine!==mine)return{moves:[],conflict:true};if(!forced.has(id))forced.set(id,{mine,sources,method});}
       if(forced.size)return{moves:[...forced].map(([key,proof])=>({key,...proof})),conflict:false};
+      if(directOnly)return{moves:[],conflict:false};
       const equations=[...constraints.values()],sets=equations.map(e=>new Set(e.ids)),byCell=new Map(),pairs=new Set();let changed=false;
       equations.forEach((equation,i)=>equation.ids.forEach(id=>{if(!byCell.has(id))byCell.set(id,[]);for(const j of byCell.get(id))pairs.add(j*equations.length+i);byCell.get(id).push(i);}));
       for(const pair of pairs){
@@ -350,7 +350,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     return{moves,conflict:false};
   }
   // ponytail: retries and time are bounded; use a constructive generator if difficult settings need better coverage.
-  function generateNoGuessBoard({size,count,weights,positions,choices,hasSurface}){
+  function generateNoGuessBoard({size,count,weights,positions,choices,hasSurface,directOnly=false}){
     N=size;MINE_COUNT=count;ended=false;
     for(let attempt=1;attempt<=100;attempt++){
       postMessage({type:"progress",attempt});
@@ -361,7 +361,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       cells.get(openingKey).piece=piece;cells.get(openingKey).revealed=true;
       let valid=true;
       while([...cells].some(([id,c])=>!mines.has(id)&&!c.revealed)){
-        const result=inferMoves(20000);if(result.conflict||result.limited||!result.moves.length){valid=false;break;}
+        const result=inferMoves(20000,directOnly);if(result.conflict||result.limited||!result.moves.length){valid=false;break;}
         for(const move of result.moves){const cell=cells.get(move.key);if(!cell||cell.revealed||cell.flagged||mines.has(move.key)!==move.mine){valid=false;break;}if(move.mine)cell.flagged=true;else cell.revealed=true;}
         if(!valid)break;
       }
