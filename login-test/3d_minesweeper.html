@@ -46,7 +46,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <body><main>
 <header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><div class="header-actions"><button id="helpButton" type="button">조작법</button><div id="accountSlot"></div><button id="settingsButton" type="button">설정</button></div></header><div class="hint" id="boardInfo"></div>
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">설정</h2><button id="settingsClose" type="button">닫기</button></div><label><input id="expansionMode" type="checkbox"> 배경을 두 번 누르면 즉시 열기</label><p><label><input id="premiumTest" type="checkbox" disabled> 프리미엄 테스트</label><br><small id="premiumTestStatus">로그인 후 이용할 수 있습니다.</small></p><a id="modeLink" href="no_guess.html">추측 없는 게임</a><a href="no_guess_color.html">컬러 묶음 게임</a></dialog>
-<dialog id="difficultyDialog" aria-labelledby="difficultyTitle"><h2 id="difficultyTitle" tabindex="-1" autofocus>난이도를 선택하세요</h2><div class="difficulty-options"><button id="chooseEasy" type="button">쉬움<small>4×4×4 · 지뢰 6개</small></button><button id="chooseNormal" type="button">보통<small>5×5×5 · 지뢰 15개</small></button><button id="chooseHard" type="button">어려움<small>6×6×6 · 지뢰 35개</small></button><button id="chooseCustom" type="button">사용자 설정<small>칸과 지뢰를 직접 선택</small></button></div></dialog>
+<dialog id="difficultyDialog" aria-labelledby="difficultyTitle"><h2 id="difficultyTitle" tabindex="-1" autofocus>난이도를 선택하세요</h2><div class="difficulty-options"><button id="chooseEasy" type="button">쉬움<small>4×4×4 · 지뢰 10개</small></button><button id="chooseNormal" type="button">보통<small>5×5×5 · 지뢰 20개</small></button><button id="chooseHard" type="button">어려움<small>6×6×6 · 지뢰 35개</small></button><button id="chooseCustom" type="button">사용자 설정<small>칸과 지뢰를 직접 선택</small></button></div></dialog>
 <div class="settings"><label>난이도 <select id="difficulty"><option value="easy">쉬움</option><option value="normal">보통</option><option value="hard" selected>어려움</option><option value="custom">사용자 설정</option></select></label><button id="customButton" type="button" hidden>사용자 설정 열기</button><span class="hint">난이도를 바꾸면 새 게임이 시작됩니다</span></div>
 <dialog id="customDialog" aria-labelledby="customTitle"><div class="helpHeader"><h2 id="customTitle">사용자 설정</h2><button id="customClose" type="button">닫기</button></div>
 <div class="settings">
@@ -121,7 +121,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   </dl>
 </dialog>
 
-<script src="account.js?v=13"></script>
+<script src="account.js?v=14"></script>
 <script>
 (() => {
   "use strict";
@@ -648,7 +648,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   $("customButton").addEventListener("click",openCustom);$("customClose").addEventListener("click",()=>$("customDialog").close());
   $("customDialog").addEventListener("close",()=>{if(!cells.size||customSnapshot!==customValues())startGame();});
   $("customDialog").addEventListener("click",e=>{const dialog=$("customDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
-  function chooseDifficulty(difficulty){$("difficulty").value=difficulty;$("customButton").hidden=difficulty!=="custom";if(difficulty==="custom"){openCustom();return;}const preset={easy:[4,6],normal:[5,15],hard:[6,35]}[difficulty];if(!preset)return;sizeInput.value=String(preset[0]);mineInput.value=String(preset[1]);mineInput.max=preset[0]**3-1;for(const p of PIECES)$("weight"+p).value=p==="K"?"7":"1";updateWeightSummary();startGame();}
+  function chooseDifficulty(difficulty){$("difficulty").value=difficulty;$("customButton").hidden=difficulty!=="custom";if(difficulty==="custom"){openCustom();return;}const preset={easy:[4,10],normal:[5,20],hard:[6,35]}[difficulty];if(!preset)return;sizeInput.value=String(preset[0]);mineInput.value=String(preset[1]);mineInput.max=preset[0]**3-1;for(const p of PIECES)$("weight"+p).value=p==="K"?"7":"1";updateWeightSummary();startGame();}
   $("difficulty").addEventListener("change",()=>chooseDifficulty($("difficulty").value));
   for(const [id,value] of [["chooseEasy","easy"],["chooseNormal","normal"],["chooseHard","hard"],["chooseCustom","custom"]])$(id).addEventListener("click",()=>{$("difficultyDialog").close();chooseDifficulty(value);});
   $("difficultyDialog").addEventListener("cancel",e=>e.preventDefault());
