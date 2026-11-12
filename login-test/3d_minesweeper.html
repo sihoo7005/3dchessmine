@@ -26,7 +26,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 .records-dialog{width:min(92vw,680px);max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}.records-dialog::backdrop{background:#070d16bb}.records-dialog>div+div{margin-top:16px;line-height:1.8;overflow-wrap:anywhere}
 #difficultyDialog{width:min(94vw,1000px);max-height:92vh;overflow:auto;padding:12px;border:0;background:transparent;color:#edf3fb;box-shadow:none}#difficultyDialog::backdrop{background:#070d16dd}#difficultyTitle{text-align:center;outline:none}.difficulty-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.difficulty-options button{min-height:clamp(110px,22vh,160px);font-size:1.15rem}.difficulty-options small{display:block;margin-top:8px;color:#b9c8d9;font-size:.8rem;font-weight:400}@media(orientation:landscape){.difficulty-options{grid-template-columns:repeat(4,minmax(0,1fr))}}
 #groupMineCount{appearance:textfield;-moz-appearance:textfield}#groupMineCount::-webkit-inner-spin-button,#groupMineCount::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-#groupEdit{min-width:7.5em}#groupStatus{flex-basis:100%;height:1.4em;white-space:nowrap;overflow-x:auto}#groupEditor{display:flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%}
+#groupPanel{height:44px;min-height:44px;flex-wrap:nowrap;overflow-x:auto}#groupPanel>*{flex-shrink:0}#groupEdit{min-width:7.5em}#groupStatus{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}#groupEditor{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;white-space:nowrap}#groupManageLabel{white-space:nowrap}#groupSelect{max-width:min(50vw,220px)}
 .helpHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.helpHeader h2{margin:0;font-size:1.25rem}
 .helpList{margin:14px 0 0}.helpList dt{margin-top:12px;font-weight:700;color:#a9d7ff}.helpList dd{margin:2px 0 0;color:#d1dfed;line-height:1.5}
 #gameArea:fullscreen,#gameArea.expanded{display:flex;flex-direction:column;width:100%;height:100%;padding:12px;background:#101722;overflow:auto}
@@ -120,7 +120,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   </dl>
 </dialog>
 
-<script src="account.js?v=7"></script>
+<script src="account.js?v=8"></script>
 <script>
 (() => {
   "use strict";
@@ -214,7 +214,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;won=true;message.textContent="성공! 모든 안전한 칸을 열었습니다.";showSuccess();}
     if(ended){hintKey=null;stopClock();window.dispatchEvent(new CustomEvent("chessmine:game-finished",{detail:{mode:colorMode?"no-guess-color":noGuess?"no-guess":"normal",size:N,mines:MINE_COUNT,weights:{...gameWeights},result:won?"won":"lost",durationMs:Math.max(0,Math.round(performance.now()-gameStartedAt))}}));}if(!deferDraw){draw();showCellInfo(k);}
   }
-  function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;clearHint();c.flagged=!c.flagged;draw();showCellInfo(k);}
+  function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;clearHint();c.flagged=!c.flagged;draw();showCellInfo(k);if(colorMode&&groups.some(g=>g.invalid))cellInfo.textContent+=" · 묶음의 깃발이나 열린 칸을 확인하세요.";}
   function resetTap(){lastTapKey=null;lastTapAt=0;}
   function clearClueSelection(){selectedClue=null;selectedClosed=null;clueRange.clear();resetTap();}
   function selectClue(k,c){
@@ -253,7 +253,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       if(!c&&!flag){clearClueSelection();draw();}
       else if(c&&c.revealed&&!flag)selectClue(k,c);
       else if(c&&!c.revealed&&!c.flagged&&!flag){if(groupDraft.has(k))groupDraft.delete(k);else groupDraft.add(k);updateGroups();draw();}
-      else if(c)$("groupStatus").textContent="깃발이 없는 닫힌 칸을 선택하세요.";
+      else if(c)$("groupStatus").textContent=cellInfo.textContent="깃발이 없는 닫힌 칸을 선택하세요.";
       return;
     }
     if(!c){
@@ -734,7 +734,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     for(const id of ["groupEdit","groupManageLabel","groupDelete"])$(id).hidden=editingGroup;
     $("groupDraft").textContent=`칸 ${groupDraft.size}개 선택`;$("groupMineCount").max=groupDraft.size;
     const group=groups[activeGroup];$("groupDelete").disabled=!group||editingGroup;
-    $("groupStatus").textContent=editingGroup?"닫힌 칸을 선택하세요. 길게 누르거나 오른쪽 클릭으로 깃발을 표시합니다.":groups.some(g=>g.invalid)?"깃발이나 열린 칸이 묶음과 맞지 않습니다. 기록을 확인하세요.":groups.length?"깃발은 지뢰로 계산합니다. 단서가 바뀌면 묶음을 확인하세요.":"";
+    const warning=groups.some(g=>g.invalid)?"깃발이나 열린 칸이 묶음과 맞지 않습니다. 기록을 확인하세요.":"";if(warning&&$("groupStatus").textContent!==warning)cellInfo.textContent=warning;$("groupStatus").textContent=warning;
   }
   function groupLabels(){return groups.map((group,i)=>`묶음 ${i+1} · ${group.colorName} · ${group.remaining??group.mines}/${group.closed??group.ids.size}${group.invalid?" · 확인 필요":""}`);}
   function refreshGroupOptions(){
@@ -746,7 +746,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   $("groupCancel").addEventListener("click",()=>{editingGroup=false;groupDraft.clear();updateGroups();draw();});
   $("groupSave").addEventListener("click",()=>{
     const raw=$("groupMineCount").value,n=Number(raw);
-    if(!groupDraft.size||[...groupDraft].some(id=>!cells.has(id)||cells.get(id).revealed||cells.get(id).flagged)||raw.trim()===""||!Number.isInteger(n)||n<0||n>groupDraft.size){$("groupStatus").textContent="칸을 선택하고 지뢰 수를 0부터 선택한 칸 수 사이로 입력하세요.";return;}
+    if(!groupDraft.size||[...groupDraft].some(id=>!cells.has(id)||cells.get(id).revealed||cells.get(id).flagged)||raw.trim()===""||!Number.isInteger(n)||n<0||n>groupDraft.size){$("groupStatus").textContent=cellInfo.textContent="칸을 선택하고 지뢰 수를 0부터 선택한 칸 수 사이로 입력하세요.";return;}
     const colorIndex=nextGroupColor++, [colorName,color]=groupColors[colorIndex]||[`색상 ${colorIndex+1}`,`hsl(${Math.round(colorIndex*137.508)%360}, 90%, 75%)`];
     groups.push({ids:new Set(groupDraft),mines:n,colorName,color});activeGroup=groups.length-1;groupDraft.clear();editingGroup=false;refreshGroupOptions();updateGroups();draw();
   });
