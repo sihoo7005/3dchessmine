@@ -37,7 +37,7 @@ ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*']
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_STORE_TOKENS = False
-SOCIALACCOUNT_PROVIDERS = {'google': {'SCOPE': ['openid', 'email', 'profile'], 'OAUTH_PKCE_ENABLED': True,
+SOCIALACCOUNT_PROVIDERS = {'google': {'SCOPE': ['openid', 'email', 'profile'], 'OAUTH_PKCE_ENABLED': True, 'AUTH_PARAMS': {'prompt': 'select_account'},
     'APP': {'client_id': os.environ.get('GOOGLE_OAUTH_CLIENT_ID', ''),
             'secret': os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET', ''), 'key': ''}}}
 if not DEBUG:
@@ -54,6 +54,7 @@ SESSION_COOKIE_NAME = 'chessmine_session'
 SESSION_COOKIE_PATH = '/chessmine/'
 CSRF_COOKIE_NAME = 'chessmine_csrf'
 CSRF_COOKIE_PATH = '/chessmine/'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'unsafe-none'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'

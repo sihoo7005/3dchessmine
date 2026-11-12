@@ -1,19 +1,20 @@
 # 검토용 예시. 적용 전에 TCP 443 인바운드, 기존 서비스 및 인증서 발급을 확인하세요.
 # TCP 80 리디렉션과 HTTP-01 인증을 사용하지 않습니다.
 {
-    auto_https disable_redirects
+	admin off
+	auto_https disable_redirects
 }
 
 jsaur.duckdns.org {
-    tls {
-        issuer acme {
-            disable_http_challenge
-        }
-    }
-    handle /chessmine/* {
-        reverse_proxy 127.0.0.1:18765
-    }
-    handle {
-        respond "Not found" 404
-    }
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+	handle /chessmine/* {
+		reverse_proxy 127.0.0.1:18765
+	}
+	handle {
+		respond "Not found" 404
+	}
 }

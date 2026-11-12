@@ -2,7 +2,8 @@ from django.http import Http404
 
 class GoogleOnlyAccountRoutes:
     """Keep password/account-management routes unavailable; this service uses Google only."""
-    allowed = {'/chessmine/accounts/google/login/', '/chessmine/accounts/google/login/callback/', '/chessmine/accounts/logout/'}
+    allowed = {'/chessmine/accounts/google/login/', '/chessmine/accounts/google/login/callback/',
+               '/chessmine/accounts/3rdparty/login/cancelled/', '/chessmine/accounts/3rdparty/login/error/'}
     def __init__(self, get_response):
         self.get_response = get_response
 

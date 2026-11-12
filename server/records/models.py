@@ -17,3 +17,13 @@ class GameRecord(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['user', 'client_id'], name='one_record_per_game_per_user')]
         ordering = ['-finished_at', '-id']
+
+class LoginTicket(models.Model):
+    digest = models.CharField(max_length=64, primary_key=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    expires_at = models.DateTimeField()
+
+class AccessToken(models.Model):
+    digest = models.CharField(max_length=64, primary_key=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    expires_at = models.DateTimeField()

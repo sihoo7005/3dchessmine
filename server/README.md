@@ -1,6 +1,8 @@
 # Google 로그인과 완료 기록 서버
 
-이 서버는 기존 GitHub Pages와 별도로 `/chessmine/` 경로에서 게임을 제공합니다. 로그인과 기록은 Oracle 서버의 게임 페이지에서 동작합니다. 기존 GitHub Pages 주소의 게임에는 계정 기능이 연결되지 않습니다. 로그인한 사용자의 완료된 게임만 저장합니다. 비로그인 게임은 저장하지 않습니다. 기록은 클라이언트에서 제출하므로 공식 순위나 부정행위 검증에 사용하면 안 됩니다. 로그인한 이용자는 계정 및 기록 삭제 버튼으로 자신의 계정과 기록을 삭제할 수 있습니다. 백업의 삭제 정책은 별도로 정해야 합니다.
+게임 화면은 기존 GitHub Pages 주소에서 실행합니다. Oracle 서버는 `/chessmine/`에서 Google 로그인과 완료된 게임 기록만 처리합니다. 로그인한 사용자는 자신의 기록을 볼 수 있고 계정 및 기록을 삭제할 수 있습니다. 비로그인 게임과 진행 중인 게임은 저장하지 않습니다. 기록은 클라이언트에서 제출하므로 공식 순위나 부정행위 검증에 사용하면 안 됩니다. 백업의 삭제 정책은 별도로 정해야 합니다.
+
+로그인은 별도 창에서 진행합니다. 서버는 Google 인증 후 2분 동안 한 번만 쓸 수 있는 코드를 게임 화면으로 전달합니다. 게임 화면은 이를 최대 12시간 유효한 인증 정보로 교환하고 브라우저 탭의 세션 저장소에 보관합니다. Oracle 서버의 API는 `https://sihoo7005.github.io` 출처와 인증 정보를 확인합니다. 계정의 인증 정보와 기록은 Oracle 서버의 SQLite에 저장됩니다.
 
 ## 확인할 사항
 
@@ -34,7 +36,7 @@ CHESSMINE_DEBUG=1 .venv/bin/python server/manage.py migrate
 CHESSMINE_DEBUG=1 .venv/bin/python server/manage.py runserver 127.0.0.1:8000
 ```
 
-브라우저에서 `http://127.0.0.1:8000/chessmine/`을 엽니다. 실제 Google 로그인에는 테스트용 OAuth 클라이언트와 `http://127.0.0.1:8000/chessmine/accounts/google/login/callback/` 리디렉션 URI가 필요합니다. 클라이언트 ID와 시크릿은 환경 변수로만 전달합니다.
+브라우저에서 `http://127.0.0.1:8000/chessmine/`을 열어 서버 안내를 확인합니다. 실제 Google 로그인에는 테스트용 OAuth 클라이언트와 정확히 일치하는 리디렉션 URI가 필요합니다. GitHub Pages 연동과 실제 Google 인증은 배포 환경에서 별도로 검사해야 합니다. 클라이언트 ID와 시크릿은 환경 변수로만 전달합니다.
 
 ```sh
 CHESSMINE_DEBUG=1 GOOGLE_OAUTH_CLIENT_ID=test GOOGLE_OAUTH_CLIENT_SECRET=test .venv/bin/python server/manage.py test records
