@@ -33,3 +33,6 @@ class HintBalance(models.Model):
     credits = models.PositiveIntegerField(default=0)
     promo_digest = models.CharField(max_length=64, blank=True, default='')
     promo_ready_at = models.DateTimeField(null=True, blank=True)
+    test_premium = models.BooleanField(default=False)
+    daily_credits = models.PositiveIntegerField(default=0)
+    daily_date = models.DateField(null=True, blank=True)

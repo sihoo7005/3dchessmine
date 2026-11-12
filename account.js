@@ -19,7 +19,7 @@
     const headers = {...options.headers};if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${base}api/cross/${action}`, {...options, headers, credentials: 'omit'});
   };
-  const publishCredits = credits => window.dispatchEvent(new CustomEvent('chessmine:hint-credits',{detail:{credits}}));
+  const publishCredits = (credits,premium=null,premiumTestAvailable=false) => window.dispatchEvent(new CustomEvent('chessmine:hint-credits',{detail:{credits,premium,premiumTestAvailable}}));
   const hintRequest = async (action, method='GET', body) => {
     if (!token || !session) throw new Error('login_required');
     const currentToken=token, userId=session.userId, controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),15000);
@@ -27,9 +27,12 @@
     if (token!==currentToken || session?.userId!==userId) throw new Error('account_changed');
     if (response.status===401) { clearSession();throw new Error('login_required'); }
     if (!response.ok) throw new Error('hint_request_failed');
-    const data=await response.json();if(token!==currentToken || session?.userId!==userId)throw new Error('account_changed');if(Number.isSafeInteger(data.credits))publishCredits(data.credits);return data;
+    const data=await response.json();if(token!==currentToken || session?.userId!==userId)throw new Error('account_changed');if(Number.isSafeInteger(data.credits))publishCredits(data.credits,data.premium===true,data.premiumTestAvailable===true);return data;
   };
-  window.chessmineHints={state:()=>!token?'guest':session?'authenticated':'connecting',owner:()=>session?.userId??null,balance:()=>hintRequest('hints'),start:()=>hintRequest('hint-start','POST'),claim:ticket=>hintRequest('hint-claim','POST',{ticket}),use:()=>hintRequest('hint-use','POST')};
+  window.chessmineHints={state:()=>!token?'guest':session?'authenticated':'connecting',owner:()=>session?.userId??null,balance:()=>hintRequest('hints'),start:()=>hintRequest('hint-start','POST'),claim:ticket=>hintRequest('hint-claim','POST',{ticket}),use:()=>hintRequest('hint-use','POST'),setPremium:enabled=>hintRequest('premium-test','POST',{enabled})};
+  const refreshHints=()=>{if(session)hintRequest('hints').catch(()=>{});};
+  function scheduleDailyRefresh(){const now=Date.now(),delay=86400000-now%86400000+100;setTimeout(()=>{refreshHints();scheduleDailyRefresh();},delay);}
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshHints();});scheduleDailyRefresh();
   const save = async () => {
     if (sending || !session || !pending.length) return;
     sending = true;

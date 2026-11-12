@@ -3,6 +3,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.environ.get('CHESSMINE_DEBUG') == '1'
+PREMIUM_TEST_ENABLED = os.environ.get('CHESSMINE_PREMIUM_TEST') == '1'
 SECRET_KEY = os.environ.get('CHESSMINE_SECRET_KEY', '')
 if not SECRET_KEY:
     if not DEBUG:

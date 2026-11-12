@@ -104,6 +104,48 @@ class CrossOriginTests(TestCase):
         self.assertEqual(self.client.post(url + 'delete', **alice).status_code, 200)
         self.assertFalse(HintBalance.objects.filter(user_id=self.alice.pk).exists())
 
+    @override_settings(PREMIUM_TEST_ENABLED=True)
+    def test_premium_daily_hints_reset_in_utc_and_promo_bonus(self):
+        from datetime import datetime, timedelta, timezone as utc
+        from unittest.mock import patch
+        from django.utils import timezone
+        from .models import AccessToken, HintBalance
+        from .views import token_digest
+        token = self.issue_token(self.alice)
+        AccessToken.objects.filter(digest=token_digest(token)).update(expires_at=timezone.now() + timedelta(days=370))
+        auth = {'HTTP_ORIGIN': self.origin, 'HTTP_AUTHORIZATION': 'Bearer ' + token}
+        url = '/chessmine/api/cross/'
+        before = datetime(2026, 11, 12, 23, 59, 50, tzinfo=utc.utc)
+        with patch('records.views.timezone.now', return_value=before):
+            enable = self.client.post(url + 'premium-test', json.dumps({'enabled': True}), content_type='application/json', **auth)
+            self.assertEqual(enable.json()['credits'], 15)
+            self.assertTrue(enable.json()['premium'])
+            self.assertEqual(self.client.post(url + 'hint-use', **auth).json()['credits'], 14)
+            self.assertEqual(self.client.post(url + 'premium-test', json.dumps({'enabled': False}), content_type='application/json', **auth).json()['credits'], 0)
+            self.assertEqual(self.client.post(url + 'premium-test', json.dumps({'enabled': True}), content_type='application/json', **auth).json()['credits'], 14, 'Toggling must not refill daily hints')
+            HintBalance.objects.filter(user=self.alice).update(daily_credits=0)
+            ticket = self.client.post(url + 'hint-start', **auth).json()['ticket']
+        with patch('records.views.timezone.now', return_value=before + timedelta(seconds=4)):
+            claim = self.client.post(url + 'hint-claim', json.dumps({'ticket': ticket}), content_type='application/json', **auth)
+            self.assertEqual(claim.json()['credits'], 5, 'Premium promotion earns three plus two')
+            self.assertEqual(self.client.post(url + 'hint-use', **auth).json()['credits'], 4)
+        with patch('records.views.timezone.now', return_value=before + timedelta(seconds=11)):
+            self.assertEqual(self.client.get(url + 'hints', **auth).json()['credits'], 19, 'UTC midnight adds fresh daily hints to saved hints')
+            self.assertEqual(self.client.post(url + 'hint-use', **auth).json()['credits'], 18)
+            balance = HintBalance.objects.get(user=self.alice)
+            self.assertEqual((balance.daily_credits, balance.credits), (14, 4), 'Daily hints are spent before saved hints')
+            self.assertEqual(self.client.get(url + 'hints', **auth).json()['credits'], 18, 'The daily allowance must not refill twice')
+        with patch('records.views.timezone.now', return_value=before + timedelta(days=1, seconds=11)):
+            self.assertEqual(self.client.get(url + 'hints', **auth).json()['credits'], 19, 'Unused daily hints must expire instead of carrying over')
+            balance = HintBalance.objects.get(user=self.alice)
+            self.assertEqual((balance.daily_credits, balance.credits), (15, 4))
+
+    @override_settings(PREMIUM_TEST_ENABLED=False)
+    def test_premium_test_switch_is_disabled_by_default(self):
+        auth = {'HTTP_ORIGIN': self.origin, 'HTTP_AUTHORIZATION': 'Bearer ' + self.issue_token(self.alice)}
+        response = self.client.post('/chessmine/api/cross/premium-test', json.dumps({'enabled': True}), content_type='application/json', **auth)
+        self.assertEqual(response.status_code, 403)
+
     def test_invalid_record_and_account_deletion(self):
         token = self.issue_token(self.alice)
         auth = {'HTTP_ORIGIN': self.origin, 'HTTP_AUTHORIZATION': f'Bearer {token}'}

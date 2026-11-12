@@ -144,6 +144,11 @@ try{
   await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   assert.ok(await evaluate('__game.state.distance')<mobileBefore[1]);assert.equal(await evaluate('[...__game.state.cells.values()].filter(c=>c.revealed).length'),mobileBefore[2],'Touch rotation and pinch must not reveal cells');
   await evaluate('__game.resetCamera()');await screenshot('minesweeper-mobile.png');
+  await evaluate('document.getElementById("fullscreenButton").click();new Promise(r=>setTimeout(r,100))');
+  assert.equal(await evaluate('document.fullscreenElement===document.getElementById("gameArea")||document.getElementById("gameArea").classList.contains("expanded")'),true,'Fullscreen or its expanded fallback must be active');
+  await evaluate('document.getElementById("hintButton").click();new Promise(r=>setTimeout(r,50))');assert.equal(await evaluate('document.getElementById("promoConfirmDialog").open'),true);assert.equal(await evaluate('document.fullscreenElement===document.getElementById("gameArea")||document.getElementById("gameArea").classList.contains("expanded")'),true,'The promotion confirmation must not exit fullscreen');
+  await evaluate('document.getElementById("promoAccept").click();new Promise(r=>setTimeout(r,50))');assert.equal(await evaluate('document.getElementById("hintPromoDialog").open'),true);assert.equal(await evaluate('document.fullscreenElement===document.getElementById("gameArea")||document.getElementById("gameArea").classList.contains("expanded")'),true,'The promotion must not exit fullscreen');
+  await evaluate('new Promise(r=>setTimeout(r,3200))');await evaluate('document.getElementById("promoClose").click();document.getElementById("fullscreenButton").click();new Promise(r=>setTimeout(r,100))');
   await evaluate('document.getElementById("sizeInput").value=10;document.getElementById("mineInput").value=150;__game.startGame()');
   assert.equal(await evaluate('__game.state.vertexCount'),1000*36);assert.equal(await evaluate('__game.state.gl.getError()'),0);
   await evaluate('__game.state.gl.getExtension("WEBGL_lose_context").loseContext()');

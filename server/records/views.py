@@ -3,8 +3,9 @@ import math
 import uuid
 from pathlib import Path
 from django.contrib.auth import logout
+from django.conf import settings
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.cache import never_cache
@@ -67,7 +68,7 @@ def records(request):
 # Cross-origin API uses explicit bearer tokens and never authenticates with cookies.
 import hashlib
 import secrets
-from datetime import timedelta
+from datetime import timedelta, timezone as datetime_timezone
 from urllib.parse import urlencode
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -163,13 +164,30 @@ def cross_api(request, action):
     access = AccessToken.objects.select_related('user').filter(digest=token_digest(token), expires_at__gt=timezone.now()).first()
     if not access:
         return cors_response(JsonResponse({'error': 'login_required'}, status=401))
-    if action in ('hints', 'hint-start', 'hint-claim', 'hint-use'):
+    if action in ('hints', 'hint-start', 'hint-claim', 'hint-use', 'premium-test'):
         if request.method != ('GET' if action == 'hints' else 'POST'):
             return cors_response(HttpResponseNotAllowed(['GET' if action == 'hints' else 'POST']))
         balance, _ = HintBalance.objects.get_or_create(user=access.user)
+        if action == 'premium-test':
+            if not settings.PREMIUM_TEST_ENABLED:
+                return cors_response(JsonResponse({'error': 'test_disabled'}, status=403))
+            try:
+                data = json.loads(request.body) if len(request.body) <= 4096 else {}
+                enabled = data.get('enabled') if isinstance(data, dict) else None
+                if type(enabled) is not bool:
+                    raise ValueError
+            except (ValueError, UnicodeDecodeError, RecursionError):
+                return cors_response(JsonResponse({'error': 'invalid_request'}, status=400))
+            HintBalance.objects.filter(pk=balance.pk).update(test_premium=enabled)
+        today = timezone.now().astimezone(datetime_timezone.utc).date()
+        if settings.PREMIUM_TEST_ENABLED:
+            HintBalance.objects.filter(pk=balance.pk, test_premium=True).filter(Q(daily_date__isnull=True) | ~Q(daily_date=today)).update(daily_date=today, daily_credits=15)
         if action == 'hint-start':
             ticket = secrets.token_urlsafe(32)
-            if not HintBalance.objects.filter(pk=balance.pk, credits=0).update(promo_digest=token_digest(ticket), promo_ready_at=timezone.now() + timedelta(seconds=3)):
+            eligible = HintBalance.objects.filter(pk=balance.pk, credits=0)
+            if settings.PREMIUM_TEST_ENABLED:
+                eligible = eligible.filter(Q(test_premium=False) | Q(daily_credits=0))
+            if not eligible.update(promo_digest=token_digest(ticket), promo_ready_at=timezone.now() + timedelta(seconds=3)):
                 return cors_response(JsonResponse({'error': 'hints_available'}, status=409))
             return cors_response(JsonResponse({'ticket': ticket}))
         if action == 'hint-claim':
@@ -180,14 +198,17 @@ def cross_api(request, action):
                     raise ValueError
             except (ValueError, UnicodeDecodeError, RecursionError):
                 return cors_response(JsonResponse({'error': 'invalid_ticket'}, status=400))
-            updated = HintBalance.objects.filter(pk=balance.pk, promo_digest=token_digest(ticket), promo_ready_at__lte=timezone.now()).update(credits=F('credits') + 3, promo_digest='', promo_ready_at=None)
+            reward = Case(When(test_premium=True, then=Value(5)), default=Value(3), output_field=IntegerField()) if settings.PREMIUM_TEST_ENABLED else Value(3)
+            updated = HintBalance.objects.filter(pk=balance.pk, promo_digest=token_digest(ticket), promo_ready_at__lte=timezone.now()).update(credits=F('credits') + reward, promo_digest='', promo_ready_at=None)
             if not updated:
                 return cors_response(JsonResponse({'error': 'promo_not_ready'}, status=400))
         elif action == 'hint-use':
-            if not HintBalance.objects.filter(pk=balance.pk, credits__gt=0).update(credits=F('credits') - 1):
+            used_daily = settings.PREMIUM_TEST_ENABLED and HintBalance.objects.filter(pk=balance.pk, test_premium=True, daily_date=today, daily_credits__gt=0).update(daily_credits=F('daily_credits') - 1)
+            if not used_daily and not HintBalance.objects.filter(pk=balance.pk, credits__gt=0).update(credits=F('credits') - 1):
                 return cors_response(JsonResponse({'error': 'no_hints'}, status=409))
-        balance.refresh_from_db(fields=['credits'])
-        return cors_response(JsonResponse({'credits': balance.credits}))
+        balance.refresh_from_db(fields=['credits', 'test_premium', 'daily_credits', 'daily_date'])
+        premium = settings.PREMIUM_TEST_ENABLED and balance.test_premium
+        return cors_response(JsonResponse({'credits': balance.credits + (balance.daily_credits if premium and balance.daily_date == today else 0), 'premium': premium, 'premiumTestAvailable': settings.PREMIUM_TEST_ENABLED}))
     if action == 'session' and request.method == 'GET':
         return cors_response(JsonResponse({'authenticated': True, 'name': access.user.get_full_name() or access.user.get_username(), 'userId': str(access.user.pk)}))
     if action == 'logout' and request.method == 'POST':
