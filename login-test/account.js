@@ -71,7 +71,7 @@
   });
   const render = () => {
     controls.replaceChildren();retry.hidden = !session || !pending.length;
-    if (session) { const menu=document.createElement('details'), title=document.createElement('summary');title.textContent='계정';menu.className='header-menu';menu.append(title,showRecords,logout,deleteAccount);controls.append(menu); }
+    if (session) { const menu=document.createElement('details'), title=document.createElement('summary'), actions=document.createElement('div');title.textContent='계정';menu.className='header-menu';actions.append(showRecords,logout,deleteAccount);menu.append(title,actions);controls.append(menu); }
     else controls.append(login);
   };
   const reconnect = button('계정 다시 연결', async () => { await connect(); });reconnect.hidden = true;
