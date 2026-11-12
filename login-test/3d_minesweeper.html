@@ -668,6 +668,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   $("start").addEventListener("click",startGame);$("view3d").addEventListener("click",()=>setView("3d"));$("view2d").addEventListener("click",()=>setView("2d"));
   $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){stopExpansion();resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
   $("settingsButton").addEventListener("click",()=>{if(!$("settingsDialog").open){stopExpansion();resetTap();$("settingsDialog").showModal();}});$("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
+  $("settingsDialog").addEventListener("click",e=>{const dialog=$("settingsDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
   $("helpDialog").addEventListener("click",e=>{const dialog=$("helpDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
   $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
   function fullscreenChanged(){
