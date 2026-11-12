@@ -63,7 +63,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <div id="groupPanel" class="camera-controls" hidden>
   <button id="groupEdit" aria-pressed="false">묶음 만들기</button>
   <span id="groupDraft" hidden>칸 0개 선택</span>
-  <label id="groupCountLabel" hidden>지뢰 <input id="groupMineCount" type="number" min="0" value="1" style="width:65px"></label>
+  <span id="groupCountLabel" hidden>지뢰 <button id="groupMineDown" type="button" aria-label="묶음 지뢰 수 줄이기">▼</button> <input id="groupMineCount" type="number" min="0" value="1" readonly inputmode="none" aria-label="묶음 지뢰 수" style="width:55px;text-align:center"> <button id="groupMineUp" type="button" aria-label="묶음 지뢰 수 늘리기">▲</button></span>
   <button id="groupSave" hidden>저장</button><button id="groupCancel" hidden>취소</button>
   <label>묶음 관리 <select id="groupSelect" aria-label="관리할 묶음"><option value="">없음</option></select></label>
   <button id="groupDelete">삭제</button><span id="groupStatus" class="hint" aria-live="polite"></span>
@@ -603,7 +603,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   function resize(){
     const active=view==="3d"?canvas3d:canvas,d=Math.min(window.devicePixelRatio||1,2);
     if(view==="2d"){
-      const r=scroller.getBoundingClientRect(),w=scroller.clientWidth||r.width,h=scroller.clientHeight||r.height,min=36;
+      const r=scroller.getBoundingClientRect(),w=scroller.clientWidth||r.width,h=scroller.clientHeight||r.height,min=w<600&&(2*N+.58)*24<=w-24?Math.min(36,(w-24)/(2*N+.58)):36;
       twoDCols=Math.min(w<600?2:3,Math.max(1,Math.floor(((w-24)/min+.58)/(N+.58))));
       const rows=Math.ceil(N/twoDCols);
       width=Math.max(w,Math.ceil(24+(twoDCols*N+(twoDCols-1)*.58)*min));
@@ -730,6 +730,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   }
   function resetGroups(){if(!colorMode)return;groups=[];groupDraft.clear();editingGroup=false;activeGroup=-1;nextGroupColor=0;refreshGroupOptions();updateGroups();}
   $("groupEdit").addEventListener("click",()=>{if(!cells.size||ended){cellInfo.textContent="진행 중인 게임에서 묶음을 만드세요.";return;}stopExpansion();resetTap();editingGroup=true;groupDraft.clear();clearClueSelection();clearHint();updateGroups();draw();});
+  for(const [id,delta] of [["groupMineDown",-1],["groupMineUp",1]])$(id).addEventListener("click",()=>{$("groupMineCount").value=String(Math.min(groupDraft.size,Math.max(0,(Number($("groupMineCount").value)||0)+delta)));});
   $("groupCancel").addEventListener("click",()=>{editingGroup=false;groupDraft.clear();updateGroups();draw();});
   $("groupSave").addEventListener("click",()=>{
     const raw=$("groupMineCount").value,n=Number(raw);

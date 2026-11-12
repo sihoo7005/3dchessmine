@@ -246,6 +246,7 @@ assert.equal(searchApp.tileStyle(p1,search.cells.get(p1)).fill,'#364b5d');assert
 console.log('Verified both modes, fast double taps, long-press flags, and drag cancellation');
 
 const largePage=page(''),largeApp=largePage.window.__game;
+const mobilePage=page('',true),mobileApp=mobilePage.window.__game;mobilePage.elements.board2dScroller.rect={width:360,height:400,left:0,top:0};mobileApp.setView('2d');const mobileLayout=mobileApp.layout2d();assert.equal(mobileLayout.cols,2,'A standard mobile board should show two layers per row');assert.ok(mobileLayout.s>=24,'Mobile cells must remain at least 24 pixels wide');assert.equal(mobileApp.find2d(mobileLayout.left+1.5*mobileLayout.s,mobileLayout.top+2*(6+.42+.3)*mobileLayout.s+(.42+1.5)*mobileLayout.s),'1,1,4','Cells in the last row must remain selectable');
 largePage.elements.board2dScroller.rect={width:390,height:400,left:0,top:0};
 largePage.elements.sizeInput.value='10';largePage.elements.mineInput.value='50';largePage.elements.start.click();
 const largeLayout=largeApp.layout2d();
@@ -339,6 +340,7 @@ const colorIds=[...colorBoard.cells].filter(([id,c])=>!c.revealed&&!colorBoard.m
 const badges=id=>colorApp.tileStyle(id,colorBoard.cells.get(id)).badges||[];
 colorPage.elements.groupEdit.click();for(const id of colorIds)colorApp.activate(id,false);
 assert.equal(colorPage.elements.groupDraft.textContent,'칸 4개 선택');
+colorPage.elements.groupMineCount.value='1';colorPage.elements.groupMineUp.click();assert.equal(colorPage.elements.groupMineCount.value,'2');for(let i=0;i<5;i++)colorPage.elements.groupMineUp.click();assert.equal(colorPage.elements.groupMineCount.value,'4');for(let i=0;i<5;i++)colorPage.elements.groupMineDown.click();assert.equal(colorPage.elements.groupMineCount.value,'0');
 colorPage.elements.groupMineCount.value='2';colorPage.elements.groupSave.click();
 assert.equal(badges(colorIds[0])[0].text,'2/4');const firstColor=badges(colorIds[0])[0].color;
 colorPage.elements.groupEdit.click();colorApp.activate(colorIds[2],false);colorApp.activate(colorIds[3],false);
@@ -376,6 +378,8 @@ const color3dUploads=color3dPage.glCalls.texSubImage2D;
 color3dApp.activate(color3dId,false);color3dPage.elements.groupMineCount.value='1';color3dPage.elements.groupSave.click();
 assert.equal(color3dApp.tileStyle(color3dId,color3dState.cells.get(color3dId)).badges[0].text,'1/1');
 assert.ok(color3dPage.glCalls.texSubImage2D>color3dUploads,'Saving a group must update the 3D texture');
+const beforeDeleteUpload=color3dPage.glCalls.texSubImage2D;assert.equal(color3dPage.elements.groupDelete.disabled,false);color3dPage.elements.groupDelete.click();assert.equal(color3dApp.tileStyle(color3dId,color3dState.cells.get(color3dId)).badges.length,0,'Deleting a selected group must remove its 3D badge');assert.ok(color3dPage.glCalls.texSubImage2D>beforeDeleteUpload,'Deleting a group must update the 3D texture');assert.equal(color3dPage.elements.groupDelete.disabled,true);
+color3dPage.elements.groupEdit.click();color3dApp.activate(color3dId,false);color3dPage.elements.groupMineCount.value='1';color3dPage.elements.groupSave.click();
 color3dPage.elements.groupEdit.click();color3dApp.activate(color3dId,false);color3dPage.elements.groupMineCount.value='2';color3dPage.elements.groupSave.click();
 assert.match(color3dPage.elements.groupStatus.textContent,/입력/,'A group cannot contain more mines than cells');
 colorPage.elements.flagMode.click();colorPage.elements.groupEdit.click();
