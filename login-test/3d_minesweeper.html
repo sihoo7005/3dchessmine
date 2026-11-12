@@ -24,6 +24,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 #helpDialog::backdrop{background:#070d16bb}
 #settingsDialog,#customDialog{width:min(92vw,680px);min-height:300px;max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}#settingsDialog::backdrop,#customDialog::backdrop{background:#070d16bb}#settingsDialog a{display:block;margin:16px 0;color:#a4e3b3}
 .records-dialog{width:min(92vw,680px);max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}.records-dialog::backdrop{background:#070d16bb}.records-dialog>div+div{margin-top:16px;line-height:1.8;overflow-wrap:anywhere}
+#hintPromoDialog{width:min(90vw,480px);padding:28px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;text-align:center;box-shadow:0 16px 60px #0008}#hintPromoDialog::backdrop{background:#070d16cc}#hintPromoDialog a{display:inline-block;margin:12px 0;padding:12px 18px;border-radius:8px;background:#2862a1;color:white;font-weight:700;text-decoration:none}#hintPromoDialog p{line-height:1.5}
 #difficultyDialog{width:min(94vw,1000px);max-height:92vh;overflow:auto;padding:12px;border:0;background:transparent;color:#edf3fb;box-shadow:none}#difficultyDialog::backdrop{background:#070d16dd}#difficultyTitle{text-align:center;outline:none}.difficulty-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.difficulty-options button{min-height:clamp(110px,22vh,160px);font-size:1.15rem}.difficulty-options small{display:block;margin-top:8px;color:#b9c8d9;font-size:.8rem;font-weight:400}@media(orientation:landscape){.difficulty-options{grid-template-columns:repeat(4,minmax(0,1fr))}}
 #groupMineCount{appearance:textfield;-moz-appearance:textfield}#groupMineCount::-webkit-inner-spin-button,#groupMineCount::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 #groupPanel{height:44px;min-height:44px;flex-wrap:nowrap;overflow-x:auto}#groupPanel>*{flex-shrink:0}#groupEdit{min-width:7.5em}#groupStatus{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}#groupEditor{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;white-space:nowrap}#groupManageLabel{white-space:nowrap}#groupSelect{max-width:min(50vw,220px)}
@@ -60,6 +61,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 </fieldset>
 </dialog>
 <div id="gameArea">
+<dialog id="hintPromoDialog" aria-labelledby="hintPromoTitle"><h2 id="hintPromoTitle">다른 게임도 즐겨보세요</h2><a href="https://sihoo7005.github.io/fly/game.html" target="_blank" rel="noopener noreferrer">게임 보러 가기</a><p>3초 후 힌트가 표시됩니다.</p></dialog>
 <div class="toolbar">
   <div class="buttons"><button id="start">새 게임 시작</button><button id="cancelGeneration" hidden>생성 취소</button><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button><button id="fullscreenButton" aria-pressed="false">전체화면</button></div>
   <div class="buttons"><button id="hintButton">힌트</button><button id="autoFlagButton">자동 깃발</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
@@ -219,7 +221,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   function clearClueSelection(){selectedClue=null;selectedClosed=null;clueRange.clear();resetTap();}
   function selectClue(k,c){
     selectedClue=k;clueRange=new Set(cluePositions(parse(k),c.piece).map(p=>key(...p)));draw();showCellInfo(k);
-    cellInfo.textContent+=editingGroup?" · 범위 표시 중. 닫힌 칸을 눌러 묶음에 추가하세요.":" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
+    cellInfo.textContent+=ended?" · 게임 종료 후 범위 표시 중.":editingGroup?" · 범위 표시 중. 닫힌 칸을 눌러 묶음에 추가하세요.":" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
   }
   function stopExpansion(){if(expansionTimer!==null){clearTimeout(expansionTimer);expansionTimer=null;if(cellInfo.textContent.startsWith("자동 개방 중"))cellInfo.textContent="자동 개방을 중단했습니다.";}}
   function expandClues(){
@@ -245,7 +247,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     step();
   }
   function activate(k,flag){
-    if(ended)return;
+    if(ended){const cell=cells.get(k);if(!flag&&cell?.revealed&&!mines.has(k))selectClue(k,cell);else if(!flag&&!cell){clearClueSelection();draw();}return;}
     stopExpansion();
     const c=cells.get(k);
     if(colorMode&&editingGroup){
@@ -752,13 +754,13 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   });
   $("groupSelect").addEventListener("change",()=>{activeGroup=$("groupSelect").value===""?-1:Number($("groupSelect").value);updateGroups();draw();});
   $("groupDelete").addEventListener("click",()=>{if(activeGroup<0||editingGroup)return;groups.splice(activeGroup,1);activeGroup=groups.length?Math.min(activeGroup,groups.length-1):-1;refreshGroupOptions();updateGroups();draw();});
-  $("hintButton").addEventListener("click",()=>{cellInfo.textContent="힌트는 광고 시청 기능을 준비 중입니다.";});$("autoFlagButton").addEventListener("click",()=>{cellInfo.textContent="자동 깃발은 프리미엄 기능입니다. 결제 기능을 준비 중입니다.";});
+  $("hintButton").addEventListener("click",()=>{if(!cells.size||ended){showHint();return;}if($("hintPromoDialog").open)return;stopExpansion();resetTap();$("hintPromoDialog").showModal();setTimeout(()=>{$("hintPromoDialog").close();showHint();},3000);});$("hintPromoDialog").addEventListener("cancel",e=>e.preventDefault());$("autoFlagButton").addEventListener("click",()=>{cellInfo.textContent="자동 깃발은 프리미엄 기능입니다. 결제 기능을 준비 중입니다.";});
   flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
   layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{
     if(e.key==="Escape"&&$("gameArea").classList.contains("expanded")){$("gameArea").classList.remove("expanded");fullscreenChanged();return;}
-    if($("helpDialog").open||$("settingsDialog").open||$("difficultyDialog").open||$("customDialog").open||$("recordsDialog")?.open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
+    if($("helpDialog").open||$("settingsDialog").open||$("difficultyDialog").open||$("customDialog").open||$("hintPromoDialog").open||$("recordsDialog")?.open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
     if(k==="v")setView(view==="3d"?"2d":"3d");if(k==="f")flagButton.click();if(k==="r")startGame();
     if(e.target===canvas3d){if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","=","-"].includes(e.key))e.preventDefault();
       if(k==="arrowleft")yaw-=.12;if(k==="arrowright")yaw+=.12;if(k==="arrowup")pitch=Math.min(1.45,pitch+.12);if(k==="arrowdown")pitch=Math.max(-1.45,pitch-.12);if(k==="+"||k==="=")zoom(.9);if(k==="-")zoom(1.1);render3d();}
