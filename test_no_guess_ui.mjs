@@ -45,6 +45,7 @@ original.elements.helpDialog.listeners.click({target:original.elements.helpDialo
 original.elements.helpDialog.listeners.click({target:original.elements.helpDialog,clientX:-1,clientY:300});assert.equal(original.elements.helpDialog.open,false,'Clicking outside the dialog must close it');
 original.elements.helpButton.click();original.elements.helpClose.click();assert.equal(original.elements.helpDialog.open,false,'The close button must still close the dialog');assert.equal(original.window.__game.state.cells,boardBeforeHelp);
 original.elements.settingsButton.click();assert.equal(original.elements.settingsDialog.open,true,'Settings must open as a dialog');original.elements.settingsClose.click();assert.equal(original.elements.settingsDialog.open,false,'Settings must close');
+original.elements.settingsButton.click();original.elements.settingsDialog.listeners.click({target:original.elements.settingsDialog,clientX:400,clientY:300});assert.equal(original.elements.settingsDialog.open,true,'Clicking inside settings must keep it open');original.elements.settingsDialog.listeners.click({target:original.elements.settingsDialog,clientX:-1,clientY:300});assert.equal(original.elements.settingsDialog.open,false,'Clicking outside settings must close it');
 const game=page('?mode=no-guess');
 assert.equal(game.elements.start.disabled,true);assert.equal(game.window.__game.state.cells.size,0);
 for(let i=0;i<100&&game.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
