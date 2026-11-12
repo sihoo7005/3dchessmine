@@ -59,7 +59,7 @@
       const labels = {'normal':'일반','no-guess':'추측 없음','no-guess-color':'컬러 묶음'};
       for (const record of data.records) {
         const seconds = Math.floor(record.duration_ms / 1000),row = document.createElement('div');
-        const preset={'4:6':'쉬움','5:15':'보통','6:35':'어려움'}[`${record.board_size}:${record.mine_count}`],difficulty=preset&&['K','R','B','Q','N'].every((piece,i)=>record.weights[piece]===(i===0?7:1))?`${preset} · `:'';
+        const preset={'4:6':'쉬움','4:10':'쉬움','5:15':'보통','5:20':'보통','6:35':'어려움'}[`${record.board_size}:${record.mine_count}`],difficulty=preset&&['K','R','B','Q','N'].every((piece,i)=>record.weights[piece]===(i===0?7:1))?`${preset} · `:'';
         row.textContent = `${new Date(record.finished_at).toLocaleDateString('ko-KR')} · ${labels[record.mode]} · ${difficulty}${record.board_size}×${record.board_size}×${record.board_size} · 지뢰 ${record.mine_count}개 · ${record.result === 'won' ? '성공' : '실패'} · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} · 가중치 ${['K','R','B','Q','N'].map(piece=>record.weights[piece]).join(':')}`;
         list.append(row);
       }
