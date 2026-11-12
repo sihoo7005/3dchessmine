@@ -32,7 +32,7 @@ assert.ok([...mixedResult.moves].every(move=>move.mine),'Free cells must be mine
 context.cluePositions=originalCluePositions;
 const useDefaults=process.argv.includes('--default'),easy=process.argv.includes('--easy'),normal=process.argv.includes('--normal'),maxSources=easy?1:normal?2:null;
 const inputValue=id=>Number(html.match(new RegExp(`id="${id}"[^>]*value="([^"]+)"`))[1]);
-const size=easy?4:normal?5:useDefaults?inputValue('sizeInput'):3,count=easy?6:normal?15:useDefaults?inputValue('mineInput'):2;
+const size=easy?4:normal?5:useDefaults?inputValue('sizeInput'):3,count=easy?10:normal?20:useDefaults?inputValue('mineInput'):2;
 const positions=[];for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++)positions.push([x,y,z]);
 const weights=Object.fromEntries(['K','R','B','Q','N'].map(piece=>[piece,Number(html.match(new RegExp(`id="weight${piece}"[^>]*value="([^"]+)"`))[1])])),choices=[];
 for(const piece of Object.keys(weights))for(const pos of positions)if(pos.some(v=>v===size-1)&&context.cluePositions(pos,piece,size).length<=size**3-count-1)choices.push({piece,pos});
