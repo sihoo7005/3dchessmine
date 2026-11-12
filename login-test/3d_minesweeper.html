@@ -25,7 +25,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 #settingsDialog,#customDialog{width:min(92vw,680px);min-height:300px;max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}#settingsDialog::backdrop,#customDialog::backdrop{background:#070d16bb}#settingsDialog a{display:block;margin:16px 0;color:#a4e3b3}
 .records-dialog{width:min(92vw,680px);max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}.records-dialog::backdrop{background:#070d16bb}.records-dialog>div+div{margin-top:16px;line-height:1.8;overflow-wrap:anywhere}
 #hintPromoDialog{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));border:0;background:radial-gradient(circle at 50% 25%,#29496a,#101722 70%);color:#edf3fb;text-align:center}#hintPromoDialog[open]{display:flex;flex-direction:column;justify-content:center;align-items:center}#hintPromoDialog::backdrop{background:#070d16}#hintPromoDialog .promo-content{max-width:560px}#hintPromoDialog h2{font-size:clamp(2rem,7vw,3.4rem);margin:.3em 0}#hintPromoDialog p{line-height:1.6;color:#d0dfed}#hintPromoDialog a{display:inline-block;margin:16px 0;padding:14px 22px;border-radius:10px;background:#2862a1;color:white;font-size:1.1rem;font-weight:700;text-decoration:none}#promoClose{position:absolute;top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));width:44px;height:44px;padding:0;border-radius:50%;font-size:1.2rem;background:#1b2838}#promoClose:disabled{opacity:.8;cursor:default}
-#premiumDialog{width:min(88vw,340px);padding:22px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;text-align:center;box-shadow:0 16px 60px #0008}#premiumDialog::backdrop{background:#070d16bb}#premiumDialog p{line-height:1.5}#premiumDialog small{color:#b9c8d9}
+#autoGroupWrap{position:relative}#premiumNotice{position:absolute;z-index:20;top:calc(100% + 6px);left:0;width:max-content;max-width:calc(100vw - 24px);padding:10px 12px;border:1px solid #536982;border-radius:10px;background:#172333;color:#edf3fb;box-shadow:0 8px 20px #0008;white-space:nowrap}
 #promoConfirmDialog{width:min(88vw,380px);padding:22px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;text-align:center;box-shadow:0 16px 60px #0008}#promoConfirmDialog::backdrop{background:#070d16bb}#promoConfirmDialog .buttons{justify-content:center}
 #difficultyDialog{width:min(94vw,1000px);max-height:92vh;overflow:auto;padding:12px;border:0;background:transparent;color:#edf3fb;box-shadow:none}#difficultyDialog::backdrop{background:#070d16dd}#difficultyTitle{text-align:center;outline:none}.difficulty-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.difficulty-options button{min-height:clamp(110px,22vh,160px);font-size:1.15rem}.difficulty-options small{display:block;margin-top:8px;color:#b9c8d9;font-size:.8rem;font-weight:400}@media(orientation:landscape){.difficulty-options{grid-template-columns:repeat(4,minmax(0,1fr))}}
 #groupMineCount{appearance:textfield;-moz-appearance:textfield}#groupMineCount::-webkit-inner-spin-button,#groupMineCount::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
@@ -67,10 +67,9 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <div id="gameArea">
 <dialog id="hintPromoDialog" aria-labelledby="hintPromoTitle"><button id="promoClose" type="button" disabled aria-label="3초 후 닫기 가능">3</button><div class="promo-content"><p>잠깐, 다른 게임도 만나보세요</p><h2 id="hintPromoTitle">초파리, 세 차선</h2><p>세 차선의 장애물을 피하며 20턴 완주에 도전해 보세요.<br>초파리 모델이 어떤 차선을 고르는지도 살펴볼 수 있어요.</p><a href="https://sihoo7005.github.io/fly/game.html" target="_blank" rel="noopener noreferrer">게임 보러 가기</a><p id="promoReward">카운트다운이 끝나면 X를 눌러 힌트 3개를 받으세요.</p></div></dialog>
 <dialog id="promoConfirmDialog" aria-labelledby="promoConfirmText"><p id="promoConfirmText"></p><div class="buttons"><button id="promoCancel" type="button">취소</button><button id="promoAccept" type="button">광고 보기</button></div></dialog>
-<dialog id="premiumDialog" aria-labelledby="premiumTitle"><h2 id="premiumTitle">프리미엄 기능</h2><p>자동 묶음은 프리미엄 기능입니다.</p><button type="button">닫기</button><br><small>아무 곳이나 누르면 닫힙니다.</small></dialog>
 <div class="toolbar">
   <div class="buttons"><button id="start">새 게임 시작</button><button id="cancelGeneration" hidden>생성 취소</button><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button></div>
-  <div class="buttons"><button id="hintButton">힌트</button><button id="autoGroupButton" hidden>자동 묶음</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button><button id="fullscreenButton" aria-label="전체화면" title="전체화면" aria-pressed="false">⛶</button></div>
+  <div class="buttons"><button id="hintButton">힌트</button><span id="autoGroupWrap" hidden><button id="autoGroupButton" aria-expanded="false" aria-controls="premiumNotice">자동 묶음</button><span id="premiumNotice" role="status" hidden>자동 묶음은 프리미엄 전용입니다.</span></span><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button><button id="fullscreenButton" aria-label="전체화면" title="전체화면" aria-pressed="false">⛶</button></div>
 </div>
 <div id="groupPanel" class="camera-controls" hidden>
   <button id="groupEdit" aria-pressed="false">묶음 만들기</button>
@@ -128,7 +127,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   "use strict";
   const gameMode=new URLSearchParams(location.search).get("mode"),colorMode=gameMode==="no-guess-color",noGuess=gameMode==="no-guess"||colorMode;
   if(noGuess){document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
-  if(colorMode){for(const id of ["groupPanel","groupHelp","groupHelpText","autoGroupButton","autoGroupHelp","autoGroupHelpText"])document.getElementById(id).hidden=false;}
+  if(colorMode){for(const id of ["groupPanel","groupHelp","groupHelpText","autoGroupWrap","autoGroupHelp","autoGroupHelpText"])document.getElementById(id).hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, hintBusy=false, hintOffline=false, premiumActive=false, premiumAvailable=false, promoTicket=null, guestHints=0, cellSize=40, width=0, height=0, twoDCols=2;
   let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="",draftLayout=null;
   const groupColors=[["노랑","#ffd166"],["청록","#81e6d9"],["분홍","#ff9bbd"],["보라","#c3adff"],["연두","#b4ef8a"],["주황","#ffb77c"]];
@@ -698,14 +697,18 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     const select=$("groupSelect"),labels=groupLabels();groupOptionsKey=JSON.stringify(labels);select.replaceChildren(new Option("없음",""));labels.forEach((label,i)=>select.add(new Option(label,String(i))));select.value=activeGroup<0?"":String(activeGroup);
   }
   function resetGroups(){if(!colorMode)return;groups=[];groupDraft.clear();editingGroup=false;activeGroup=-1;nextGroupColor=0;refreshGroupOptions();updateGroups();}
-  function addGroup(ids,count){const colorIndex=nextGroupColor++,[colorName,color]=groupColors[colorIndex]||[`색상 ${colorIndex+1}`,`hsl(${Math.round(colorIndex*137.508)%360}, 90%, 75%)`];groups.push({ids:new Set(ids),mines:count,colorName,color});activeGroup=groups.length-1;refreshGroupOptions();updateGroups();draw();}
+  function addGroup(ids,count,source=null){const colorIndex=nextGroupColor++,[colorName,color]=groupColors[colorIndex]||[`색상 ${colorIndex+1}`,`hsl(${Math.round(colorIndex*137.508)%360}, 90%, 75%)`];groups.push({ids:new Set(ids),mines:count,colorName,color,source});activeGroup=groups.length-1;refreshGroupOptions();updateGroups();draw();}
+  function removeGroup(index){groups.splice(index,1);if(activeGroup>index)activeGroup--;else if(activeGroup===index)activeGroup=Math.min(index,groups.length-1);refreshGroupOptions();updateGroups();draw();}
   async function autoGroup(id,silent=false){
     if(!colorMode||ended||!cells.get(id)?.revealed||mines.has(id)){if(!silent)cellInfo.textContent="열린 기물을 먼저 선택하세요.";return;}
-    if(hintState()!=="authenticated"||!premiumActive){if(!silent&&!$("premiumDialog").open)$("premiumDialog").showModal();return;}
+    if(hintState()!=="authenticated"||!premiumActive){if(!silent)showPremiumNotice();return;}
     const board=cells,owner=window.chessmineHints.owner();
-    try{const balance=await window.chessmineHints.balance();if(!balance.premium){if(!silent&&!$("premiumDialog").open)$("premiumDialog").showModal();return;}if(cells!==board||ended||window.chessmineHints.owner()!==owner||(!silent&&selectedClue!==id))return;
-      const cell=cells.get(id);if(!cell?.revealed||mines.has(id))return;const range=cluePositions(parse(id),cell.piece).map(p=>key(...p)),closed=range.filter(k=>!cells.get(k).revealed&&!cells.get(k).flagged),flags=range.filter(k=>cells.get(k).flagged).length,remaining=countMines(parse(id),cell.piece)-flags;
-      if(remaining<0||remaining>closed.length){cellInfo.textContent="깃발 수가 기물의 숫자와 맞지 않습니다.";return;}if(!closed.length){cellInfo.textContent="묶을 닫힌 칸이 없습니다.";return;}addGroup(closed,remaining);cellInfo.textContent=`자동 묶음: ${closed.length}칸 · 남은 지뢰 ${remaining}개`;
+    try{const balance=await window.chessmineHints.balance();if(!balance.premium){if(!silent)showPremiumNotice();return;}if(cells!==board||ended||window.chessmineHints.owner()!==owner||(!silent&&selectedClue!==id))return;
+      const cell=cells.get(id);if(!cell?.revealed||mines.has(id))return;const sourceIndex=groups.findIndex(group=>group.source===id);if(sourceIndex>=0){removeGroup(sourceIndex);cellInfo.textContent="자동 묶음을 해제했습니다.";return;}
+      const range=cluePositions(parse(id),cell.piece).map(p=>key(...p)),closed=range.filter(k=>!cells.get(k).revealed&&!cells.get(k).flagged),flags=range.filter(k=>cells.get(k).flagged).length,remaining=countMines(parse(id),cell.piece)-flags;
+      if(remaining<0||remaining>closed.length){cellInfo.textContent="깃발 수가 기물의 숫자와 맞지 않습니다.";return;}if(!closed.length){cellInfo.textContent="묶을 닫힌 칸이 없습니다.";return;}
+      const duplicate=groups.findIndex(group=>!group.invalid&&group.remaining===remaining&&group.closed===closed.length&&closed.every(k=>group.ids.has(k)));if(duplicate>=0){removeGroup(duplicate);cellInfo.textContent="같은 묶음을 해제했습니다.";return;}
+      addGroup(closed,remaining,id);cellInfo.textContent=`자동 묶음: ${closed.length}칸 · 남은 지뢰 ${remaining}개`;
     }catch{if(!silent)cellInfo.textContent="프리미엄 상태를 확인하지 못했습니다. 연결을 확인하세요.";}
   }
   $("groupEdit").addEventListener("click",()=>{if(!cells.size||ended){cellInfo.textContent="진행 중인 게임에서 묶음을 만드세요.";return;}stopExpansion();resetTap();editingGroup=true;groupDraft.clear();clearClueSelection();clearHint();updateGroups();draw();});
@@ -717,7 +720,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     const ids=new Set(groupDraft);groupDraft.clear();editingGroup=false;addGroup(ids,n);
   });
   $("groupSelect").addEventListener("change",()=>{activeGroup=$("groupSelect").value===""?-1:Number($("groupSelect").value);updateGroups();draw();});
-  $("groupDelete").addEventListener("click",()=>{if(activeGroup<0||editingGroup)return;groups.splice(activeGroup,1);activeGroup=groups.length?Math.min(activeGroup,groups.length-1):-1;refreshGroupOptions();updateGroups();draw();});
+  $("groupDelete").addEventListener("click",()=>{if(activeGroup<0||editingGroup)return;removeGroup(activeGroup);});
   let startWasDisabled=false;
   let promoDecision=null;
   function finishPromoDecision(accepted){if(!promoDecision)return;const resolve=promoDecision;promoDecision=null;$("promoConfirmDialog").close();resolve(accepted);}
@@ -746,14 +749,18 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   });
   $("promoClose").addEventListener("click",()=>{if(!$("promoClose").disabled)$("hintPromoDialog").close();});$("hintPromoDialog").addEventListener("cancel",e=>{if($("promoClose").disabled)e.preventDefault();});
   $("hintPromoDialog").addEventListener("close",async()=>{if(!promoTicket)return;const promo=promoTicket;promoTicket=null;setHintBusy(true);try{if(promo.guest){guestHints+=3;showGuestHints();cellInfo.textContent=hintState()==="guest"?"힌트 3개를 받았습니다. 힌트 버튼을 눌러 사용하세요.":"비로그인 힌트 3개를 받았습니다. 로그아웃하면 사용할 수 있습니다.";}else{if(hintState()!=="authenticated"||window.chessmineHints.owner()!==promo.owner)throw new Error("account_changed");await window.chessmineHints.claim(promo.ticket);cellInfo.textContent="힌트를 받았습니다. 힌트 버튼을 눌러 사용하세요.";}}catch(error){hintError(error);}finally{setHintBusy(false);}});
-  $("autoGroupButton").addEventListener("click",()=>{stopExpansion();resetTap();if(hintState()!=="authenticated"||!premiumActive){if(!$("premiumDialog").open)$("premiumDialog").showModal();return;}if(!selectedClue){cellInfo.textContent="열린 기물을 먼저 선택하세요.";return;}autoGroup(selectedClue);});$("premiumDialog").addEventListener("click",()=>$("premiumDialog").close());
+  function hidePremiumNotice(){$("premiumNotice").hidden=true;$("autoGroupButton").setAttribute("aria-expanded","false");}
+  function showPremiumNotice(){$("premiumNotice").hidden=false;$("autoGroupButton").setAttribute("aria-expanded","true");}
+  hidePremiumNotice();document.addEventListener("click",event=>{if(!$("autoGroupWrap").contains(event.target))hidePremiumNotice();});$("premiumNotice").addEventListener("click",hidePremiumNotice);
+  $("autoGroupButton").addEventListener("click",()=>{stopExpansion();resetTap();if(hintState()!=="authenticated"||!premiumActive){if($("premiumNotice").hidden)showPremiumNotice();else hidePremiumNotice();return;}hidePremiumNotice();if(!selectedClue){cellInfo.textContent="열린 기물을 먼저 선택하세요.";return;}autoGroup(selectedClue);});
   flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
   spacing.addEventListener("input",()=>{resetTap();for(const cell of visibleCells)cell.center=center(cell.pos);resetCamera();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{
-    if($("hintPromoDialog").open||$("promoConfirmDialog").open||$("premiumDialog").open)return;
+    if(e.key==="Escape"&&!$("premiumNotice").hidden){hidePremiumNotice();e.preventDefault();return;}
+    if($("hintPromoDialog").open||$("promoConfirmDialog").open)return;
     if(e.key==="Escape"&&$("gameArea").classList.contains("expanded")){$("gameArea").classList.remove("expanded");fullscreenChanged();return;}
-    if($("helpDialog").open||$("settingsDialog").open||$("difficultyDialog").open||$("customDialog").open||$("hintPromoDialog").open||$("premiumDialog").open||$("recordsDialog")?.open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
+    if($("helpDialog").open||$("settingsDialog").open||$("difficultyDialog").open||$("customDialog").open||$("hintPromoDialog").open||$("recordsDialog")?.open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
     if(k==="v")setView(view==="3d"?"2d":"3d");if(k==="f")flagButton.click();if(k==="r")startGame();
     if(e.target===canvas3d){if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","=","-"].includes(e.key))e.preventDefault();
       if(k==="arrowleft")yaw-=.12;if(k==="arrowright")yaw+=.12;if(k==="arrowup")pitch=Math.min(1.45,pitch+.12);if(k==="arrowdown")pitch=Math.max(-1.45,pitch-.12);if(k==="+"||k==="=")zoom(.9);if(k==="-")zoom(1.1);render3d();}
