@@ -76,7 +76,7 @@
   };
   const reconnect = button('계정 다시 연결', async () => { await connect(); });reconnect.hidden = true;
   const connect = async () => {
-    if (!token) { session=null;reconnect.hidden=true;render();status.textContent='로그인하면 완료한 게임을 저장합니다.';return; }
+    if (!token) { session=null;reconnect.hidden=true;render();status.textContent='';return; }
     try {
       const response=await request('session');
       if (response.status===401) { clearSession();reconnect.hidden=true;status.textContent='로그인이 만료됐습니다. 다시 로그인해 주세요.';return; }
