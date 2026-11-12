@@ -7,9 +7,9 @@ class Element {
   constructor(tag=''){this.tag=tag;this.children=[];this.hidden=false;this.listeners={};this.style={};this.textContent='';}
   setAttribute(){} append(...nodes){this.children.push(...nodes)} prepend(...nodes){this.children.unshift(...nodes)} replaceChildren(...nodes){this.children=nodes} addEventListener(name,fn){this.listeners[name]=fn}
 }
-const area=new Element(),events={},calls=[],storage=new Map(),popup={};let failSave=false,expired=false,serverUser='1';
+const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={};let failSave=false,expired=false,serverUser='1';
 const window={addEventListener(name,fn){events[name]=fn},open(url){popup.url=url;return popup}};
-const document={createElement:tag=>new Element(tag),getElementById:()=>area};
+const document={createElement:tag=>new Element(tag),getElementById:id=>id==='accountSlot'?accountSlot:area};
 const fetch=async(url,options={})=>{
   calls.push({url,options});
   if(url.endsWith('/exchange'))return{ok:true,json:async()=>({token:'server-token-'+serverUser,name:'User',userId:serverUser})};
@@ -21,7 +21,7 @@ const crypto={randomUUID:()=> 'a8ddc11e-7077-4111-9c8d-844761443756'};
 const sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
 const context={window,document,location:{origin:'https://sihoo7005.github.io',pathname:'/3dchessmine/3d_minesweeper.html'},fetch,crypto,sessionStorage,Date,String,confirm:()=>true,globalThis:{crypto}};
 vm.runInNewContext(source,context);
-const panel=area.children[0],controls=panel.children[0];assert.equal(controls.children[0].textContent,'Google로 로그인');
+const panel=area.children[0],controls=accountSlot.children[0];assert.equal(controls.children[0].textContent,'Google로 로그인');
 controls.children[0].listeners.click();
 const loginState=new URL(popup.url).searchParams.get('state');assert.ok(loginState);
 const before=calls.length;await events.message({origin:'https://attacker.example',source:popup,data:{type:'chessmine-login',state:loginState,code:'fake'}});
@@ -32,7 +32,8 @@ await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type
 assert.equal(calls.length,before,'Messages with a mismatched login state must be ignored');
 await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:loginState,code:'ticket'}});
 assert.equal(storage.get('chessmine:session'),'server-token-1');
-assert.equal(controls.children[0].textContent,'User님');
+assert.equal(controls.children[0].children[0].textContent,'계정');
+assert.deepEqual(controls.children[0].children.slice(1).map(child=>child.textContent),['플레이 기록','로그아웃','계정 및 기록 삭제']);
 events['chessmine:game-finished']({detail:{mode:'normal',size:3,mines:2,weights:{K:7,R:1,B:1,Q:1,N:1},result:'won',durationMs:1234}});
 await new Promise(resolve=>setImmediate(resolve));
 const firstPost=calls.find(call=>call.url.endsWith('/records')&&call.options.method==='POST');
@@ -46,6 +47,6 @@ serverUser='2';controls.children[0].listeners.click();const secondState=new URL(
 await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:secondState,code:'ticket'}});
 await new Promise(resolve=>setImmediate(resolve));
 assert.equal(calls.filter(call=>call.url.endsWith('/records')&&call.options.method==='POST').length,postsBeforeAccountSwitch,'An unsaved record must not be sent to a different account');
-const deleteButton=controls.children.find(child=>child.textContent==='계정 및 기록 삭제');await deleteButton.listeners.click();
+const deleteButton=controls.children[0].children.find(child=>child.textContent==='계정 및 기록 삭제');await deleteButton.listeners.click();
 assert.equal(storage.has('chessmine:session'),false);assert.ok(calls.some(call=>call.url.endsWith('/delete')));
 console.log('Verified cross-origin login checks, record save, retry and account deletion');

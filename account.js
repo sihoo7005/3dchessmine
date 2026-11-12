@@ -6,7 +6,7 @@
   const storageKey = 'chessmine:session';
   let token = null, session = null, pending = [], sending = false, popup = null, loginState = null;
   try { token = sessionStorage.getItem(storageKey); } catch {}
-  const area = document.getElementById('gameArea'), panel = document.createElement('section');
+  const area = document.getElementById('gameArea'), accountSlot = document.getElementById('accountSlot'), panel = document.createElement('section');
   panel.className = 'camera-controls'; panel.setAttribute('aria-label', '계정 및 플레이 기록');
   const controls = document.createElement('div'), status = document.createElement('span'), list = document.createElement('div');
   controls.className = 'buttons'; status.setAttribute('aria-live', 'polite');
@@ -71,7 +71,7 @@
   });
   const render = () => {
     controls.replaceChildren();retry.hidden = !session || !pending.length;
-    if (session) { const name=document.createElement('span');name.textContent=`${session.name}님`;controls.append(name,showRecords,logout,deleteAccount); }
+    if (session) { const menu=document.createElement('details'), title=document.createElement('summary');title.textContent='계정';menu.className='header-menu';menu.append(title,showRecords,logout,deleteAccount);controls.append(menu); }
     else controls.append(login);
   };
   const reconnect = button('계정 다시 연결', async () => { await connect(); });reconnect.hidden = true;
@@ -101,5 +101,5 @@
     if (!globalThis.crypto?.randomUUID) { status.textContent='안전한 브라우저에서 기록을 저장해 주세요.';return; }
     pending.push({record:{...event.detail,clientId:crypto.randomUUID()},owner:session?.userId||null,token});save();
   });
-  panel.append(controls,reconnect,retry,status,list);area.prepend(panel);connect();
+  accountSlot.append(controls);panel.append(reconnect,retry,status,list);area.prepend(panel);connect();
 })();
