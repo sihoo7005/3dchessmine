@@ -26,6 +26,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 .records-dialog{width:min(92vw,680px);max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}.records-dialog::backdrop{background:#070d16bb}.records-dialog>div+div{margin-top:16px;line-height:1.8;overflow-wrap:anywhere}
 #difficultyDialog{width:min(94vw,1000px);max-height:92vh;overflow:auto;padding:12px;border:0;background:transparent;color:#edf3fb;box-shadow:none}#difficultyDialog::backdrop{background:#070d16dd}#difficultyTitle{text-align:center;outline:none}.difficulty-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.difficulty-options button{min-height:clamp(110px,22vh,160px);font-size:1.15rem}.difficulty-options small{display:block;margin-top:8px;color:#b9c8d9;font-size:.8rem;font-weight:400}@media(orientation:landscape){.difficulty-options{grid-template-columns:repeat(4,minmax(0,1fr))}}
 #groupMineCount{appearance:textfield;-moz-appearance:textfield}#groupMineCount::-webkit-inner-spin-button,#groupMineCount::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#groupPanel{position:relative}#groupEdit{min-width:7.5em}#groupStatus{flex-basis:100%;height:1.4em;white-space:nowrap;overflow-x:auto}#groupEditor{position:absolute;z-index:20;top:100%;left:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:max-content;max-width:100%;padding:8px;border:1px solid #35465d;border-radius:10px;background:#172333;box-shadow:0 8px 20px #0008}
 .helpHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.helpHeader h2{margin:0;font-size:1.25rem}
 .helpList{margin:14px 0 0}.helpList dt{margin-top:12px;font-weight:700;color:#a9d7ff}.helpList dd{margin:2px 0 0;color:#d1dfed;line-height:1.5}
 #gameArea:fullscreen,#gameArea.expanded{display:flex;flex-direction:column;width:100%;height:100%;padding:12px;background:#101722;overflow:auto}
@@ -39,7 +40,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 </head>
 <body><main>
 <header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><div class="header-actions"><button id="helpButton" type="button">조작법</button><div id="accountSlot"></div><button id="settingsButton" type="button">설정</button></div></header><div class="hint" id="boardInfo"></div>
-<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">설정</h2><button id="settingsClose" type="button">닫기</button></div><a id="modeLink" href="no_guess.html">추측 없는 게임</a><a href="no_guess_color.html">컬러 묶음 게임</a></dialog>
+<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">설정</h2><button id="settingsClose" type="button">닫기</button></div><label>배경 두 번 누르기 <select id="expansionMode"><option value="step">한 칸씩 열기</option><option value="instant">즉시 열기</option></select></label><a id="modeLink" href="no_guess.html">추측 없는 게임</a><a href="no_guess_color.html">컬러 묶음 게임</a></dialog>
 <dialog id="difficultyDialog" aria-labelledby="difficultyTitle"><h2 id="difficultyTitle" tabindex="-1" autofocus>난이도를 선택하세요</h2><div class="difficulty-options"><button id="chooseEasy" type="button">쉬움<small>4×4×4 · 지뢰 6개</small></button><button id="chooseNormal" type="button">보통<small>5×5×5 · 지뢰 15개</small></button><button id="chooseHard" type="button">어려움<small>6×6×6 · 지뢰 35개</small></button><button id="chooseCustom" type="button">사용자 설정<small>칸과 지뢰를 직접 선택</small></button></div></dialog>
 <div class="settings"><label>난이도 <select id="difficulty"><option value="easy">쉬움</option><option value="normal">보통</option><option value="hard" selected>어려움</option><option value="custom">사용자 설정</option></select></label><button id="customButton" type="button" hidden>사용자 설정 열기</button><span class="hint">난이도를 바꾸면 새 게임이 시작됩니다</span></div>
 <dialog id="customDialog" aria-labelledby="customTitle"><div class="helpHeader"><h2 id="customTitle">사용자 설정</h2><button id="customClose" type="button">닫기</button></div>
@@ -65,9 +66,9 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 </div>
 <div id="groupPanel" class="camera-controls" hidden>
   <button id="groupEdit" aria-pressed="false">묶음 만들기</button>
-  <span id="groupDraft" hidden>칸 0개 선택</span>
-  <span id="groupCountLabel" hidden>지뢰 <button id="groupMineDown" type="button" aria-label="묶음 지뢰 수 줄이기">▼</button> <input id="groupMineCount" type="number" min="0" value="1" readonly inputmode="none" aria-label="묶음 지뢰 수" style="width:55px;text-align:center"> <button id="groupMineUp" type="button" aria-label="묶음 지뢰 수 늘리기">▲</button></span>
-  <button id="groupSave" hidden>저장</button><button id="groupCancel" hidden>취소</button>
+  <div id="groupEditor" hidden><span id="groupDraft">칸 0개 선택</span>
+  <span id="groupCountLabel">지뢰 <button id="groupMineDown" type="button" aria-label="묶음 지뢰 수 줄이기">▼</button> <input id="groupMineCount" type="number" min="0" value="1" readonly inputmode="none" aria-label="묶음 지뢰 수" style="width:55px;text-align:center"> <button id="groupMineUp" type="button" aria-label="묶음 지뢰 수 늘리기">▲</button></span>
+  <button id="groupSave">저장</button><button id="groupCancel">취소</button></div>
   <label>묶음 관리 <select id="groupSelect" aria-label="관리할 묶음"><option value="">없음</option></select></label>
   <button id="groupDelete">삭제</button><span id="groupStatus" class="hint" aria-live="polite"></span>
 </div>
@@ -222,7 +223,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   }
   function stopExpansion(){if(expansionTimer!==null){clearTimeout(expansionTimer);expansionTimer=null;if(cellInfo.textContent.startsWith("자동 개방 중"))cellInfo.textContent="자동 개방을 중단했습니다.";}}
   function expandClues(){
-    stopExpansion();const queue=[...cells].filter(([id,c])=>c.revealed&&!mines.has(id)).map(([id])=>id);
+    stopExpansion();const instant=$("expansionMode").value==="instant",queue=[...cells].filter(([id,c])=>c.revealed&&!mines.has(id)).map(([id])=>id);
     let opened=0,matched=0,queueIndex=0,targets=[],targetIndex=0;
     function step(){
       expansionTimer=null;
@@ -235,6 +236,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
         }
         const pos=targets[targetIndex++],target=key(...pos),cell=cells.get(target);if(cell.revealed||cell.flagged)continue;
         reveal(target,true);opened++;if(!ended)queue.push(target);
+        if(instant&&!ended)continue;
         draw();if(ended&&!won){showCellInfo(target);cellInfo.textContent+=" · 자동 개방 중 지뢰가 열렸습니다.";}else cellInfo.textContent=ended?`자동 개방 완료: ${opened}칸 열기`:`자동 개방 중: ${opened}칸 열기`;
         if(!ended)expansionTimer=setTimeout(step,45);return;
       }
@@ -247,6 +249,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     stopExpansion();
     const c=cells.get(k);
     if(colorMode&&editingGroup){
+      if(flag&&c&&!c.revealed){groupDraft.delete(k);clearClueSelection();toggleFlag(k);return;}
       if(!c&&!flag){clearClueSelection();draw();}
       else if(c&&c.revealed&&!flag)selectClue(k,c);
       else if(c&&!c.revealed&&!c.flagged&&!flag){if(groupDraft.has(k))groupDraft.delete(k);else groupDraft.add(k);updateGroups();draw();}
@@ -273,7 +276,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     let opened=0,last=k;for(const id of range){const cell=cells.get(id);if(!cell.revealed&&!cell.flagged){reveal(id,true);opened++;last=id;if(ended)break;}}
     draw();showCellInfo(ended&&mines.has(last)?last:k);if(!ended)cellInfo.textContent+=` · ${opened}칸 열기`;
   }
-  function activateTap(k,rightClick){const cell=cells.get(k);activate(k,rightClick||(!editingGroup&&flagMode&&!!cell&&!cell.revealed));}
+  function activateTap(k,rightClick){const cell=cells.get(k);activate(k,rightClick||(flagMode&&!!cell&&!cell.revealed));}
   function inferMoves(nodeLimit=500000){
     if(ended)return{moves:[],conflict:false};
     const unknown=[...cells].filter(([,c])=>!c.revealed&&!c.flagged).map(([k])=>k),constraints=new Map();let conflict=false;
@@ -677,6 +680,8 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   $("start").addEventListener("click",startGame);$("view3d").addEventListener("click",()=>setView("3d"));$("view2d").addEventListener("click",()=>setView("2d"));
   $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){stopExpansion();resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
   $("settingsButton").addEventListener("click",()=>{if(!$("settingsDialog").open){stopExpansion();resetTap();$("settingsDialog").showModal();}});$("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
+  try{if(localStorage.getItem("chessmine:expansionMode")==="instant")$("expansionMode").value="instant";}catch{}
+  $("expansionMode").addEventListener("change",()=>{try{localStorage.setItem("chessmine:expansionMode",$("expansionMode").value);}catch{}});
   $("settingsDialog").addEventListener("click",e=>{const dialog=$("settingsDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
   let customSnapshot="";const customValues=()=>[sizeInput.value,mineInput.value,...PIECES.map(p=>$("weight"+p).value)].join("|");
   const openCustom=()=>{if(!$("customDialog").open){customSnapshot=customValues();stopExpansion();resetTap();$("customDialog").showModal();}};
@@ -725,10 +730,10 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     }
     if(JSON.stringify(groupLabels())!==groupOptionsKey)refreshGroupOptions();
     $("groupEdit").textContent=editingGroup?"선택 중":"묶음 만들기";$("groupEdit").setAttribute("aria-pressed",String(editingGroup));
-    for(const id of ["groupDraft","groupCountLabel","groupSave","groupCancel"])$(id).hidden=!editingGroup;
+    $("groupEditor").hidden=!editingGroup;
     $("groupDraft").textContent=`칸 ${groupDraft.size}개 선택`;$("groupMineCount").max=groupDraft.size;
     const group=groups[activeGroup];$("groupDelete").disabled=!group||editingGroup;
-    $("groupStatus").textContent=editingGroup?"닫힌 칸을 눌러 선택하세요.":groups.some(g=>g.invalid)?"깃발이나 열린 칸이 묶음과 맞지 않습니다. 기록을 확인하세요.":groups.length?"깃발은 지뢰로 계산합니다. 단서가 바뀌면 묶음을 확인하세요.":"";
+    $("groupStatus").textContent=editingGroup?"닫힌 칸을 선택하세요. 길게 누르거나 깃발 모드를 켜면 깃발을 표시합니다.":groups.some(g=>g.invalid)?"깃발이나 열린 칸이 묶음과 맞지 않습니다. 기록을 확인하세요.":groups.length?"깃발은 지뢰로 계산합니다. 단서가 바뀌면 묶음을 확인하세요.":"";
   }
   function groupLabels(){return groups.map((group,i)=>`묶음 ${i+1} · ${group.colorName} · ${group.remaining??group.mines}/${group.closed??group.ids.size}${group.invalid?" · 확인 필요":""}`);}
   function refreshGroupOptions(){
