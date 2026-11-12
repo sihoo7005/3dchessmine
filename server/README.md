@@ -37,11 +37,13 @@ CHESSMINE_DEBUG=1 .venv/bin/python server/manage.py runserver 127.0.0.1:8000
 브라우저에서 `http://127.0.0.1:8000/chessmine/`을 엽니다. 실제 Google 로그인에는 테스트용 OAuth 클라이언트와 `http://127.0.0.1:8000/chessmine/accounts/google/login/callback/` 리디렉션 URI가 필요합니다. 클라이언트 ID와 시크릿은 환경 변수로만 전달합니다.
 
 ```sh
-CHESSMINE_DEBUG=1 GOOGLE_OAUTH_CLIENT_ID=... GOOGLE_OAUTH_CLIENT_SECRET=... .venv/bin/python server/manage.py test records
+CHESSMINE_DEBUG=1 GOOGLE_OAUTH_CLIENT_ID=test GOOGLE_OAUTH_CLIENT_SECRET=test .venv/bin/python server/manage.py test records
 node test_account.mjs
 node test_no_guess_ui.mjs
 node test_no_guess.mjs
 ```
+
+여기의 `test`는 자동 검사에만 사용하는 더미 값입니다. 실제 Google 시크릿을 명령줄에 직접 입력하지 마세요.
 
 ## 운영 환경 변수
 
