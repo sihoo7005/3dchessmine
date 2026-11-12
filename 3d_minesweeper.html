@@ -24,6 +24,8 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 #helpDialog::backdrop{background:#070d16bb}
 #settingsDialog,#customDialog{width:min(92vw,680px);min-height:300px;max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}#settingsDialog::backdrop,#customDialog::backdrop{background:#070d16bb}#settingsDialog a{display:block;margin:16px 0;color:#a4e3b3}
 .records-dialog{width:min(92vw,680px);max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}.records-dialog::backdrop{background:#070d16bb}.records-dialog>div+div{margin-top:16px;line-height:1.8;overflow-wrap:anywhere}
+#difficultyDialog{width:min(92vw,850px);max-height:90vh;overflow:auto;padding:24px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}#difficultyDialog::backdrop{background:#070d16dd}.difficulty-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.difficulty-options button{min-height:90px;font-size:1.05rem}@media(orientation:landscape){.difficulty-options{grid-template-columns:repeat(4,minmax(0,1fr))}}
+#groupMineCount{appearance:textfield;-moz-appearance:textfield}#groupMineCount::-webkit-inner-spin-button,#groupMineCount::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .helpHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.helpHeader h2{margin:0;font-size:1.25rem}
 .helpList{margin:14px 0 0}.helpList dt{margin-top:12px;font-weight:700;color:#a9d7ff}.helpList dd{margin:2px 0 0;color:#d1dfed;line-height:1.5}
 #gameArea:fullscreen,#gameArea.expanded{display:flex;flex-direction:column;width:100%;height:100%;padding:12px;background:#101722;overflow:auto}
@@ -38,6 +40,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <body><main>
 <header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><div class="header-actions"><button id="helpButton" type="button">조작법</button><div id="accountSlot"></div><button id="settingsButton" type="button">설정</button></div></header><div class="hint" id="boardInfo"></div>
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">설정</h2><button id="settingsClose" type="button">닫기</button></div><a id="modeLink" href="no_guess.html">추측 없는 게임</a><a href="no_guess_color.html">컬러 묶음 게임</a></dialog>
+<dialog id="difficultyDialog" aria-labelledby="difficultyTitle"><h2 id="difficultyTitle">난이도를 선택하세요</h2><div class="difficulty-options"><button id="chooseEasy" type="button">쉬움</button><button id="chooseNormal" type="button">보통</button><button id="chooseHard" type="button">어려움</button><button id="chooseCustom" type="button">사용자 설정</button></div></dialog>
 <div class="settings"><label>난이도 <select id="difficulty"><option value="easy">쉬움</option><option value="normal">보통</option><option value="hard" selected>어려움</option><option value="custom">사용자 설정</option></select></label><button id="customButton" type="button" hidden>사용자 설정 열기</button><span class="hint">난이도를 바꾸면 새 게임이 시작됩니다</span></div>
 <dialog id="customDialog" aria-labelledby="customTitle"><div class="helpHeader"><h2 id="customTitle">사용자 설정</h2><button id="customClose" type="button">닫기</button></div>
 <div class="settings">
@@ -678,9 +681,12 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   let customSnapshot="";const customValues=()=>[sizeInput.value,mineInput.value,...PIECES.map(p=>$("weight"+p).value)].join("|");
   const openCustom=()=>{if(!$("customDialog").open){customSnapshot=customValues();stopExpansion();resetTap();$("customDialog").showModal();}};
   $("customButton").addEventListener("click",openCustom);$("customClose").addEventListener("click",()=>$("customDialog").close());
-  $("customDialog").addEventListener("close",()=>{if(customSnapshot!==customValues())startGame();});
+  $("customDialog").addEventListener("close",()=>{if(!cells.size||customSnapshot!==customValues())startGame();});
   $("customDialog").addEventListener("click",e=>{const dialog=$("customDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
-  $("difficulty").addEventListener("change",()=>{const difficulty=$("difficulty").value;$("customButton").hidden=difficulty!=="custom";if(difficulty==="custom"){openCustom();return;}const preset={easy:[4,6],normal:[5,15],hard:[6,35]}[difficulty];if(!preset)return;sizeInput.value=String(preset[0]);mineInput.value=String(preset[1]);mineInput.max=preset[0]**3-1;for(const p of PIECES)$("weight"+p).value=p==="K"?"7":"1";updateWeightSummary();startGame();});
+  function chooseDifficulty(difficulty){$("difficulty").value=difficulty;$("customButton").hidden=difficulty!=="custom";if(difficulty==="custom"){openCustom();return;}const preset={easy:[4,6],normal:[5,15],hard:[6,35]}[difficulty];if(!preset)return;sizeInput.value=String(preset[0]);mineInput.value=String(preset[1]);mineInput.max=preset[0]**3-1;for(const p of PIECES)$("weight"+p).value=p==="K"?"7":"1";updateWeightSummary();startGame();}
+  $("difficulty").addEventListener("change",()=>chooseDifficulty($("difficulty").value));
+  for(const [id,value] of [["chooseEasy","easy"],["chooseNormal","normal"],["chooseHard","hard"],["chooseCustom","custom"]])$(id).addEventListener("click",()=>{$("difficultyDialog").close();chooseDifficulty(value);});
+  $("difficultyDialog").addEventListener("cancel",e=>e.preventDefault());
   $("helpDialog").addEventListener("click",e=>{const dialog=$("helpDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
   $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
   function fullscreenChanged(){
@@ -746,13 +752,13 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{
     if(e.key==="Escape"&&$("gameArea").classList.contains("expanded")){$("gameArea").classList.remove("expanded");fullscreenChanged();return;}
-    if($("helpDialog").open||$("settingsDialog").open||$("customDialog").open||$("recordsDialog")?.open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
+    if($("helpDialog").open||$("settingsDialog").open||$("difficultyDialog").open||$("customDialog").open||$("recordsDialog")?.open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
     if(k==="v")setView(view==="3d"?"2d":"3d");if(k==="f")flagButton.click();if(k==="r")startGame();
     if(e.target===canvas3d){if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","=","-"].includes(e.key))e.preventDefault();
       if(k==="arrowleft")yaw-=.12;if(k==="arrowright")yaw+=.12;if(k==="arrowup")pitch=Math.min(1.45,pitch+.12);if(k==="arrowdown")pitch=Math.max(-1.45,pitch-.12);if(k==="+"||k==="=")zoom(.9);if(k==="-")zoom(1.1);render3d();}
   });
   canvas3d.addEventListener("webglcontextlost",e=>{e.preventDefault();gl=null;$("view3d").disabled=true;setView("2d");message.textContent="3D 렌더링이 중단되어 2D 보기로 전환했습니다. 새로고침하면 다시 시도합니다.";});
   for(const p of PIECES)$("weight"+p).addEventListener("input",updateWeightSummary);
-  window.addEventListener("resize",resize);updateWeightSummary();init3d();startGame();setView(gl?"3d":"2d");resetCamera();
+  window.addEventListener("resize",resize);updateWeightSummary();init3d();setView(gl?"3d":"2d");resetCamera();$("difficultyDialog").showModal();
 })();
 </script></body></html>

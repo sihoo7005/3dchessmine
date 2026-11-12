@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const html=readFileSync('3d_minesweeper.html','utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,paintLabel,layout2d,find2d,showHint,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
-function page(search,useDefaults=false,webgl=false){
+function page(search,useDefaults=false,webgl=false,autoStart=true){
   const glCalls={bufferData:0,texImage2D:0,texSubImage2D:0};
   const gl=new Proxy({}, {get(target,key){if(key==='getShaderParameter'||key==='getProgramParameter')return ()=>true;if(key in glCalls)return (...args)=>{glCalls[key]++;};if(typeof key==='string'&&key.toUpperCase()===key)return 1;return ()=>({});}});
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
@@ -32,9 +32,12 @@ function page(search,useDefaults=false,webgl=false){
   const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:'',listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
   const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
+  if(autoStart){elements.difficultyDialog.close();elements.start.click();}
   return{window,document,elements,glCalls,events,advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;}};
 }
 
+const initialPage=page('',true,false,false);assert.equal(initialPage.elements.difficultyDialog.open,true,'Difficulty selection must open on entry');assert.equal(initialPage.window.__game.state.cells.size,0,'A game must wait for difficulty selection');initialPage.elements.chooseEasy.click();assert.equal(initialPage.elements.difficultyDialog.open,false);assert.equal(initialPage.window.__game.state.cells.size,64);assert.equal(initialPage.window.__game.state.mines.size,6);
+const initialCustom=page('',true,false,false);initialCustom.elements.chooseCustom.click();assert.equal(initialCustom.elements.customDialog.open,true);initialCustom.elements.customClose.click();assert.equal(initialCustom.window.__game.state.cells.size,216,'Closing initial custom settings must start a game');
 const original=page('');
 assert.equal(original.workers,0);assert.equal(original.window.__game.state.cells.size,27);
 const defaultPage=page('',true);assert.equal(defaultPage.window.__game.state.cells.size,216);assert.equal(defaultPage.window.__game.state.mines.size,35);
