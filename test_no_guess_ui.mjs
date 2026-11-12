@@ -21,13 +21,13 @@ function page(search,useDefaults=false,webgl=false,autoStart=true,savedSettings=
   for(const [id,fallback] of [['sizeInput','3'],['mineInput','2']])elements[id].value=useDefaults?html.match(new RegExp(`id="${id}"[^>]*value="([^"]+)"`))[1]:fallback;
   elements.spacing.value='1.3';
   for(const piece of ['K','R','B','Q','N'])elements['weight'+piece].value=html.match(new RegExp(`id="weight${piece}"[^>]*value="([^"]+)"`))[1];
-  const urls=new Map();let nextUrl=0,workers=0;
+  const urls=new Map();let nextUrl=0,workers=0,lastWorkerOptions;
   class FakeBlob{constructor(parts){this.text=parts.join('');}}
   const fakeURL={createObjectURL(blob){const id=String(++nextUrl);urls.set(id,blob.text);return id;},revokeObjectURL(id){urls.delete(id);}};
   class FakeWorker{
     constructor(url){this.source=urls.get(url);this.terminated=false;workers++;}
     terminate(){this.terminated=true;}
-    postMessage(data){setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
+    postMessage(data){lastWorkerOptions=data;setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
   }
   let tick=0,nextInterval=0,confirmResult=true;const intervals=new Map();const events=[];const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;},dispatchEvent(event){events.push(event);this.listeners[event.type]?.(event);}};
   const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:'',listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
@@ -35,7 +35,7 @@ function page(search,useDefaults=false,webgl=false,autoStart=true,savedSettings=
   const globals={window,document,localStorage,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},confirm:()=>confirmResult,setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
   if(autoStart){elements.difficultyDialog.close();elements.start.click();}
-  return{window,document,elements,glCalls,events,setConfirm(value){confirmResult=value;},advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;}};
+  return{window,document,elements,glCalls,events,setConfirm(value){confirmResult=value;},advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;},get lastWorkerOptions(){return lastWorkerOptions;}};
 }
 
 const initialPage=page('',true,false,false);assert.equal(initialPage.elements.difficultyDialog.open,true,'Difficulty selection must open on entry');assert.equal(initialPage.window.__game.state.cells.size,0,'A game must wait for difficulty selection');initialPage.elements.chooseEasy.click();assert.equal(initialPage.elements.difficultyDialog.open,false);assert.equal(initialPage.window.__game.state.cells.size,64);assert.equal(initialPage.window.__game.state.mines.size,6);
@@ -56,9 +56,13 @@ original.elements.helpButton.click();original.elements.helpClose.click();assert.
 original.elements.settingsButton.click();assert.equal(original.elements.settingsDialog.open,true,'Settings must open as a dialog');original.elements.settingsClose.click();assert.equal(original.elements.settingsDialog.open,false,'Settings must close');
 original.elements.settingsButton.click();original.elements.settingsDialog.listeners.click({target:original.elements.settingsDialog,clientX:400,clientY:300});assert.equal(original.elements.settingsDialog.open,true,'Clicking inside settings must keep it open');original.elements.settingsDialog.listeners.click({target:original.elements.settingsDialog,clientX:-1,clientY:300});assert.equal(original.elements.settingsDialog.open,false,'Clicking outside settings must close it');
 const game=page('?mode=no-guess');
+assert.equal(original.elements.customReasoningLabel.hidden,true);assert.equal(game.elements.customReasoningLabel.hidden,false);
 assert.equal(game.elements.start.disabled,true);assert.equal(game.window.__game.state.cells.size,0);
 for(let i=0;i<100&&game.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
 assert.equal(game.elements.start.disabled,false);assert.match(game.elements.boardInfo.textContent,/추측 없이/);
+game.elements.chooseNormal.click();assert.equal(game.lastWorkerOptions.maxSources,2);game.elements.cancelGeneration.click();
+game.elements.chooseEasy.click();assert.equal(game.lastWorkerOptions.maxSources,1);game.elements.cancelGeneration.click();
+game.elements.chooseCustom.click();game.elements.customReasoning.value='2';game.elements.customClose.click();assert.equal(game.lastWorkerOptions.maxSources,2);game.elements.cancelGeneration.click();
 game.elements.helpButton.click();assert.equal(game.elements.helpDialog.open,true);game.elements.helpClose.click();assert.equal(game.elements.helpDialog.open,false);
 const defaultNoGuess=page('?mode=no-guess',true);for(let i=0;i<100&&defaultNoGuess.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
 assert.equal(defaultNoGuess.window.__game.state.cells.size,216);assert.equal(defaultNoGuess.window.__game.state.mines.size,35);
