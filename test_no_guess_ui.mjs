@@ -119,7 +119,7 @@ if(background3dPage.window.__game.state.ended)background3dPage.elements.start.cl
 const nonzeroPage=page(''),nonzero=setBoard(nonzeroPage,['0,0,1','2,2,2']);nonzeroPage.window.__game.activate(null,false);nonzeroPage.window.__game.activate(null,false);
 assert.equal([...nonzero.cells.values()].filter(c=>c.revealed).length,1,'Hidden zero clues must not be expanded');
 const chainPage=page(''),chain=setBoard(chainPage,['2,2,1','2,2,2']),chainMap=new Map([['0,0,0',['1,0,0']],['1,0,0',['2,0,0']],['2,0,0',['2,2,2']]]);
-const instantSettings=new Map(),instantPage=page('',false,false,true,instantSettings),instant=setBoard(instantPage,['2,2,1','2,2,2']);instantPage.elements.expansionMode.value='instant';instantPage.elements.expansionMode.listeners.change();instantPage.window.__game.setCluePositions(pos=>(chainMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));instantPage.window.__game.activate(null,false);instantPage.window.__game.activate(null,false);assert.equal(instant.cells.get('2,0,0').revealed,true,'Instant mode must open the whole chain without a timer');assert.equal(instant.cells.get('1,1,1').revealed,false);assert.equal(page('',false,false,true,instantSettings).elements.expansionMode.value,'instant','Expansion setting must persist');
+const instantSettings=new Map(),instantPage=page('',false,false,true,instantSettings),instant=setBoard(instantPage,['2,2,1','2,2,2']);instantPage.elements.expansionMode.checked=true;instantPage.elements.expansionMode.listeners.change();instantPage.window.__game.setCluePositions(pos=>(chainMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));instantPage.window.__game.activate(null,false);instantPage.window.__game.activate(null,false);assert.equal(instant.cells.get('2,0,0').revealed,true,'Instant mode must open the whole chain without a timer');assert.equal(instant.cells.get('1,1,1').revealed,false);assert.equal(page('',false,false,true,instantSettings).elements.expansionMode.checked,true,'Expansion setting must persist');instantPage.elements.expansionMode.checked=false;instantPage.elements.expansionMode.listeners.change();assert.equal(page('',false,false,true,instantSettings).elements.expansionMode.checked,false,'Turning instant mode off must persist');
 chainPage.window.__game.setCluePositions(pos=>(chainMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
 chainPage.window.__game.activate(null,false);chainPage.window.__game.activate(null,false);
 assert.equal(chain.cells.get('1,0,0').revealed,true);assert.equal(chain.cells.get('2,0,0').revealed,false,'The next cell must wait for the animation');
@@ -345,10 +345,12 @@ const colorIds=[...colorBoard.cells].filter(([id,c])=>!c.revealed&&!colorBoard.m
 const badges=id=>colorApp.tileStyle(id,colorBoard.cells.get(id)).badges||[];
 colorPage.elements.groupEdit.click();for(const id of colorIds)colorApp.activate(id,false);
 assert.equal(colorPage.elements.groupEditor.hidden,false,'Group editor must be visible while selecting');
+assert.equal(colorPage.elements.groupManageLabel.hidden,true,'Group management must be replaced while editing');assert.equal(colorPage.elements.groupDelete.hidden,true);
 assert.equal(colorPage.elements.groupDraft.textContent,'칸 4개 선택');
 colorPage.elements.groupMineCount.value='1';colorPage.elements.groupMineUp.click();assert.equal(colorPage.elements.groupMineCount.value,'2');for(let i=0;i<5;i++)colorPage.elements.groupMineUp.click();assert.equal(colorPage.elements.groupMineCount.value,'4');for(let i=0;i<5;i++)colorPage.elements.groupMineDown.click();assert.equal(colorPage.elements.groupMineCount.value,'0');
 colorPage.elements.groupMineCount.value='2';colorPage.elements.groupSave.click();
 assert.equal(colorPage.elements.groupEditor.hidden,true,'Saving must close the group editor');
+assert.equal(colorPage.elements.groupManageLabel.hidden,false,'Group management must return after saving');
 assert.equal(badges(colorIds[0])[0].text,'2/4');const firstColor=badges(colorIds[0])[0].color;
 colorPage.elements.groupEdit.click();colorApp.activate(colorIds[2],false);colorApp.activate(colorIds[3],false);
 colorPage.elements.groupMineCount.value='1';colorPage.elements.groupSave.click();
@@ -394,9 +396,7 @@ const pointerId=[...colorApp.state.cells].find(([,cell])=>!cell.revealed&&!cell.
 const [gx,gy,gz]=pointerId.split(',').map(Number),gLayout=colorApp.layout2d();
 const groupTap={pointerId:17,button:0,clientX:gLayout.left+(gz%gLayout.cols)*(3+.58)*gLayout.s+(gx+.5)*gLayout.s,clientY:gLayout.top+Math.floor(gz/gLayout.cols)*(3+.72)*gLayout.s+(.42+gy+.5)*gLayout.s};
 colorPage.elements.board.listeners.pointerdown(groupTap);colorPage.elements.board.listeners.pointerup(groupTap);
-assert.equal(colorApp.state.cells.get(pointerId).flagged,true,'Flag mode must work while editing a group');assert.equal(colorPage.elements.groupDraft.textContent,'칸 0개 선택');
-colorPage.elements.board.listeners.pointerdown(groupTap);colorPage.elements.board.listeners.pointerup(groupTap);assert.equal(colorApp.state.cells.get(pointerId).flagged,false,'Flag mode must remove a flag while editing');
-colorPage.elements.flagMode.click();colorPage.elements.board.listeners.pointerdown(groupTap);colorPage.elements.board.listeners.pointerup(groupTap);assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택','Normal taps must select cells for the group');
+assert.equal(colorApp.state.cells.get(pointerId).flagged,false,'Flag mode must not affect normal taps while editing');assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택');
 colorApp.activate(pointerId,true);assert.equal(colorApp.state.cells.get(pointerId).flagged,true,'Long press must flag a cell while editing');assert.equal(colorPage.elements.groupDraft.textContent,'칸 0개 선택','Flagged cells must leave the draft');colorApp.activate(pointerId,true);colorApp.activate(pointerId,false);assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택');
 
 const shownClue=[...colorApp.state.cells].find(([,cell])=>cell.revealed)[0];
