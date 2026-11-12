@@ -40,7 +40,7 @@ function page(search,useDefaults=false,webgl=false,autoStart=true,savedSettings=
 const initialPage=page('',true,false,false);assert.equal(initialPage.elements.difficultyDialog.open,true,'Difficulty selection must open on entry');assert.equal(initialPage.window.__game.state.cells.size,0,'A game must wait for difficulty selection');initialPage.elements.chooseEasy.click();assert.equal(initialPage.elements.difficultyDialog.open,false);assert.equal(initialPage.window.__game.state.cells.size,64);assert.equal(initialPage.window.__game.state.mines.size,6);
 const initialCustom=page('',true,false,false);initialCustom.elements.chooseCustom.click();assert.equal(initialCustom.elements.customDialog.open,true);initialCustom.elements.customClose.click();assert.equal(initialCustom.window.__game.state.cells.size,216,'Closing initial custom settings must start a game');
 const original=page('');
-assert.match(html,/<button id="hintButton">힌트<\/button>/);original.elements.hintButton.click();assert.match(original.elements.cellInfo.textContent,/광고/);assert.equal(original.window.__game.state.hintKey,null,'The hint button must stay locked');
+assert.match(html,/<button id="hintButton">힌트<\/button>/);assert.match(html,/https:\/\/sihoo7005\.github\.io\/fly\/game\.html/);
 assert.equal(original.workers,0);assert.equal(original.window.__game.state.cells.size,27);
 const defaultPage=page('',true);assert.equal(defaultPage.window.__game.state.cells.size,216);assert.equal(defaultPage.window.__game.state.mines.size,35);
 for(const [difficulty,size,mines] of [['easy','4','6'],['normal','5','15'],['hard','6','35']]){const previous=defaultPage.window.__game.state.cells;defaultPage.elements.difficulty.value=difficulty;defaultPage.elements.difficulty.listeners.change();assert.equal(defaultPage.elements.sizeInput.value,size);assert.equal(defaultPage.elements.mineInput.value,mines);assert.equal(defaultPage.elements.customButton.hidden,true);assert.notEqual(defaultPage.window.__game.state.cells,previous,'Changing difficulty must start a new game');}
@@ -172,6 +172,7 @@ wrongPage.window.__game.activate('0,1,0',true);wrongPage.window.__game.activate(
 assert.equal(wrongPage.window.__game.state.ended,true);assert.equal(wrong.cells.get('0,0,1').revealed,true,'An incorrect flag must not protect another mine');
 assert.equal(wrongPage.elements.successEffect.hidden,true,'Losing must not show the success effect');
 assert.equal(wrongPage.window.__game.tileStyle('0,0,1',wrong.cells.get('0,0,1')).text,'✹','A lost game must still show mines');
+const postLossOpened=[...wrong.cells.values()].filter(c=>c.revealed).length;wrongPage.window.__game.activate('0,0,0',false);assert.equal(wrongPage.window.__game.state.selectedClue,'0,0,0');assert.ok(wrongPage.window.__game.state.clueRange.size>0,'An opened piece must show its range after losing');assert.equal([...wrong.cells.values()].filter(c=>c.revealed).length,postLossOpened,'Post-game taps must not reveal cells');wrongPage.window.__game.activate(null,false);assert.equal(wrongPage.window.__game.state.clueRange.size,0);
 const successNoGuess=page('?mode=no-guess');
 for(let i=0;i<100&&successNoGuess.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
 for(const p of [page(''),successNoGuess]){
@@ -179,6 +180,7 @@ for(const p of [page(''),successNoGuess]){
   s.cells.get('0,0,1').flagged=true;p.window.__game.activate('0,0,0',false);p.window.__game.activate('0,0,0',false);
   assert.equal(p.window.__game.state.ended,true);assert.equal(p.elements.successEffect.hidden,false,'Winning by chord must show the success effect');
   for(const id of s.mines){const style=p.window.__game.tileStyle(id,s.cells.get(id));assert.equal(style.text,'✿','Every mine, including flagged mines, must become a flower on success');assert.equal(style.fill,'#405f57');}
+  p.window.__game.activate('0,0,0',false);assert.equal(p.window.__game.state.selectedClue,'0,0,0','An opened piece must remain selectable after winning');assert.ok(p.window.__game.state.clueRange.size>0);
   p.elements.start.click();assert.equal(p.elements.successEffect.hidden,true,'Starting a new game must dismiss the success effect');
   for(let i=0;i<100&&p.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
   const next=p.window.__game.state,nextMine=[...next.mines][0];assert.equal(p.window.__game.tileStyle(nextMine,next.cells.get(nextMine)).text,'','A new game must hide its mines again');
@@ -211,6 +213,7 @@ assert.equal(drag.cells.get('1,1,0').flagged,false,'Dragging must cancel the lon
 assert.equal(flatDrag.cells.get('1,1,0').flagged,false,'Moving in 2D must cancel the long press');
 assert.equal(pinch.cells.get('1,1,0').flagged,false,'Pinching must cancel the long press');assert.ok(pinchPage.window.__game.state.distance<beforeDistance);
 const hintPage=page(''),hintBoard=setBoard(hintPage,['0,0,1','2,2,2']),hintApp=hintPage.window.__game,hintCell='0,0,1';
+const promoPage=page(''),promoBoard=setBoard(promoPage,['0,0,1','2,2,2']);promoPage.window.__game.setInference(()=>({moves:[{key:'0,0,1',mine:true}],conflict:false}));promoPage.elements.hintButton.click();assert.equal(promoPage.elements.hintPromoDialog.open,true);assert.equal(promoPage.window.__game.state.hintKey,null,'Hint must wait for the promotion');let blocked=false;promoPage.elements.hintPromoDialog.listeners.cancel({preventDefault(){blocked=true}});assert.equal(blocked,true);await new Promise(resolve=>setTimeout(resolve,3100));assert.equal(promoPage.elements.hintPromoDialog.open,false);assert.equal(promoPage.window.__game.state.hintKey,'0,0,1','Hint must appear after three seconds');
 hintApp.setInference(()=>({moves:[{key:hintCell,mine:true}],conflict:false}));hintApp.showHint();
 const mineStyle=JSON.stringify(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell))),mineMessage=hintPage.elements.cellInfo.textContent;
 hintApp.setInference(()=>({moves:[{key:hintCell,mine:false}],conflict:false}));hintApp.showHint();
