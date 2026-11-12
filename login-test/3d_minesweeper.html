@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D 체스 지뢰찾기</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:18px;background:#101722;color:#edf3fb;font-family:system-ui,"Malgun Gothic",sans-serif}main{max-width:1100px;margin:auto}header,.toolbar,.status{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{margin:0;font-size:1.4rem}.hint,footer{color:#9eafc3;font-size:.88rem}.toolbar{margin:14px 0 8px}.buttons{display:flex;gap:8px;flex-wrap:wrap}button,input,select{border:1px solid #35465d;border-radius:8px;padding:8px 12px;background:#1b2838;color:#eaf2ff;font:inherit}button{cursor:pointer}button:hover{background:#26384d}button.active{background:#2862a1;border-color:#55a1f3}button.flag.active{background:#815f19;border-color:#e9bd4a}button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid #68c7ff;outline-offset:3px}.settings,.camera-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0;color:#b9c8d9;font-size:.9rem}.settings input{width:82px}.camera-controls label{display:flex;align-items:center;gap:8px}input[type=range]{width:110px;padding:0;accent-color:#68c7ff}.status{min-height:40px;color:#b9c8d9;font-size:.92rem}#message,#settingError{color:#ffd66a;font-weight:700}canvas.board{display:block;width:100%;height:min(68vh,650px);min-height:420px;border:1px solid #2b3a4d;border-radius:14px;background:radial-gradient(ellipse at 50% 40%,#1b2a3c,#111923 75%);touch-action:none}#board2dScroller{height:min(68vh,650px);min-height:420px;overflow:auto}#board{min-height:0;touch-action:pan-x pan-y}#board3d{cursor:grab}#board3d.dragging{cursor:grabbing}[hidden]{display:none!important}#cellInfo{min-height:24px;margin:8px 0;color:#b9c8d9;font-size:.88rem}footer{margin-top:12px;line-height:1.8}kbd{padding:1px 5px;border:1px solid #526276;border-radius:4px}.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}.legend b{white-space:nowrap}@media(max-width:600px){body{padding:12px}canvas.board{min-height:380px;height:60vh}#board2dScroller{min-height:380px;height:60vh}#board{min-height:0}.settings{gap:8px}.settings input{width:66px}}
+</style>
+<style>fieldset.settings{min-width:0;border:1px solid #35465d;border-radius:8px;padding:10px 12px}fieldset.settings legend{padding:0 6px}#weightSummary{flex-basis:100%}</style>
+<style>
+#successEffect{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;overflow:hidden;pointer-events:none;background:radial-gradient(circle,rgba(79,81,34,.88),rgba(10,18,30,.92));animation:successFade 4s ease both}
+.successCopy{position:relative;z-index:1;text-align:center;animation:successPop .75s cubic-bezier(.2,1.5,.4,1) both}
+.successTitle{font-size:clamp(5rem,20vw,13rem);font-weight:900;line-height:1.1;color:#fff2a8;text-shadow:0 0 18px #ffcd58,0 0 60px #f4a42d}
+.successNote{margin:12px 0;color:#fff8dc;font-size:clamp(1.1rem,4vw,2rem);font-weight:700}
+.confetti{position:absolute;top:-8vh;left:var(--x);width:12px;height:22px;border-radius:3px;background:var(--color);animation:confettiFall 2.6s linear var(--delay) infinite}
+@keyframes successFade{0%{opacity:0}10%,80%{opacity:1}100%{opacity:0}}
+@keyframes successPop{0%{opacity:0;transform:scale(.5) rotate(-8deg)}70%{opacity:1;transform:scale(1.08) rotate(2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes confettiFall{to{transform:translateY(120vh) rotate(720deg)}}
+@media(prefers-reduced-motion:reduce){#successEffect,#successEffect *{animation:none}}
+header{position:relative;padding-right:78px}#helpButton{position:absolute;right:0;top:0}
+#helpDialog{width:min(92vw,520px);max-height:min(82vh,700px);overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}
+#helpDialog::backdrop{background:#070d16bb}
+.helpHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.helpHeader h2{margin:0;font-size:1.25rem}
+.helpList{margin:14px 0 0}.helpList dt{margin-top:12px;font-weight:700;color:#a9d7ff}.helpList dd{margin:2px 0 0;color:#d1dfed;line-height:1.5}
+#gameArea:fullscreen,#gameArea.expanded{display:flex;flex-direction:column;width:100%;height:100%;padding:12px;background:#101722;overflow:auto}
+#gameArea.expanded:not(:fullscreen){position:fixed;inset:0;z-index:999;width:100vw;height:100dvh}
+#gameArea:fullscreen .toolbar,#gameArea.expanded .toolbar{margin:0 0 6px}
+#gameArea:fullscreen #board3d,#gameArea.expanded #board3d,#gameArea:fullscreen #board2dScroller,#gameArea.expanded #board2dScroller{flex:1 1 0;height:0;min-height:100px}
+#gameArea:fullscreen #hintExplanation,#gameArea.expanded #hintExplanation{display:none}
+</style>
+</head>
+<body><main>
+<header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><a id="modeLink" href="no_guess.html" style="color:#68c7ff">추측 없는 게임</a><a href="no_guess_color.html" style="color:#a4e3b3">컬러 묶음 게임</a><div class="hint" id="boardInfo"></div><button id="helpButton" type="button">조작법</button></header>
+<div class="settings">
+  <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
+  <label>지뢰 수 <input id="mineInput" type="number" min="1" max="215" value="35"></label>
+</div>
+<fieldset class="settings">
+  <legend>기물 생성 가중치</legend>
+  <label>♚ 킹 <input id="weightK" type="number" min="0" max="1000" step="any" value="7"></label>
+  <label>♜ 룩 <input id="weightR" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♝ 비숍 <input id="weightB" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♛ 퀸 <input id="weightQ" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♞ 나이트 <input id="weightN" type="number" min="0" max="1000" step="any" value="1"></label>
+  <span class="hint">값이 클수록 자주 생성됩니다. 0은 생성하지 않음 · 새 게임에 적용</span>
+  <span class="hint" id="weightSummary"></span>
+</fieldset>
+<div id="gameArea">
+<div class="toolbar">
+  <div class="buttons"><button id="start">새 게임 시작</button><button id="cancelGeneration" hidden>생성 취소</button><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button><button id="fullscreenButton" aria-pressed="false">전체화면</button></div>
+  <div class="buttons"><button id="hintButton">추론 가능한 칸</button><button id="autoFlagButton">자동 깃발</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
+</div>
+<div id="groupPanel" class="camera-controls" hidden>
+  <button id="groupEdit" aria-pressed="false">묶음 만들기</button>
+  <span id="groupDraft" hidden>칸 0개 선택</span>
+  <label id="groupCountLabel" hidden>지뢰 <input id="groupMineCount" type="number" min="0" value="1" style="width:65px"></label>
+  <button id="groupSave" hidden>저장</button><button id="groupCancel" hidden>취소</button>
+  <label>묶음 관리 <select id="groupSelect" aria-label="관리할 묶음"><option value="">없음</option></select></label>
+  <button id="groupDelete">삭제</button><span id="groupStatus" class="hint" aria-live="polite"></span>
+</div>
+<div class="camera-controls" id="cameraControls">
+  <label>표시할 층 <select id="layer" aria-label="표시할 층"><option value="all">모든 층</option></select></label>
+  <label>칸 간격 <input id="spacing" type="range" min="1.05" max="2" step="0.05" value="1.3"></label>
+  <button id="resetCamera">시점 초기화</button>
+  <span class="hint">드래그: 회전 · 휠 / 두 손가락: 확대·축소</span>
+</div>
+<div class="status"><span id="stats"></span><span id="gameTime">시간 00:00</span><span id="message" role="status" aria-live="polite"></span><span id="settingError" role="alert"></span></div>
+<canvas id="board3d" class="board" tabindex="0" aria-label="3D 지뢰찾기. 드래그 또는 방향키로 회전, 빠르게 두 번 눌러 칸 열기"></canvas>
+<div id="board2dHint" class="hint" hidden>층별 보드를 스크롤해서 이동하세요.</div>
+<div id="board2dScroller" hidden><canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas></div>
+<div id="cellInfo" aria-live="polite">칸을 빠르게 두 번 눌러 열기 · 길게 눌러 깃발 표시</div>
+<section id="hintExplanation" hidden style="margin:10px 0;padding:12px;border:1px solid #35465d;border-radius:8px;background:#172333;line-height:1.6" aria-live="polite">
+  <strong>추론에 쓸 단서</strong>
+  <p id="hintExplanationSummary" style="margin:6px 0"></p>
+  <div id="hintEvidence"></div>
+  <details id="hintOtherDetails"><summary>다른 공개 단서 보기</summary><div id="hintOtherEvidence"></div></details>
+</section>
+<div id="successEffect" hidden aria-hidden="true">
+  <div class="successCopy"><div class="successTitle">성공!</div><p class="successNote">모든 안전한 칸을 찾았습니다</p></div>
+  <span class="confetti" style="--x:5%;--color:#ffce63;--delay:-.4s"></span><span class="confetti" style="--x:14%;--color:#8ed4ff;--delay:-1.7s"></span><span class="confetti" style="--x:23%;--color:#ff94a9;--delay:-.9s"></span><span class="confetti" style="--x:32%;--color:#a3ec9e;--delay:-2.1s"></span><span class="confetti" style="--x:41%;--color:#d1a7ff;--delay:-1.2s"></span><span class="confetti" style="--x:50%;--color:#ffce63;--delay:-2.4s"></span><span class="confetti" style="--x:59%;--color:#8ed4ff;--delay:-.1s"></span><span class="confetti" style="--x:68%;--color:#ff94a9;--delay:-1.5s"></span><span class="confetti" style="--x:77%;--color:#a3ec9e;--delay:-.7s"></span><span class="confetti" style="--x:86%;--color:#d1a7ff;--delay:-2s"></span><span class="confetti" style="--x:95%;--color:#ffce63;--delay:-1.1s"></span>
+</div>
+</div>
+<footer>
+  <p id="modeDescription" hidden>시작 칸에서 올바른 단서와 깃발을 따라가면 추측 없이 모든 안전한 칸을 열 수 있는 보드만 생성합니다.</p>
+  추론 힌트는 공개된 기물 숫자와 깃발로 가능한 배치를 비교하고, 남은 지뢰 수와 맞춰 확정 칸을 찾습니다.<br>
+  열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
+
+  <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
+</footer>
+</main>
+<dialog id="helpDialog" aria-labelledby="helpTitle">
+  <div class="helpHeader"><h2 id="helpTitle">조작법</h2><button id="helpClose" type="button" aria-label="조작법 닫기" autofocus>닫기</button></div>
+  <dl class="helpList">
+    <dt>칸 열기</dt><dd>닫힌 칸을 빠르게 두 번 누르세요.</dd>
+    <dt>깃발</dt><dd>칸을 길게 누르거나 오른쪽 클릭하세요. 깃발 모드에서는 한 번 누릅니다.</dd>
+    <dt>탐지 범위</dt><dd>열린 기물을 한 번 누르면 범위가 나타납니다.</dd>
+    <dt>범위 열기</dt><dd>열린 기물을 빠르게 두 번 누르세요. 깃발 수와 숫자가 같아야 합니다. 깃발이 틀리면 지뢰가 열릴 수 있습니다.</dd>
+    <dt>자동 열기</dt><dd>빈 배경을 빠르게 두 번 누르면 깃발 수와 숫자가 같은 기물의 범위를 차례로 엽니다.</dd>
+    <dt>전체화면</dt><dd>전체화면 버튼으로 게임 화면을 확대하거나 원래대로 돌립니다.</dd>
+    <dt>시점 조작</dt><dd>드래그로 회전하고, 휠이나 두 손가락으로 확대·축소하세요.</dd>
+    <dt>층 선택</dt><dd>층별 보기는 스크롤해서 보고, 3D 보기에서는 표시할 층을 고르세요.</dd>
+    <dt>추론 힌트</dt><dd>버튼을 누르면 추론할 칸과 관련 단서가 표시됩니다.</dd>
+    <dt>자동 깃발</dt><dd>기물의 남은 닫힌 칸 수가 남은 지뢰 수와 같으면 깃발을 표시합니다. 기존 깃발이 틀리면 결과도 틀릴 수 있습니다.</dd>
+    <dt id="groupHelp" hidden>컬러 묶음</dt><dd id="groupHelpText" hidden>묶음 만들기에서 열린 기물의 범위를 확인하고 닫힌 칸을 선택한 뒤 지뢰 수를 입력해 저장하세요. 모든 묶음이 표시되며 깃발과 열린 칸에 따라 숫자가 바뀝니다.</dd>
+    <dt>키보드</dt><dd>V: 보기 · F: 깃발 · R: 새 게임 · 방향키: 회전 · + / −: 확대·축소</dd>
+  </dl>
+</dialog>
+
+<script src="account.js"></script>
+<script>
+(() => {
+  "use strict";
+  const gameMode=new URLSearchParams(location.search).get("mode"),colorMode=gameMode==="no-guess-color",noGuess=gameMode==="no-guess"||colorMode;
+  if(noGuess){document.title="추측 없는 3D 체스 지뢰찾기";document.getElementById("gameTitle").textContent="♟ 추측 없는 3D 체스 지뢰찾기";document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
+  if(colorMode){document.title="추측 없는 3D 체스 지뢰찾기 · 컬러 묶음";document.getElementById("gameTitle").textContent="♟ 추측 없는 게임 · 컬러 묶음";for(const id of ["groupPanel","groupHelp","groupHelpText"])document.getElementById(id).hidden=false;}
+  let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0, twoDCols=2;
+  let hintClues=new Set();
+  let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="",draftLayout=null;
+  const groupColors=[["노랑","#ffd166"],["청록","#81e6d9"],["분홍","#ff9bbd"],["보라","#c3adff"],["연두","#b4ef8a"],["주황","#ffb77c"]];
+  let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
+  let successTimer=null,expansionTimer=null,clockTimer=null,gameStartedAt=0,gameWeights=null;
+  const DOUBLE_TAP_MS=450,LONG_PRESS_MS=500;
+  const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
+  const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
+  const $=id=>document.getElementById(id);
+  const canvas=$("board"),canvas3d=$("board3d"),scroller=$("board2dScroller"),ctx=canvas.getContext("2d"),stats=$("stats"),message=$("message");
+  const sizeInput=$("sizeInput"),mineInput=$("mineInput"),settingError=$("settingError"),boardInfo=$("boardInfo"),flagButton=$("flagMode"),layer=$("layer"),spacing=$("spacing"),cellInfo=$("cellInfo");
+  const key=(x,y,z)=>`${x},${y},${z}`,parse=k=>k.split(",").map(Number);
+  function allPositions(size=N){const a=[];for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++)a.push([x,y,z]);return a;}
+  function readWeights(){return Object.fromEntries(PIECES.map(p=>[p,$("weight"+p).value.trim()===""?NaN:Number($("weight"+p).value)]));}
+  function validWeights(weights){return PIECES.every(p=>Number.isFinite(weights[p])&&weights[p]>=0&&weights[p]<=1000)&&PIECES.some(p=>weights[p]>0);}
+  function pickPiece(weights,pieces=PIECES){
+    const enabled=pieces.filter(p=>weights[p]>0);let value=Math.random()*enabled.reduce((sum,p)=>sum+weights[p],0);
+    for(const p of enabled){value-=weights[p];if(value<0)return p;}return enabled[enabled.length-1];
+  }
+  function updateWeightSummary(){
+    const weights=readWeights(),total=PIECES.reduce((sum,p)=>sum+weights[p],0);
+    $("weightSummary").textContent=validWeights(weights)?"생성 비율: "+PIECES.map(p=>`${NAMES[p]} ${(weights[p]/total*100).toFixed(1)}%`).join(" · "):"가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";
+  }
+  function startGame(){
+    stopExpansion();
+    hideSuccess();
+    if(noGuess)stopGeneration();
+    const size=Number(sizeInput.value),count=Number(mineInput.value),capacity=size**3;
+    if(!Number.isInteger(size)||size<3||size>10){settingError.textContent="칸 수는 3–10 사이의 정수로 입력하세요.";return;}
+    if(!Number.isInteger(count)||count<1||count>=capacity){settingError.textContent=`지뢰 수는 1–${capacity-1} 사이의 정수로 입력하세요.`;return;}
+    const weights=readWeights();
+    if(!validWeights(weights)){settingError.textContent="가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";return;}
+    const positions=allPositions(size),options=[];let minimumClues=Infinity;
+    for(const piece of PIECES.filter(p=>weights[p]>0))for(const pos of positions){
+      const clues=cluePositions(pos,piece,size).length;minimumClues=Math.min(minimumClues,clues);
+      if(clues<=capacity-count-1)options.push({pos,piece});
+    }
+    if(!options.length){settingError.textContent=`이 가중치에서 숫자 0인 칸으로 시작하려면 지뢰 수를 ${capacity-minimumClues-1}개 이하로 설정하세요.`;return;}
+    // Prefer the faces visible from the initial camera so the opening is visible.
+    const surface=options.filter(({pos})=>pos.some(v=>v===size-1)),choices=surface.length?surface:options;
+    if(noGuess){startNoGuessGame({size,count,weights,positions,choices,hasSurface:!!surface.length});return;}
+    const startPiece=pickPiece(weights,PIECES.filter(p=>choices.some(c=>c.piece===p))),pieceChoices=choices.filter(c=>c.piece===startPiece);
+    const opening=pieceChoices[Math.floor(Math.random()*pieceChoices.length)],openingKey=key(...opening.pos);
+    const reserved=new Set([openingKey,...cluePositions(opening.pos,opening.piece,size).map(p=>key(...p))]);
+    const minePositions=positions.filter(p=>!reserved.has(key(...p)));
+    for(let i=minePositions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[minePositions[i],minePositions[j]]=[minePositions[j],minePositions[i]];}
+    N=size;MINE_COUNT=count;mineInput.max=capacity-1;settingError.textContent="";boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개`;
+    mines=new Set(minePositions.slice(0,MINE_COUNT).map(p=>key(...p)));cells=new Map();
+    for(const p of positions)cells.set(key(...p),{revealed:false,flagged:false,piece:pickPiece(weights)});
+    cells.get(openingKey).piece=opening.piece;
+    layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
+    if(!surface.length)layer.value=String(opening.pos[2]);
+    ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();startClock(weights);reveal(openingKey);if(view==="2d")resize();cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+  }
+  function cluePositions([x,y,z],piece,size=N){
+    const out=[];
+    if(piece==="K"){
+      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+        if(!dx&&!dy&&!dz)continue;const p=[x+dx,y+dy,z+dz];if(p.every(v=>v>=0&&v<size))out.push(p);
+      }return out;
+    }
+    if(piece==="N"){
+      for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(let dz=-2;dz<=2;dz++){
+        const a=[Math.abs(dx),Math.abs(dy),Math.abs(dz)].sort((u,v)=>v-u);
+        if(a[0]!==2||a[1]!==1||a[2]!==0)continue;const p=[x+dx,y+dy,z+dz];if(p.every(v=>v>=0&&v<size))out.push(p);
+      }return out;
+    }
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+      const axes=[dx,dy,dz].filter(v=>v!==0).length;
+      const ok=piece==="R"?axes===1:piece==="B"?axes===2:axes===1||axes===2;
+      if(!ok)continue;
+      for(let step=1;;step++){const p=[x+dx*step,y+dy*step,z+dz*step];if(!p.every(v=>v>=0&&v<size))break;out.push(p);}
+    }return out;
+  }
+  function countMines(pos,piece){return cluePositions(pos,piece).filter(p=>mines.has(key(...p))).length;}
+  function updateTime(){const seconds=Math.floor((performance.now()-gameStartedAt)/1000);$("gameTime").textContent=`시간 ${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;}
+  function startClock(weights){clearInterval(clockTimer);gameWeights={...weights};gameStartedAt=performance.now();updateTime();clockTimer=setInterval(updateTime,1000);}
+  function stopClock(){if(clockTimer!==null){updateTime();clearInterval(clockTimer);clockTimer=null;}}
+  function hideSuccess(){clearTimeout(successTimer);successTimer=null;$("successEffect").hidden=true;}
+  function showSuccess(){const effect=$("successEffect");hideSuccess();void effect.offsetWidth;effect.hidden=false;successTimer=setTimeout(hideSuccess,4000);}
+  function clearHint(){hintKey=null;hintClues.clear();$("hintExplanation").hidden=true;}
+  function reveal(k,deferDraw=false){if(ended)return;const c=cells.get(k);if(!c||c.revealed||c.flagged)return;clearHint();c.revealed=true;
+    if(mines.has(k)){ended=true;won=false;message.textContent="지뢰를 밟았습니다! 새 게임으로 다시 도전하세요.";}
+    else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;won=true;message.textContent="성공! 모든 안전한 칸을 열었습니다.";showSuccess();}
+    if(ended){hintKey=null;stopClock();window.dispatchEvent(new CustomEvent("chessmine:game-finished",{detail:{mode:colorMode?"no-guess-color":noGuess?"no-guess":"normal",size:N,mines:MINE_COUNT,weights:{...gameWeights},result:won?"won":"lost",durationMs:Math.max(0,Math.round(performance.now()-gameStartedAt))}}));}if(!deferDraw){draw();showCellInfo(k);}
+  }
+  function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;clearHint();c.flagged=!c.flagged;draw();showCellInfo(k);}
+  function resetTap(){lastTapKey=null;lastTapAt=0;}
+  function clearClueSelection(){selectedClue=null;selectedClosed=null;clueRange.clear();resetTap();}
+  function selectClue(k,c){
+    selectedClue=k;clueRange=new Set(cluePositions(parse(k),c.piece).map(p=>key(...p)));draw();showCellInfo(k);
+    cellInfo.textContent+=editingGroup?" · 범위 표시 중. 닫힌 칸을 눌러 묶음에 추가하세요.":" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
+  }
+  function stopExpansion(){if(expansionTimer!==null){clearTimeout(expansionTimer);expansionTimer=null;if(cellInfo.textContent.startsWith("자동 개방 중"))cellInfo.textContent="자동 개방을 중단했습니다.";}}
+  function expandClues(){
+    stopExpansion();const queue=[...cells].filter(([id,c])=>c.revealed&&!mines.has(id)).map(([id])=>id);
+    let opened=0,matched=0,queueIndex=0,targets=[],targetIndex=0;
+    function step(){
+      expansionTimer=null;
+      while(!ended){
+        if(targetIndex>=targets.length){
+          if(queueIndex>=queue.length)break;
+          const id=queue[queueIndex++],piece=cells.get(id).piece,range=cluePositions(parse(id),piece),flags=range.filter(pos=>cells.get(key(...pos)).flagged).length;
+          if(flags!==countMines(parse(id),piece))continue;
+          matched++;targets=range;targetIndex=0;continue;
+        }
+        const pos=targets[targetIndex++],target=key(...pos),cell=cells.get(target);if(cell.revealed||cell.flagged)continue;
+        reveal(target,true);opened++;if(!ended)queue.push(target);
+        draw();if(ended&&!won){showCellInfo(target);cellInfo.textContent+=" · 자동 개방 중 지뢰가 열렸습니다.";}else cellInfo.textContent=ended?`자동 개방 완료: ${opened}칸 열기`:`자동 개방 중: ${opened}칸 열기`;
+        if(!ended)expansionTimer=setTimeout(step,45);return;
+      }
+      draw();cellInfo.textContent=matched?`자동 개방 완료: ${opened}칸 열기`:"깃발 수가 숫자와 같은 열린 기물이 없습니다.";
+    }
+    step();
+  }
+  function activate(k,flag){
+    if(ended)return;
+    stopExpansion();
+    const c=cells.get(k);
+    if(colorMode&&editingGroup){
+      if(!c&&!flag){clearClueSelection();draw();}
+      else if(c&&c.revealed&&!flag)selectClue(k,c);
+      else if(c&&!c.revealed&&!c.flagged&&!flag){if(groupDraft.has(k))groupDraft.delete(k);else groupDraft.add(k);updateGroups();draw();}
+      else if(c)$("groupStatus").textContent="깃발이 없는 닫힌 칸을 선택하세요.";
+      return;
+    }
+    if(!c){
+      const hadSelection=selectedClue!==null||selectedClosed!==null,now=performance.now(),doubleTap=!flag&&lastTapKey==="background"&&now-lastTapAt<=DOUBLE_TAP_MS;
+      clearClueSelection();if(doubleTap){expandClues();return;}
+      if(!flag){lastTapKey="background";lastTapAt=now;cellInfo.textContent="배경을 빠르게 두 번 누르면 조건에 맞는 기물의 범위를 엽니다.";}
+      if(hadSelection)draw();return;
+    }
+    if(flag){const hadSelection=selectedClue!==null||selectedClosed!==null;clearClueSelection();toggleFlag(k);if(hadSelection)draw();return;}
+    if(c.flagged){clearClueSelection();draw();showCellInfo(k);return;}
+    const now=performance.now(),doubleTap=lastTapKey===k&&now-lastTapAt<=DOUBLE_TAP_MS;
+    lastTapKey=doubleTap?null:k;lastTapAt=doubleTap?0:now;
+    if(!c.revealed){
+      if(!doubleTap){selectedClue=null;clueRange.clear();selectedClosed=k;draw();showCellInfo(k);cellInfo.textContent+=" · 빠르게 두 번 눌러 열기";return;}
+      clearClueSelection();reveal(k,true);draw();showCellInfo(k);return;
+    }
+    if(!doubleTap){selectedClosed=null;selectClue(k,c);return;}
+    const range=[...clueRange],flags=range.filter(id=>cells.get(id).flagged).length,total=countMines(parse(k),c.piece);clearClueSelection();
+    if(flags!==total){draw();showCellInfo(k);cellInfo.textContent+=` · 깃발 ${flags}개 / 필요 ${total}개`;return;}
+    let opened=0,last=k;for(const id of range){const cell=cells.get(id);if(!cell.revealed&&!cell.flagged){reveal(id,true);opened++;last=id;if(ended)break;}}
+    draw();showCellInfo(ended&&mines.has(last)?last:k);if(!ended)cellInfo.textContent+=` · ${opened}칸 열기`;
+  }
+  function activateTap(k,rightClick){const cell=cells.get(k);activate(k,rightClick||(!editingGroup&&flagMode&&!!cell&&!cell.revealed));}
+  function inferMoves(nodeLimit=500000){
+    if(ended)return{moves:[],conflict:false};
+    const unknown=[...cells].filter(([,c])=>!c.revealed&&!c.flagged).map(([k])=>k),constraints=new Map();let conflict=false;
+    function add(ids,total,sources=[],method="direct"){
+      const sorted=[...ids].sort();if(total<0||total>sorted.length){conflict=true;return false;}
+      const id=sorted.join("|");if(!id){if(total!==0)conflict=true;return !conflict;}
+      if(constraints.has(id))return constraints.get(id).total===total||(conflict=true,false);
+      constraints.set(id,{ids:sorted,total,sources,method});return true;
+    }
+    for(const[k,c]of cells)if(c.revealed&&!mines.has(k)){
+      const candidates=[],flags=cluePositions(parse(k),c.piece);let total=countMines(parse(k),c.piece);
+      for(const p of flags){const neighbor=cells.get(key(...p));if(neighbor.flagged)total--;else if(!neighbor.revealed)candidates.push(key(...p));}
+      add(candidates,total,[k]);if(conflict)return{moves:[],conflict};
+    }
+    const remainingMines=MINE_COUNT-[...cells.values()].filter(c=>c.flagged).length;
+    if(remainingMines<0||remainingMines>unknown.length)return{moves:[],conflict:true};
+    for(let round=0;round<=unknown.length;round++){
+      const forced=new Map();
+      for(const{ids,total,sources,method}of constraints.values())if(total===0||total===ids.length)for(const id of ids){const mine=total>0;if(forced.has(id)&&forced.get(id).mine!==mine)return{moves:[],conflict:true};if(!forced.has(id))forced.set(id,{mine,sources,method});}
+      if(forced.size)return{moves:[...forced].map(([key,proof])=>({key,...proof})),conflict:false};
+      const equations=[...constraints.values()],sets=equations.map(e=>new Set(e.ids)),byCell=new Map(),pairs=new Set();let changed=false;
+      equations.forEach((equation,i)=>equation.ids.forEach(id=>{if(!byCell.has(id))byCell.set(id,[]);for(const j of byCell.get(id))pairs.add(j*equations.length+i);byCell.get(id).push(i);}));
+      for(const pair of pairs){
+        const i=Math.floor(pair/equations.length),j=pair%equations.length,A=equations[i],B=equations[j],setA=sets[i],setB=sets[j];
+        const sources=[...new Set([...A.sources,...B.sources])];
+        for(const[small,large,largeSet,smallSet]of[[A,B,setB,setA],[B,A,setA,setB]])if(small.ids.length<large.ids.length&&small.ids.every(id=>largeSet.has(id))){
+          const before=constraints.size;add(large.ids.filter(id=>!smallSet.has(id)),large.total-small.total,sources,"compare");
+          if(conflict)return{moves:[],conflict};if(constraints.size!==before)changed=true;
+        }
+        const intersection=A.ids.filter(id=>setB.has(id));if(!intersection.length)continue;
+        const onlyA=A.ids.filter(id=>!setB.has(id)),onlyB=B.ids.filter(id=>!setA.has(id));
+        const low=Math.max(0,A.total-onlyA.length,B.total-onlyB.length,A.total+B.total-A.ids.length-B.ids.length+intersection.length);
+        const high=Math.min(A.total,B.total,intersection.length);
+        if(low>high)return{moves:[],conflict:true};
+        for(const[ids,min,max]of[[intersection,low,high],[onlyA,A.total-high,A.total-low],[onlyB,B.total-high,B.total-low]]){
+          const total=min===max?min:max===0?0:min===ids.length?ids.length:null;
+          if(total===null)continue;const before=constraints.size;add(ids,total,sources,"compare");
+          if(conflict)return{moves:[],conflict};if(constraints.size!==before)changed=true;
+        }
+      }
+      if(!changed)break;
+    }
+    const frontier=new Set([...constraints.values()].flatMap(e=>e.ids)),free=unknown.filter(id=>!frontier.has(id)),components=[],seen=new Set();
+    for(const start of frontier){if(seen.has(start))continue;const ids=[],queue=[start];seen.add(start);for(let at=0;at<queue.length;at++){const id=queue[at];ids.push(id);for(const e of constraints.values())if(e.ids.includes(id))for(const other of e.ids)if(!seen.has(other)){seen.add(other);queue.push(other);}}components.push(ids);}
+    const solved=[];let searchNodes=0;
+    for(const ids of components){
+      const indexes=new Map(ids.map((id,i)=>[id,i])),equations=[...constraints.values()].filter(e=>e.ids.some(id=>indexes.has(id))).map(e=>({ids:e.ids.map(id=>indexes.get(id)),total:e.total})),possible=Array(ids.length+1),counts=new Set();let aborted=false,solutions=0;
+      function search(state){
+        // ponytail: cap exact search; improve propagation if normal boards hit this ceiling.
+        if(++searchNodes>nodeLimit){aborted=true;return;}
+        let changed=true;
+        while(changed){changed=false;for(const e of equations){let mines=0,open=[];for(const i of e.ids)if(state[i]===1)mines++;else if(state[i]<0)open.push(i);if(mines>e.total||mines+open.length<e.total)return;const value=mines===e.total?0:mines+open.length===e.total?1:-1;if(value>=0)for(const i of open){state[i]=value;changed=true;}}}
+        const branch=state.findIndex(v=>v<0);
+        if(branch<0){const total=state.reduce((sum,v)=>sum+v,0);if(!possible[total])possible[total]=new Uint8Array(ids.length);for(let i=0;i<ids.length;i++)possible[total][i]|=state[i]?2:1;counts.add(total);solutions++;return;}
+        for(const value of [0,1]){const next=state.slice();next[branch]=value;search(next);if(aborted)return;}
+      }
+      search(new Int8Array(ids.length).fill(-1));
+      if(aborted)return{moves:[],conflict:false,limited:true};
+      if(!solutions)return{moves:[],conflict:true};
+      solved.push({ids,possible,counts});
+    }
+    const prefix=[new Set([0])];for(const c of solved){const sums=new Set();for(const a of prefix.at(-1))for(const b of c.counts)sums.add(a+b);prefix.push(sums);}
+    const suffix=Array(solved.length+1);suffix[solved.length]=new Set([0]);for(let i=solved.length-1;i>=0;i--){const sums=new Set();for(const a of solved[i].counts)for(const b of suffix[i+1])sums.add(a+b);suffix[i]=sums;}
+    function compatible(left,right,target,freeCount=free.length){for(const a of left){const low=Math.max(0,target-a-freeCount),high=target-a;for(let b=low;b<=high;b++)if(right.has(b))return true;}return false;}
+    if(!compatible(prefix.at(-1),new Set([0]),remainingMines))return{moves:[],conflict:true};
+    const moves=[];
+    for(let i=0;i<solved.length;i++){const c=solved[i],otherCounts=new Set();for(const a of prefix[i])for(const b of suffix[i+1])otherCounts.add(a+b);for(let j=0;j<c.ids.length;j++){let safe=false,mine=false;for(const total of c.counts){if(!compatible(new Set([total]),otherCounts,remainingMines))continue;const mask=c.possible[total][j];safe||=!!(mask&1);mine||=!!(mask&2);}if(safe!==mine)moves.push({key:c.ids[j],mine,method:"search"});}}
+    if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines,free.length-1),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine,method:"search"})));}
+    return{moves,conflict:false};
+  }
+  // ponytail: retries and time are bounded; use a constructive generator if difficult settings need better coverage.
+  function generateNoGuessBoard({size,count,weights,positions,choices,hasSurface}){
+    N=size;MINE_COUNT=count;ended=false;
+    for(let attempt=1;attempt<=100;attempt++){
+      postMessage({type:"progress",attempt});
+      const piece=pickPiece(weights,PIECES.filter(p=>choices.some(c=>c.piece===p))),openings=choices.filter(c=>c.piece===piece),opening=openings[Math.floor(Math.random()*openings.length)],openingKey=key(...opening.pos);
+      const reserved=new Set([openingKey,...cluePositions(opening.pos,piece).map(p=>key(...p))]),eligible=positions.filter(p=>!reserved.has(key(...p)));
+      for(let i=eligible.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[eligible[i],eligible[j]]=[eligible[j],eligible[i]];}
+      mines=new Set(eligible.slice(0,count).map(p=>key(...p)));cells=new Map(positions.map(p=>[key(...p),{revealed:false,flagged:false,piece:pickPiece(weights)}]));
+      cells.get(openingKey).piece=piece;cells.get(openingKey).revealed=true;
+      let valid=true;
+      while([...cells].some(([id,c])=>!mines.has(id)&&!c.revealed)){
+        const result=inferMoves(20000);if(result.conflict||result.limited||!result.moves.length){valid=false;break;}
+        for(const move of result.moves){const cell=cells.get(move.key);if(!cell||cell.revealed||cell.flagged||mines.has(move.key)!==move.mine){valid=false;break;}if(move.mine)cell.flagged=true;else cell.revealed=true;}
+        if(!valid)break;
+      }
+      if(valid){postMessage({type:"ready",size,count,opening:opening.pos,openingKey,hasSurface,mines:[...mines],pieces:[...cells].map(([id,c])=>[id,c.piece])});return;}
+    }
+    postMessage({type:"failed"});
+  }
+  let generationWorker=null,generationTimer=null,generationUrl=null;
+  function stopGeneration(){
+    if(generationWorker)generationWorker.terminate();generationWorker=null;clearTimeout(generationTimer);generationTimer=null;
+    if(generationUrl)URL.revokeObjectURL(generationUrl);generationUrl=null;$("start").disabled=false;$("cancelGeneration").hidden=true;
+  }
+  function startNoGuessGame(options){
+    settingError.textContent="";message.textContent="추측 없이 풀 수 있는 보드를 생성하고 있습니다…";$("start").disabled=true;$("cancelGeneration").hidden=false;
+    const source=`let N,MINE_COUNT,cells,mines,ended;const PIECES=${JSON.stringify(PIECES)},key=${key.toString()},parse=${parse.toString()};${pickPiece.toString()}\n${cluePositions.toString()}\n${countMines.toString()}\n${inferMoves.toString()}\n${generateNoGuessBoard.toString()}\nonmessage=e=>generateNoGuessBoard(e.data);`;
+    try{generationUrl=URL.createObjectURL(new Blob([source],{type:"text/javascript"}));generationWorker=new Worker(generationUrl);}catch(error){stopGeneration();message.textContent="";settingError.textContent="보드 생성 기능을 시작하지 못했습니다. 브라우저를 확인하세요.";return;}
+    generationWorker.onmessage=({data})=>{
+      if(data.type==="progress"){message.textContent=`추측 없이 풀 수 있는 보드 생성 중… ${data.attempt}/100`;return;}
+      stopGeneration();message.textContent="";
+      if(data.type!=="ready"){settingError.textContent="이 설정에서 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";return;}
+      stopExpansion();N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개 · 추측 없이 풀이 가능`;
+      mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
+      layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
+      if(!data.hasSurface)layer.value=String(data.opening[2]);
+      resetGroups();hideSuccess();ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();startClock(options.weights);reveal(data.openingKey);if(view==="2d")resize();cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    };
+    generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="보드 생성 중 오류가 발생했습니다. 다시 시도하세요.";};
+    generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";},45000);
+    generationWorker.postMessage(options);
+  }
+  function explainHint(choice){
+    const equations=[];let flagCount=0,unknownCount=0;
+    for(const c of cells.values()){if(c.flagged)flagCount++;else if(!c.revealed)unknownCount++;}
+    for(const[id,c]of cells)if(c.revealed&&!mines.has(id)){
+      const range=cluePositions(parse(id),c.piece).map(p=>key(...p)),unknown=range.filter(k=>!cells.get(k).revealed&&!cells.get(k).flagged),flags=range.filter(k=>cells.get(k).flagged).length;
+      if(unknown.length)equations.push({id,piece:c.piece,unknown,flags,total:countMines(parse(id),c.piece)});
+    }
+    const relevant=new Set(choice.sources||[]);
+    if(!relevant.size){
+      const connected=new Set([choice.key]);let changed=true;
+      while(changed){changed=false;for(const e of equations)if(!relevant.has(e.id)&&e.unknown.some(id=>connected.has(id))){relevant.add(e.id);for(const id of e.unknown)connected.add(id);changed=true;}}
+    }
+    const primary=equations.filter(e=>relevant.has(e.id)),other=equations.filter(e=>!relevant.has(e.id)),evidence=$("hintEvidence"),otherEvidence=$("hintOtherEvidence");
+    hintClues=new Set(primary.map(e=>e.id));
+    evidence.replaceChildren();otherEvidence.replaceChildren();
+    let method=choice.method==="direct"?"이 기물의 숫자와 깃발 수를 비교하세요.":choice.method==="compare"?"아래 기물들이 가리키는 미확인 칸의 겹침과 차이를 비교하세요.":"연결된 단서와 전체 지뢰 수를 만족하는 배치를 비교하세요. 다른 공개 단서도 전체 지뢰 수 계산에 영향을 줄 수 있습니다. 힌트 칸을 각각 지뢰와 안전한 칸으로 가정하고 모순을 확인해 보세요.";
+    if(choice.method==="compare"&&primary.length===2){const [a,b]=primary.map(e=>new Set(e.unknown));if([...a].every(id=>b.has(id))||[...b].every(id=>a.has(id)))method+=" 한 범위가 다른 범위에 포함됩니다. 넓은 범위의 식에서 좁은 범위의 식을 빼 보세요.";}
+    $("hintExplanationSummary").textContent=`${method}${primary.length?" 관련 기물은 보드에 은은하게 표시됩니다.":""} 각 줄은 숫자 − 깃발 = 그 범위의 미확인 칸에 남은 지뢰 수입니다. 깃발은 올바르다고 가정합니다. 전체: 미확인 ${unknownCount}칸, 남은 지뢰 ${MINE_COUNT-flagCount}개.`;
+    function addEvidence(container,e){
+      const row=document.createElement("div"),button=document.createElement("button"),description=document.createElement("div");
+      row.style.margin="8px 0";button.textContent=`${SYMBOLS[e.piece]} (${parse(e.id).join(", ")}) · ${e.total} − ${e.flags} = ${e.total-e.flags} · 미확인 ${e.unknown.length}칸`;
+      button.addEventListener("click",()=>{clearClueSelection();selectClue(e.id,cells.get(e.id));});
+      description.style.overflowWrap="anywhere";description.style.color="#b9c8d9";
+      description.textContent="미확인: "+e.unknown.map(id=>`(${parse(id).join(", ")})${id===choice.key?" [힌트]":""}`).join(" · ");
+      row.append(button,description);container.append(row);
+    }
+    if(primary.length)for(const e of primary)addEvidence(evidence,e);
+    else evidence.textContent="힌트 칸을 직접 가리키는 공개 단서가 없습니다. 전체 지뢰 수와 다른 공개 단서를 함께 확인하세요.";
+    for(const e of other)addEvidence(otherEvidence,e);
+    $("hintOtherDetails").hidden=!other.length;$("hintOtherDetails").open=false;$("hintExplanation").hidden=false;
+  }
+  function showHint(){
+    stopExpansion();
+    if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
+    if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
+    clearClueSelection();
+    clearHint();const result=inferMoves();
+    if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
+    if(result.limited){draw();cellInfo.textContent="가능한 배치가 너무 많아 이번 추론을 끝내지 못했습니다. 더 많은 칸을 열어 단서를 늘려 보세요.";return;}
+    if(!result.moves.length){draw();cellInfo.textContent="현재 공개된 단서만으로 확정할 수 있는 칸이 없습니다.";return;}
+    let choices=result.moves;
+    if(choices.every(move=>move.sources?.length)){const fewest=Math.min(...choices.map(move=>move.sources.length));choices=choices.filter(move=>move.sources.length===fewest);}
+    for(let i=choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}
+    let visibleHint=null;
+    if(view==="3d"){
+      const visible=new Map(visibleCells.map(c=>[c.key,c.center])),{eye,forward,right,up}=cameraBasis(),scale=height/(2*Math.tan(FOV/2));
+      visibleHint=choices.find(({key})=>{
+        const k=key;
+        const position=visible.get(k);if(!position)return false;
+        const offset=position.map((v,i)=>v-eye[i]),depth=dot(offset,forward);if(depth<=0)return false;
+        const x=width/2+dot(offset,right)*scale/depth,y=height/2-dot(offset,up)*scale/depth;
+        return x>=0&&x<width&&y>=0&&y<height&&find3d(x,y)===k;
+      });
+    }else{
+      const {cols,s,left,top}=layout2d(),r=scroller.getBoundingClientRect(),scrollX=scroller.scrollLeft||0,scrollY=scroller.scrollTop||0;
+      visibleHint=choices.find(({key})=>{const [x,y,z]=parse(key),cx=left+(z%cols)*(N+.58)*s+(x+.5)*s,cy=top+Math.floor(z/cols)*(N+.72)*s+(.42+y+.5)*s;
+        return cx>=scrollX&&cx<scrollX+(scroller.clientWidth||r.width)&&cy>=scrollY&&cy<scrollY+(scroller.clientHeight||r.height);});
+    }
+    const choice=visibleHint||choices[0];hintKey=choice.key;
+    explainHint(choice);
+    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(!visibleHint?(view==="3d"?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":" 표시된 좌표를 찾으려면 보드를 스크롤하세요."):"");
+  }
+  function autoFlag(){
+    stopExpansion();resetTap();
+    if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
+    if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
+    clearClueSelection();clearHint();const targets=new Set();
+    for(const [id,cell] of cells)if(cell.revealed&&!mines.has(id)){
+      const range=cluePositions(parse(id),cell.piece).map(p=>key(...p));
+      const closed=range.filter(k=>!cells.get(k).revealed&&!cells.get(k).flagged);
+      const remaining=countMines(parse(id),cell.piece)-range.filter(k=>cells.get(k).flagged).length;
+      if(remaining<0||remaining>closed.length){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
+      if(remaining>0&&remaining===closed.length)for(const k of closed)targets.add(k);
+    }
+    for(const k of targets)cells.get(k).flagged=true;
+    draw();cellInfo.textContent=targets.size?`자동 깃발: ${targets.size}칸 표시`:"남은 칸 수와 남은 지뢰 수가 같은 기물이 없습니다.";
+  }
+  function setView(v){
+    resetTap();
+    view=v==="3d"&&gl?"3d":"2d";scroller.hidden=view!=="2d";$("board2dHint").hidden=true;canvas.hidden=view!=="2d";canvas3d.hidden=view!=="3d";$("cameraControls").hidden=view!=="3d";
+    for(const mode of ["3d","2d"]){$("view"+mode).classList.toggle("active",mode===view);$("view"+mode).setAttribute("aria-pressed",String(mode===view));}resize();
+  }
+  function tileStyle(k,c){
+    let style;if(mines.has(k)&&(c.revealed||ended))style=won?{fill:"#405f57",text:"✿",color:"#ffe0ed"}:{fill:"#a7434a",text:"✹",color:"#fff"};else if(c.flagged)style={fill:"#b2872c",text:"⚑",color:"#fff1be"};else if(c.revealed)style={fill:"#26374a",text:`${SYMBOLS[c.piece]}\n${countMines(parse(k),c.piece)}`,color:PIECE_COLORS[c.piece]};else if(k===hintKey)style={fill:"#5b6d84",text:"·",color:"#b0bfd1"};else style={fill:"#52657d",text:"",color:"#fff"};
+    if(colorMode&&!c.revealed&&!c.flagged){
+      style.badgeCount=visibleGroupCount;
+      style.badges=groups.filter(group=>group.ids.has(k)&&(group.remaining!==0||group.invalid)).map(group=>({text:group.invalid?"!":`${group.remaining}/${group.closed}`,color:group.color,slot:group.slot,fontScale:group.fontScale,widthScale:group.widthScale}));
+      if(draftLayout&&groupDraft.has(k))style.badges.push({text:"●",color:"#fff2a8",slot:draftLayout.slot,fontScale:draftLayout.fontScale,widthScale:draftLayout.widthScale});
+    }
+    if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";else if(c.revealed&&hintClues.has(k))style.fill="#364b5d";
+    return style;
+  }
+  function paintLabel(context,s,cx,cy,size){
+    if(s.text){context.fillStyle=s.color;context.textAlign="center";context.textBaseline="middle";const lines=s.text.split("\n");
+      context.font=`600 ${size*(lines.length===2?.49:.55)}px "DejaVu Sans","Segoe UI Symbol","Noto Sans Symbols 2",sans-serif`;
+      context.fillText(lines[0],cx,cy+(lines.length===2?-size*.15:0));
+      if(lines.length===2){context.font=`700 ${size*.31}px system-ui`;context.fillText(lines[1],cx,cy+size*.27);}}
+    if(s.badges?.length){
+      const count=s.badgeCount??s.badges.length,twoColumns=count>=3,rows=twoColumns?Math.ceil(count/2):count,step=Math.min(.22,.82/rows);
+      const entries=s.badges.map((badge,index)=>{const i=badge.slot??index;return{badge,left:twoColumns&&i%2===1,row:twoColumns?Math.floor(i/2):i};});
+      context.textBaseline="bottom";context.lineWidth=Math.max(1,size*.04);context.strokeStyle="#14202c";
+      for(const {badge,left,row} of entries){const x=cx+size*(left?-.43:.43),y=cy+size*(.43-row*step),maxWidth=size*(badge.widthScale??(entries.some(other=>other.row===row&&other.left!==left)?.43:.86));context.font=`700 ${size*(badge.fontScale??.22)}px system-ui`;context.textAlign=left?"left":"right";context.strokeText(badge.text,x,y,maxWidth);context.fillStyle=badge.color;context.fillText(badge.text,x,y,maxWidth);}
+    }
+  }
+  function layout2d(){
+    const cols=twoDCols,rows=Math.ceil(N/cols),gap=.58,label=.42;
+    const s=Math.min((width-24)/(cols*N+(cols-1)*gap),(height-24)/(rows*(N+label)+(rows-1)*.3),58);
+    return{cols,s,left:(width-(cols*N+(cols-1)*gap)*s)/2,top:(height-(rows*(N+label)+(rows-1)*.3)*s)/2};
+  }
+  function draw2d(){
+    ctx.clearRect(0,0,width,height);const{cols,s,left,top}=layout2d();cellSize=s;
+    for(let z=0;z<N;z++){
+      const bx=left+(z%cols)*(N+.58)*s,by=top+Math.floor(z/cols)*(N+.42+.3)*s;
+      ctx.fillStyle="#c4d3e5";ctx.font=`600 ${Math.max(10,s*.27)}px system-ui`;ctx.textAlign="left";ctx.textBaseline="bottom";ctx.fillText(`z = ${z}`,bx,by+.42*s-2);
+      for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+        const k=key(x,y,z),style=tileStyle(k,cells.get(k)),px=bx+x*s,py=by+.42*s+y*s;
+        ctx.fillStyle=style.fill;ctx.fillRect(px+1,py+1,s-2,s-2);paintLabel(ctx,style,px+s/2,py+s/2,s);
+      }
+    }
+  }
+  // WebGL renders real cube geometry with perspective and a depth buffer.
+  let gl=null,program,buffer,texture,vertexCount=0,visibleCells=[],yaw=.72,pitch=.48,distance=20;
+  let geometryKey=null,atlas,atlasContext,tileCanvas,tileContext,tileCols,tileStyles=[];
+  const HALF=.43,FOV=Math.PI/4;
+  const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const normalize=a=>{const length=Math.hypot(...a);return a.map(v=>v/length);};
+  function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
+  function init3d(){
+    try{
+      gl=canvas3d.getContext("webgl",{alpha:true,antialias:true});if(!gl)throw new Error("WebGL unavailable");
+      program=gl.createProgram();
+      gl.attachShader(program,shader(gl.VERTEX_SHADER,`
+        attribute vec3 position; attribute vec3 normal; attribute vec2 uv;
+        uniform mat4 projection; uniform mat4 camera;
+        varying vec2 texcoord; varying float light;
+        void main(){texcoord=uv;light=0.62+0.38*max(dot(normal,normalize(vec3(0.4,0.85,0.65))),0.0);gl_Position=projection*camera*vec4(position,1.0);}
+      `));
+      gl.attachShader(program,shader(gl.FRAGMENT_SHADER,`
+        precision mediump float; uniform sampler2D tiles;
+        varying vec2 texcoord; varying float light;
+        void main(){vec4 color=texture2D(tiles,texcoord);gl_FragColor=vec4(color.rgb*light,color.a);}
+      `));
+      gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
+      gl.useProgram(program);buffer=gl.createBuffer();texture=gl.createTexture();
+      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+      for(const[name,size,offset]of[["position",3,0],["normal",3,12],["uv",2,24]]){const location=gl.getAttribLocation(program,name);gl.enableVertexAttribArray(location);gl.vertexAttribPointer(location,size,gl.FLOAT,false,32,offset);}
+      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);gl.uniform1i(gl.getUniformLocation(program,"tiles"),0);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+      gl.enable(gl.DEPTH_TEST);gl.clearColor(0,0,0,0);
+    }catch(error){console.error("3D renderer:",error);gl=null;$("view3d").disabled=true;message.textContent="이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";}
+  }
+  function center([x,y,z]){const s=Number(spacing.value),mid=(N-1)/2;return[(x-mid)*s,(z-mid)*s,(y-mid)*s];}
+  function build3d(){
+    if(!gl)return;
+    const nextKey=`${N}|${layer.value}|${spacing.value}`,tile=64;
+    if(geometryKey!==nextKey){
+      visibleCells=allPositions().filter(p=>layer.value==="all"||p[2]===Number(layer.value)).map(p=>({key:key(...p),center:center(p)}));
+      tileCols=Math.ceil(Math.sqrt(visibleCells.length));atlas=document.createElement("canvas");
+      atlas.width=atlas.height=2**Math.ceil(Math.log2(tileCols*tile));atlasContext=atlas.getContext("2d");
+      tileCanvas=document.createElement("canvas");tileCanvas.width=tileCanvas.height=tile;tileContext=tileCanvas.getContext("2d");tileStyles=[];
+      const vertices=[],faces=[
+        [[0,0,1],[[-1,1,1],[1,1,1],[1,-1,1],[-1,-1,1]]],
+        [[0,0,-1],[[1,1,-1],[-1,1,-1],[-1,-1,-1],[1,-1,-1]]],
+        [[1,0,0],[[1,1,1],[1,1,-1],[1,-1,-1],[1,-1,1]]],
+        [[-1,0,0],[[-1,1,-1],[-1,1,1],[-1,-1,1],[-1,-1,-1]]],
+        [[0,1,0],[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]]],
+        [[0,-1,0],[[-1,-1,1],[1,-1,1],[1,-1,-1],[-1,-1,-1]]]
+      ];
+      visibleCells.forEach((cell,index)=>{
+        const tx=(index%tileCols)*tile,ty=Math.floor(index/tileCols)*tile;
+        const uv=[[tx+.5,ty+.5],[tx+tile-.5,ty+.5],[tx+tile-.5,ty+tile-.5],[tx+.5,ty+tile-.5]];
+        for(const[normal,corners]of faces)for(const i of[0,3,2,0,2,1])vertices.push(...corners[i].map((v,axis)=>cell.center[axis]+v*HALF),...normal,uv[i][0]/atlas.width,uv[i][1]/atlas.height);
+      });
+      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);vertexCount=vertices.length/8;
+      geometryKey=nextKey;
+    }
+    const changed=[];
+    visibleCells.forEach((cell,index)=>{
+      const style=tileStyle(cell.key,cells.get(cell.key)),signature=JSON.stringify([style.fill,style.text,style.color,style.badges,style.badgeCount]);
+      if(tileStyles[index]!==signature){tileStyles[index]=signature;changed.push({index,style});}
+    });
+    if(!changed.length)return;
+    const fullUpload=changed.length>32||changed.length===visibleCells.length;
+    gl.bindTexture(gl.TEXTURE_2D,texture);
+    for(const {index,style} of changed){
+      const tx=(index%tileCols)*tile,ty=Math.floor(index/tileCols)*tile;
+      tileContext.fillStyle="#172333";tileContext.fillRect(0,0,tile,tile);tileContext.fillStyle=style.fill;tileContext.fillRect(2,2,tile-4,tile-4);paintLabel(tileContext,style,tile/2,tile/2,tile);
+      atlasContext.drawImage(tileCanvas,tx,ty);
+      if(!fullUpload)gl.texSubImage2D(gl.TEXTURE_2D,0,tx,ty,gl.RGBA,gl.UNSIGNED_BYTE,tileCanvas);
+    }
+    if(fullUpload)gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);
+  }
+  function cameraBasis(){const eye=[distance*Math.cos(pitch)*Math.sin(yaw),distance*Math.sin(pitch),distance*Math.cos(pitch)*Math.cos(yaw)],forward=normalize(eye.map(v=>-v)),right=normalize(cross(forward,[0,1,0])),up=cross(right,forward);return{eye,forward,right,up};}
+  function render3d(){
+    if(!gl||view!=="3d"||!width||!height)return;
+    const{eye,forward:f,right:r,up:u}=cameraBasis(),scale=1/Math.tan(FOV/2),near=.1,far=200;
+    const projection=[scale/(width/height),0,0,0,0,scale,0,0,0,0,(far+near)/(near-far),-1,0,0,2*far*near/(near-far),0];
+    const camera=[r[0],u[0],-f[0],0,r[1],u[1],-f[1],0,r[2],u[2],-f[2],0,-dot(r,eye),-dot(u,eye),dot(f,eye),1];
+    gl.viewport(0,0,canvas3d.width,canvas3d.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    gl.uniformMatrix4fv(gl.getUniformLocation(program,"projection"),false,new Float32Array(projection));gl.uniformMatrix4fv(gl.getUniformLocation(program,"camera"),false,new Float32Array(camera));
+    gl.drawArrays(gl.TRIANGLES,0,vertexCount);
+  }
+  function resetCamera(){
+    yaw=.72;pitch=.48;const aspect=width&&height?width/height:1,halfAngle=Math.atan(Math.tan(FOV/2)*Math.min(1,aspect));
+    distance=Math.sqrt(3)*((N-1)*Number(spacing.value)/2+HALF)/Math.sin(halfAngle)*1.08;render3d();
+  }
+  function zoom(factor){resetTap();distance=Math.max(N*Number(spacing.value)*.95,Math.min(N*Number(spacing.value)*10,distance*factor));render3d();}
+  function draw(){
+    if(colorMode)updateGroups();
+    if(!cells.size){stats.textContent="보드를 준비하고 있습니다.";if(view==="2d"&&width&&height)ctx.clearRect(0,0,width,height);else if(gl)gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);return;}
+    const f=[...cells.values()].filter(c=>c.flagged).length;
+    stats.textContent=`칸 ${N**3}개 · 지뢰 ${MINE_COUNT}개 · 깃발 ${f}개 · 연 칸 ${[...cells].filter(([k,c])=>c.revealed&&!mines.has(k)).length}/${N**3-MINE_COUNT}개`;
+    if(view==="3d"){build3d();render3d();}else if(width&&height)draw2d();
+  }
+  function resize(){
+    const active=view==="3d"?canvas3d:canvas,d=Math.min(window.devicePixelRatio||1,2);
+    if(view==="2d"){
+      const r=scroller.getBoundingClientRect(),w=scroller.clientWidth||r.width,h=scroller.clientHeight||r.height,min=36;
+      twoDCols=Math.min(w<600?2:3,Math.max(1,Math.floor(((w-24)/min+.58)/(N+.58))));
+      const rows=Math.ceil(N/twoDCols);
+      width=Math.max(w,Math.ceil(24+(twoDCols*N+(twoDCols-1)*.58)*min));
+      height=Math.max(h,Math.ceil(24+(rows*(N+.42)+(rows-1)*.3)*min));
+      canvas.style.width=width+"px";canvas.style.height=height+"px";
+      $("board2dHint").hidden=width<=w&&height<=h;
+    }else{const r=active.getBoundingClientRect();width=r.width;height=r.height;}
+    active.width=Math.round(width*d);active.height=Math.round(height*d);if(view==="2d")ctx.setTransform(d,0,0,d,0,0);draw();
+  }
+  function find2d(px,py){const{cols,s,left,top}=layout2d();for(let z=0;z<N;z++){const bx=left+(z%cols)*(N+.58)*s,by=top+Math.floor(z/cols)*(N+.42+.3)*s+.42*s,x=Math.floor((px-bx)/s),y=Math.floor((py-by)/s);if(x>=0&&x<N&&y>=0&&y<N)return key(x,y,z);}return null;}
+  function find3d(px,py){
+    const{eye,forward,right,up}=cameraBasis(),sx=(px/width*2-1)*Math.tan(FOV/2)*width/height,sy=(1-py/height*2)*Math.tan(FOV/2),ray=normalize(forward.map((v,i)=>v+right[i]*sx+up[i]*sy));
+    let best=null,closest=Infinity;
+    for(const cell of visibleCells){
+      let near=0,far=Infinity;
+      for(let i=0;i<3;i++){
+        const low=cell.center[i]-HALF-eye[i],high=cell.center[i]+HALF-eye[i];
+        if(Math.abs(ray[i])<1e-8){if(low>0||high<0){far=-1;break;}}
+        else{const a=low/ray[i],b=high/ray[i];near=Math.max(near,Math.min(a,b));far=Math.min(far,Math.max(a,b));}
+      }
+      if(far>=near&&near<closest){closest=near;best=cell.key;}
+    }return best;
+  }
+  function showCellInfo(k){const c=cells.get(k);if(!c)return;const pos=`(${parse(k).join(", ")})`;cellInfo.textContent=c.revealed&&!mines.has(k)?`${pos} · ${SYMBOLS[c.piece]} ${NAMES[c.piece]} 규칙으로 센 지뢰: ${countMines(parse(k),c.piece)}개`:`${pos} · ${won&&mines.has(k)?"꽃":c.flagged?"깃발 표시":mines.has(k)&&(c.revealed||ended)?"지뢰":"닫힌 칸"}`;}
+  const pointers=new Map();let gesture=null;
+  const pointerDistance=()=>{const p=[...pointers.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);};
+  canvas3d.addEventListener("pointerdown",e=>{
+    if(e.button!==0&&e.button!==2)return;canvas3d.focus({preventScroll:true});canvas3d.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size===1){
+      gesture={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,longPressed:false,button:e.button};const press=gesture;
+      if(e.button===0)press.timer=setTimeout(()=>{if(gesture!==press||press.moved||pointers.size!==1)return;press.longPressed=true;const r=canvas3d.getBoundingClientRect();activate(find3d(press.x-r.left,press.y-r.top),true);},LONG_PRESS_MS);
+    }else{clearTimeout(gesture.timer);resetTap();gesture.moved=true;gesture.pinch=pointerDistance();}canvas3d.classList.add("dragging");
+  });
+  canvas3d.addEventListener("pointermove",e=>{
+    if(!pointers.has(e.pointerId)){const r=canvas3d.getBoundingClientRect(),k=find3d(e.clientX-r.left,e.clientY-r.top);if(k)showCellInfo(k);return;}
+    const old=pointers.get(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(gesture.longPressed&&pointers.size===1)return;
+    if(pointers.size>1){clearTimeout(gesture.timer);resetTap();const next=pointerDistance();if(gesture.pinch&&next)zoom(gesture.pinch/next);gesture.pinch=next;gesture.moved=true;}
+    else{
+      if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>5){clearTimeout(gesture.timer);resetTap();gesture.moved=true;}
+      if(gesture.moved){yaw-=(e.clientX-old.x)*.008;pitch=Math.max(-1.45,Math.min(1.45,pitch+(e.clientY-old.y)*.008));render3d();}
+    }
+  });
+  function finishPointer(e,cancelled){
+    if(!pointers.has(e.pointerId))return;
+    clearTimeout(gesture.timer);
+    if(cancelled)resetTap();
+    if(!cancelled&&pointers.size===1&&gesture&&!gesture.moved&&!gesture.longPressed){const r=canvas3d.getBoundingClientRect();activateTap(find3d(e.clientX-r.left,e.clientY-r.top),gesture.button===2);}
+    pointers.delete(e.pointerId);if(!pointers.size){gesture=null;canvas3d.classList.remove("dragging");}else{gesture.moved=true;gesture.pinch=null;}
+  }
+  canvas3d.addEventListener("pointerup",e=>finishPointer(e,false));canvas3d.addEventListener("pointercancel",e=>finishPointer(e,true));canvas3d.addEventListener("lostpointercapture",e=>finishPointer(e,true));
+  canvas3d.addEventListener("wheel",e=>{e.preventDefault();zoom(Math.exp(e.deltaY*.001));},{passive:false});
+  let flatGesture=null;
+  canvas.addEventListener("pointerdown",e=>{
+    if(e.button!==0&&e.button!==2)return;
+    if(flatGesture){clearTimeout(flatGesture.timer);flatGesture.moved=true;resetTap();return;}
+    canvas.setPointerCapture(e.pointerId);const press=flatGesture={id:e.pointerId,x:e.clientX,y:e.clientY,button:e.button,moved:false,longPressed:false};
+    if(e.button===0)press.timer=setTimeout(()=>{if(flatGesture!==press||press.moved)return;press.longPressed=true;const r=canvas.getBoundingClientRect();activate(find2d(press.x-r.left,press.y-r.top),true);},LONG_PRESS_MS);
+  });
+  canvas.addEventListener("pointermove",e=>{if(flatGesture&&flatGesture.id===e.pointerId&&Math.hypot(e.clientX-flatGesture.x,e.clientY-flatGesture.y)>5){clearTimeout(flatGesture.timer);flatGesture.moved=true;resetTap();}});
+  function finishFlatPointer(e,cancelled){
+    if(!flatGesture||flatGesture.id!==e.pointerId)return;const press=flatGesture;clearTimeout(press.timer);flatGesture=null;
+    if(cancelled)resetTap();
+    if(!cancelled&&!press.moved&&!press.longPressed){const r=canvas.getBoundingClientRect();activateTap(find2d(e.clientX-r.left,e.clientY-r.top),press.button===2);}
+  }
+  canvas.addEventListener("pointerup",e=>finishFlatPointer(e,false));canvas.addEventListener("pointercancel",e=>finishFlatPointer(e,true));canvas.addEventListener("lostpointercapture",e=>finishFlatPointer(e,true));
+  for(const board of[canvas,canvas3d])board.addEventListener("contextmenu",e=>e.preventDefault());
+  $("start").addEventListener("click",startGame);$("view3d").addEventListener("click",()=>setView("3d"));$("view2d").addEventListener("click",()=>setView("2d"));
+  $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){stopExpansion();resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
+  $("helpDialog").addEventListener("click",e=>{const dialog=$("helpDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
+  $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
+  function fullscreenChanged(){
+    const expanded=document.fullscreenElement===$("gameArea")||$("gameArea").classList.contains("expanded");
+    $("fullscreenButton").textContent=expanded?"전체화면 종료":"전체화면";
+    $("fullscreenButton").setAttribute("aria-pressed",String(expanded));resize();
+  }
+  $("fullscreenButton").addEventListener("click",async()=>{
+    const area=$("gameArea");resetTap();
+    if(document.fullscreenElement===area){try{await document.exitFullscreen();}catch{cellInfo.textContent="전체화면을 종료하지 못했습니다.";}return;}
+    if(area.classList.contains("expanded")){area.classList.remove("expanded");fullscreenChanged();return;}
+    if(area.requestFullscreen){try{await area.requestFullscreen();return;}catch{}}
+    area.classList.add("expanded");fullscreenChanged();
+  });
+  document.addEventListener("fullscreenchange",fullscreenChanged);
+  function updateGroups(){
+    if(!colorMode)return;
+    for(const group of groups){
+      let flags=0,closed=0;for(const id of group.ids){const cell=cells.get(id);if(cell?.flagged)flags++;else if(cell&&!cell.revealed)closed++;}
+      group.remaining=group.mines-flags;group.closed=closed;group.invalid=group.remaining<0||group.remaining>closed;
+    }
+    const visible=groups.filter(group=>(group.remaining!==0||group.invalid)&&group.closed>0);
+    draftLayout=editingGroup&&groupDraft.size?{ids:groupDraft}:null;if(draftLayout)visible.push(draftLayout);
+    const byCell=new Map();visibleGroupCount=0;
+    for(const group of visible){
+      const used=new Set();for(const id of group.ids){const cell=cells.get(id);if(cell&&!cell.revealed&&!cell.flagged)for(const other of byCell.get(id)||[])used.add(other.slot);}
+      group.slot=0;while(used.has(group.slot))group.slot++;visibleGroupCount=Math.max(visibleGroupCount,group.slot+1);
+      for(const id of group.ids){const cell=cells.get(id);if(cell&&!cell.revealed&&!cell.flagged){if(!byCell.has(id))byCell.set(id,[]);byCell.get(id).push(group);}}
+    }
+    const twoColumns=visibleGroupCount>=3,rows=twoColumns?Math.ceil(visibleGroupCount/2):visibleGroupCount,step=rows?Math.min(.22,.82/rows):.22;
+    for(const group of visible){const row=twoColumns?Math.floor(group.slot/2):group.slot;group.fontScale=Math.min(.22,.86-row*step);group.widthScale=.86;}
+    for(const members of byCell.values())for(let i=0;i<members.length;i++)for(let j=0;j<i;j++){
+      const a=members[i],b=members[j],leftA=twoColumns&&a.slot%2===1,leftB=twoColumns&&b.slot%2===1,rowA=twoColumns?Math.floor(a.slot/2):a.slot,rowB=twoColumns?Math.floor(b.slot/2):b.slot;
+      if(leftA===leftB){const limit=Math.abs(rowA-rowB)*step;a.fontScale=Math.min(a.fontScale,limit);b.fontScale=Math.min(b.fontScale,limit);}
+      else if(rowA===rowB){a.widthScale=.43;b.widthScale=.43;}
+    }
+    if(JSON.stringify(groupLabels())!==groupOptionsKey)refreshGroupOptions();
+    $("groupEdit").textContent=editingGroup?"선택 중":"묶음 만들기";$("groupEdit").setAttribute("aria-pressed",String(editingGroup));
+    for(const id of ["groupDraft","groupCountLabel","groupSave","groupCancel"])$(id).hidden=!editingGroup;
+    $("groupDraft").textContent=`칸 ${groupDraft.size}개 선택`;$("groupMineCount").max=groupDraft.size;
+    const group=groups[activeGroup];$("groupDelete").disabled=!group||editingGroup;
+    $("groupStatus").textContent=editingGroup?"닫힌 칸을 눌러 선택하세요.":groups.some(g=>g.invalid)?"깃발이나 열린 칸이 묶음과 맞지 않습니다. 기록을 확인하세요.":groups.length?"깃발은 지뢰로 계산합니다. 단서가 바뀌면 묶음을 확인하세요.":"";
+  }
+  function groupLabels(){return groups.map((group,i)=>`묶음 ${i+1} · ${group.colorName} · ${group.remaining??group.mines}/${group.closed??group.ids.size}${group.invalid?" · 확인 필요":group.remaining===0?" · 숨김":""}`);}
+  function refreshGroupOptions(){
+    const select=$("groupSelect"),labels=groupLabels();groupOptionsKey=JSON.stringify(labels);select.replaceChildren(new Option("없음",""));labels.forEach((label,i)=>select.add(new Option(label,String(i))));select.value=activeGroup<0?"":String(activeGroup);
+  }
+  function resetGroups(){if(!colorMode)return;groups=[];groupDraft.clear();editingGroup=false;activeGroup=-1;nextGroupColor=0;refreshGroupOptions();updateGroups();}
+  $("groupEdit").addEventListener("click",()=>{if(!cells.size||ended){cellInfo.textContent="진행 중인 게임에서 묶음을 만드세요.";return;}stopExpansion();resetTap();editingGroup=true;groupDraft.clear();clearClueSelection();clearHint();updateGroups();draw();});
+  $("groupCancel").addEventListener("click",()=>{editingGroup=false;groupDraft.clear();updateGroups();draw();});
+  $("groupSave").addEventListener("click",()=>{
+    const raw=$("groupMineCount").value,n=Number(raw);
+    if(!groupDraft.size||[...groupDraft].some(id=>!cells.has(id)||cells.get(id).revealed||cells.get(id).flagged)||raw.trim()===""||!Number.isInteger(n)||n<0||n>groupDraft.size){$("groupStatus").textContent="칸을 선택하고 지뢰 수를 0부터 선택한 칸 수 사이로 입력하세요.";return;}
+    const colorIndex=nextGroupColor++, [colorName,color]=groupColors[colorIndex]||[`색상 ${colorIndex+1}`,`hsl(${Math.round(colorIndex*137.508)%360}, 90%, 75%)`];
+    groups.push({ids:new Set(groupDraft),mines:n,colorName,color});activeGroup=groups.length-1;groupDraft.clear();editingGroup=false;refreshGroupOptions();updateGroups();draw();
+  });
+  $("groupSelect").addEventListener("change",()=>{activeGroup=$("groupSelect").value===""?-1:Number($("groupSelect").value);updateGroups();draw();});
+  $("groupDelete").addEventListener("click",()=>{if(activeGroup<0||editingGroup)return;groups.splice(activeGroup,1);activeGroup=groups.length?Math.min(activeGroup,groups.length-1):-1;refreshGroupOptions();updateGroups();draw();});
+  $("hintButton").addEventListener("click",showHint);$("autoFlagButton").addEventListener("click",autoFlag);
+  flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
+  layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
+  sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
+  window.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&$("gameArea").classList.contains("expanded")){$("gameArea").classList.remove("expanded");fullscreenChanged();return;}
+    if($("helpDialog").open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
+    if(k==="v")setView(view==="3d"?"2d":"3d");if(k==="f")flagButton.click();if(k==="r")startGame();
+    if(e.target===canvas3d){if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","=","-"].includes(e.key))e.preventDefault();
+      if(k==="arrowleft")yaw-=.12;if(k==="arrowright")yaw+=.12;if(k==="arrowup")pitch=Math.min(1.45,pitch+.12);if(k==="arrowdown")pitch=Math.max(-1.45,pitch-.12);if(k==="+"||k==="=")zoom(.9);if(k==="-")zoom(1.1);render3d();}
+  });
+  canvas3d.addEventListener("webglcontextlost",e=>{e.preventDefault();gl=null;$("view3d").disabled=true;setView("2d");message.textContent="3D 렌더링이 중단되어 2D 보기로 전환했습니다. 새로고침하면 다시 시도합니다.";});
+  for(const p of PIECES)$("weight"+p).addEventListener("input",updateWeightSummary);
+  window.addEventListener("resize",resize);updateWeightSummary();init3d();startGame();setView(gl?"3d":"2d");resetCamera();
+})();
+</script></body></html>
