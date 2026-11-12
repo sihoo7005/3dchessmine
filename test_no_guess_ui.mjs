@@ -28,11 +28,11 @@ function page(search,useDefaults=false,webgl=false){
     terminate(){this.terminated=true;}
     postMessage(data){setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
   }
-  let tick=0,nextInterval=0;const intervals=new Map();const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
+  let tick=0,nextInterval=0;const intervals=new Map();const events=[];const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;},dispatchEvent(event){events.push(event);this.listeners[event.type]?.(event);}};
   const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:'',listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
-  const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
+  const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
-  return{window,document,elements,glCalls,advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;}};
+  return{window,document,elements,glCalls,events,advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;}};
 }
 
 const original=page('');
@@ -433,3 +433,21 @@ const sparsePositions=positions(sparseStyle);assert.ok(sparsePositions.some(p=>p
 const disjointPos=positions(disjointApp.tileStyle(groupTestIds[2],disjointState.cells.get(groupTestIds[2])))[0];
 assert.equal(disjointPos.x,sparsePos.x);assert.equal(disjointPos.y,sparsePos.y);
 assert.equal(disjointPos.font,'700 22px system-ui','An independent group should remain large');
+
+const recordPage=page(''),recordState=recordPage.window.__game.state;
+assert.equal(recordPage.events.length,0,'An unfinished game must not emit a result');
+recordPage.advance(3200);const lostMine=[...recordState.mines][0];
+recordPage.window.__game.activate(lostMine,false);recordPage.window.__game.activate(lostMine,false);
+assert.equal(recordPage.events.length,1);
+const loss=recordPage.events[0];assert.equal(loss.type,'chessmine:game-finished');
+assert.equal(loss.detail.result,'lost');assert.equal(loss.detail.mode,'normal');assert.equal(loss.detail.size,3);assert.equal(loss.detail.mines,2);assert.equal(loss.detail.durationMs,3200);assert.equal(loss.detail.weights.K,7);
+recordPage.window.__game.activate(lostMine,false);assert.equal(recordPage.events.length,1,'A finished game must emit only once');
+const recordNoGuess=page('?mode=no-guess-color');for(let i=0;i<100&&recordNoGuess.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));
+const noGuessMine=[...recordNoGuess.window.__game.state.mines][0];recordNoGuess.window.__game.activate(noGuessMine,false);recordNoGuess.window.__game.activate(noGuessMine,false);
+assert.equal(recordNoGuess.events[0].detail.mode,'no-guess-color');
+const winRecordPage=page(''),winRecordState=winRecordPage.window.__game.state;
+for(const [id,cell] of winRecordState.cells)cell.revealed=!winRecordState.mines.has(id);
+const finalSafe=[...winRecordState.cells].find(([id])=>!winRecordState.mines.has(id))[0];
+winRecordState.cells.get(finalSafe).revealed=false;winRecordPage.advance(1800);
+winRecordPage.window.__game.activate(finalSafe,false);winRecordPage.window.__game.activate(finalSafe,false);
+assert.equal(winRecordPage.events.length,1);assert.equal(winRecordPage.events[0].detail.result,'won');assert.equal(winRecordPage.events[0].detail.durationMs,1800);
