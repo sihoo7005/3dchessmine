@@ -19,6 +19,17 @@
     const headers = {...options.headers};if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${base}api/cross/${action}`, {...options, headers, credentials: 'omit'});
   };
+  const publishCredits = credits => window.dispatchEvent(new CustomEvent('chessmine:hint-credits',{detail:{credits}}));
+  const hintRequest = async (action, method='GET', body) => {
+    if (!token || !session) throw new Error('login_required');
+    const currentToken=token, userId=session.userId, controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),15000);
+    let response;try{response=await request(action,{method,signal:controller.signal,...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});}finally{clearTimeout(timeout);}
+    if (token!==currentToken || session?.userId!==userId) throw new Error('account_changed');
+    if (response.status===401) { clearSession();throw new Error('login_required'); }
+    if (!response.ok) throw new Error('hint_request_failed');
+    const data=await response.json();if(token!==currentToken || session?.userId!==userId)throw new Error('account_changed');if(Number.isSafeInteger(data.credits))publishCredits(data.credits);return data;
+  };
+  window.chessmineHints={balance:()=>hintRequest('hints'),start:()=>hintRequest('hint-start','POST'),claim:ticket=>hintRequest('hint-claim','POST',{ticket}),use:()=>hintRequest('hint-use','POST')};
   const save = async () => {
     if (sending || !session || !pending.length) return;
     sending = true;
@@ -53,7 +64,7 @@
   });
   const clearSession = () => {
     token = null;session = null;try { sessionStorage.removeItem(storageKey); } catch {}
-    if(recordsDialog.open)recordsDialog.close();render();
+    publishCredits(null);if(recordsDialog.open)recordsDialog.close();render();
   };
   const login = button('로그인', () => {
     if (!globalThis.crypto?.randomUUID) { status.textContent = '안전한 브라우저에서 로그인해 주세요.';return; }
@@ -81,15 +92,15 @@
   };
   const reconnect = button('계정 다시 연결', async () => { await connect(); });reconnect.hidden = true;
   const connect = async () => {
-    if (!token) { session=null;reconnect.hidden=true;render();status.textContent='';return; }
+    if (!token) { session=null;reconnect.hidden=true;publishCredits(null);render();status.textContent='';return; }
     try {
       const response=await request('session');
       if (response.status===401) { clearSession();reconnect.hidden=true;status.textContent='로그인이 만료됐습니다. 다시 로그인해 주세요.';return; }
       if (!response.ok) throw new Error('session failed');
       session=await response.json();reconnect.hidden=true;
       const before=pending.length;pending=pending.filter(item=>item.owner ? item.owner===session.userId : item.token===token);
-      render();status.textContent=before!==pending.length?'다른 계정에서 저장하지 못한 기록은 전송하지 않았습니다.':'';save();
-    } catch { session=null;reconnect.hidden=false;render();status.textContent='계정 서비스에 연결하지 못했습니다. 다시 연결해 주세요.'; }
+      publishCredits(null);render();status.textContent=before!==pending.length?'다른 계정에서 저장하지 못한 기록은 전송하지 않았습니다.':'';save();hintRequest('hints').catch(()=>{});
+    } catch { session=null;publishCredits(null);reconnect.hidden=false;render();status.textContent='계정 서비스에 연결하지 못했습니다. 다시 연결해 주세요.'; }
   };
   window.addEventListener('message', async event => {
     if (event.origin!==server || event.source!==popup || !loginState || event.data?.type!=='chessmine-login' || event.data.state!==loginState || typeof event.data.code!=='string') return;
