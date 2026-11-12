@@ -8,9 +8,9 @@
   try { token = sessionStorage.getItem(storageKey); } catch {}
   const area = document.getElementById('gameArea'), accountSlot = document.getElementById('accountSlot'), panel = document.createElement('section');
   panel.className = 'camera-controls'; panel.setAttribute('aria-label', '계정 및 플레이 기록');
-  const controls = document.createElement('div'), status = document.createElement('span'), list = document.createElement('div');
+  const controls = document.createElement('div'), status = document.createElement('span'), list = document.createElement('div'), recordsDialog = document.createElement('dialog');
   controls.className = 'buttons'; status.setAttribute('aria-live', 'polite');
-  list.hidden = true; list.style.cssText = 'flex-basis:100%;max-height:180px;overflow:auto';
+  recordsDialog.id='recordsDialog';recordsDialog.className='records-dialog';recordsDialog.setAttribute('aria-labelledby','recordsTitle');
   const button = (label, action) => {
     const element = document.createElement('button');element.type = 'button';element.textContent = label;
     element.addEventListener('click', action);return element;
@@ -34,9 +34,10 @@
     finally { sending = false;retry.hidden = !pending.length || !session; }
   };
   const retry = button('기록 저장 다시 시도', save);retry.hidden = true;
+  const recordsHeader=document.createElement('div'), recordsTitle=document.createElement('h2');recordsHeader.className='helpHeader';recordsTitle.id='recordsTitle';recordsTitle.textContent='플레이 기록';recordsHeader.append(recordsTitle,button('닫기',()=>recordsDialog.close()));recordsDialog.append(recordsHeader,list);
+  recordsDialog.addEventListener('click',event=>{const r=recordsDialog.getBoundingClientRect();if(event.target===recordsDialog&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom))recordsDialog.close();});
   const showRecords = button('플레이 기록', async () => {
-    if (!list.hidden) { list.hidden = true;return; }
-    list.hidden = false;list.textContent = '기록을 불러오는 중…';
+    accountMenu.open=false;if(!recordsDialog.open)recordsDialog.showModal();list.textContent = '기록을 불러오는 중…';
     try {
       const response = await request('records');if (!response.ok) throw new Error('list failed');
       const data = await response.json();list.replaceChildren();
@@ -51,7 +52,7 @@
   });
   const clearSession = () => {
     token = null;session = null;try { sessionStorage.removeItem(storageKey); } catch {}
-    list.hidden = true;render();
+    if(recordsDialog.open)recordsDialog.close();render();
   };
   const login = button('로그인', () => {
     if (!globalThis.crypto?.randomUUID) { status.textContent = '안전한 브라우저에서 로그인해 주세요.';return; }
@@ -104,5 +105,5 @@
     if (!globalThis.crypto?.randomUUID) { status.textContent='안전한 브라우저에서 기록을 저장해 주세요.';return; }
     pending.push({record:{...event.detail,clientId:crypto.randomUUID()},owner:session?.userId||null,token});save();
   });
-  accountSlot.append(controls);panel.append(reconnect,retry,status,list);area.prepend(panel);connect();
+  accountSlot.append(controls);panel.append(reconnect,retry,status,recordsDialog);area.prepend(panel);connect();
 })();
