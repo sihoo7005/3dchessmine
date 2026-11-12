@@ -27,3 +27,9 @@ class AccessToken(models.Model):
     digest = models.CharField(max_length=64, primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     expires_at = models.DateTimeField()
+
+class HintBalance(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='hint_balance')
+    credits = models.PositiveIntegerField(default=0)
+    promo_digest = models.CharField(max_length=64, blank=True, default='')
+    promo_ready_at = models.DateTimeField(null=True, blank=True)

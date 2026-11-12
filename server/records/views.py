@@ -4,12 +4,13 @@ import uuid
 from pathlib import Path
 from django.contrib.auth import logout
 from django.db import transaction
+from django.db.models import F
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseNotAllowed, JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET
-from .models import GameRecord
+from .models import GameRecord, HintBalance
 
 GAME_ROOT = Path(__file__).resolve().parents[2]
 @require_GET
@@ -162,6 +163,31 @@ def cross_api(request, action):
     access = AccessToken.objects.select_related('user').filter(digest=token_digest(token), expires_at__gt=timezone.now()).first()
     if not access:
         return cors_response(JsonResponse({'error': 'login_required'}, status=401))
+    if action in ('hints', 'hint-start', 'hint-claim', 'hint-use'):
+        if request.method != ('GET' if action == 'hints' else 'POST'):
+            return cors_response(HttpResponseNotAllowed(['GET' if action == 'hints' else 'POST']))
+        balance, _ = HintBalance.objects.get_or_create(user=access.user)
+        if action == 'hint-start':
+            ticket = secrets.token_urlsafe(32)
+            if not HintBalance.objects.filter(pk=balance.pk, credits=0).update(promo_digest=token_digest(ticket), promo_ready_at=timezone.now() + timedelta(seconds=3)):
+                return cors_response(JsonResponse({'error': 'hints_available'}, status=409))
+            return cors_response(JsonResponse({'ticket': ticket}))
+        if action == 'hint-claim':
+            try:
+                data = json.loads(request.body) if len(request.body) <= 4096 else {}
+                ticket = data.get('ticket', '') if isinstance(data, dict) else ''
+                if not isinstance(ticket, str) or len(ticket) != 43 or not ticket.isascii():
+                    raise ValueError
+            except (ValueError, UnicodeDecodeError, RecursionError):
+                return cors_response(JsonResponse({'error': 'invalid_ticket'}, status=400))
+            updated = HintBalance.objects.filter(pk=balance.pk, promo_digest=token_digest(ticket), promo_ready_at__lte=timezone.now()).update(credits=F('credits') + 3, promo_digest='', promo_ready_at=None)
+            if not updated:
+                return cors_response(JsonResponse({'error': 'promo_not_ready'}, status=400))
+        elif action == 'hint-use':
+            if not HintBalance.objects.filter(pk=balance.pk, credits__gt=0).update(credits=F('credits') - 1):
+                return cors_response(JsonResponse({'error': 'no_hints'}, status=409))
+        balance.refresh_from_db(fields=['credits'])
+        return cors_response(JsonResponse({'credits': balance.credits}))
     if action == 'session' and request.method == 'GET':
         return cors_response(JsonResponse({'authenticated': True, 'name': access.user.get_full_name() or access.user.get_username(), 'userId': str(access.user.pk)}))
     if action == 'logout' and request.method == 'POST':

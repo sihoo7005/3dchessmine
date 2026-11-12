@@ -28,13 +28,13 @@ function page(search,useDefaults=false,webgl=false,autoStart=true,savedSettings=
     terminate(){this.terminated=true;}
     postMessage(data){setTimeout(()=>{if(this.terminated)return;const worker={postMessage:message=>{if(!this.terminated)this.onmessage?.({data:message});}};try{vm.runInNewContext(this.source,worker);worker.onmessage({data});}catch(error){this.onerror?.(error);}},0);}
   }
-  let tick=0,nextInterval=0;const intervals=new Map();const events=[];const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;},dispatchEvent(event){events.push(event);this.listeners[event.type]?.(event);}};
+  let tick=0,nextInterval=0,confirmResult=true;const intervals=new Map();const events=[];const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;},dispatchEvent(event){events.push(event);this.listeners[event.type]?.(event);}};
   const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:'',listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
   const localStorage={getItem:key=>savedSettings.get(key)||null,setItem:(key,value)=>savedSettings.set(key,value)};
-  const globals={window,document,localStorage,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
+  const globals={window,document,localStorage,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},confirm:()=>confirmResult,setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
   if(autoStart){elements.difficultyDialog.close();elements.start.click();}
-  return{window,document,elements,glCalls,events,advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;}};
+  return{window,document,elements,glCalls,events,setConfirm(value){confirmResult=value;},advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;}};
 }
 
 const initialPage=page('',true,false,false);assert.equal(initialPage.elements.difficultyDialog.open,true,'Difficulty selection must open on entry');assert.equal(initialPage.window.__game.state.cells.size,0,'A game must wait for difficulty selection');initialPage.elements.chooseEasy.click();assert.equal(initialPage.elements.difficultyDialog.open,false);assert.equal(initialPage.window.__game.state.cells.size,64);assert.equal(initialPage.window.__game.state.mines.size,6);
@@ -213,7 +213,11 @@ assert.equal(drag.cells.get('1,1,0').flagged,false,'Dragging must cancel the lon
 assert.equal(flatDrag.cells.get('1,1,0').flagged,false,'Moving in 2D must cancel the long press');
 assert.equal(pinch.cells.get('1,1,0').flagged,false,'Pinching must cancel the long press');assert.ok(pinchPage.window.__game.state.distance<beforeDistance);
 const hintPage=page(''),hintBoard=setBoard(hintPage,['0,0,1','2,2,2']),hintApp=hintPage.window.__game,hintCell='0,0,1';
-const promoPage=page(''),promoBoard=setBoard(promoPage,['0,0,1','2,2,2']);promoPage.window.__game.setInference(()=>({moves:[{key:'0,0,1',mine:true}],conflict:false}));promoPage.elements.hintButton.click();assert.equal(promoPage.elements.hintPromoDialog.open,true);assert.equal(promoPage.window.__game.state.hintKey,null,'Hint must wait for the promotion');assert.equal(promoPage.elements.promoClose.disabled,true);assert.equal(promoPage.elements.promoClose.textContent,'3');let blocked=false;promoPage.elements.hintPromoDialog.listeners.cancel({preventDefault(){blocked=true}});assert.equal(blocked,true);promoPage.elements.promoClose.click();assert.equal(promoPage.elements.hintPromoDialog.open,true);promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'2');promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'1');promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'×');assert.equal(promoPage.elements.promoClose.disabled,false);assert.equal(promoPage.window.__game.state.hintKey,null,'Hint waits until the promotion is closed');promoPage.elements.promoClose.click();assert.equal(promoPage.elements.hintPromoDialog.open,false);assert.equal(promoPage.window.__game.state.hintKey,'0,0,1','Hint must appear when the promotion is closed');
+const promoPage=page(''),promoBoard=setBoard(promoPage,['0,0,1','2,2,2']);let credits=0,starts=0;promoPage.window.chessmineHints={balance:async()=>({credits}),start:async()=>{starts++;return{ticket:'test-ticket'}},claim:async()=>({credits:credits+=3}),use:async()=>({credits:--credits})};promoPage.setConfirm(false);await promoPage.elements.hintButton.listeners.click();assert.equal(starts,0,'Cancelling must not start the promotion');assert.equal(promoPage.elements.hintPromoDialog.open,false);promoPage.setConfirm(true);
+promoPage.window.__game.setInference(()=>({moves:[{key:'0,0,1',mine:true}],conflict:false}));await promoPage.elements.hintButton.listeners.click();assert.equal(promoPage.elements.hintPromoDialog.open,true);assert.equal(promoPage.window.__game.state.hintKey,null,'Hint must wait for the promotion');assert.equal(promoPage.elements.promoClose.disabled,true);assert.equal(promoPage.elements.promoClose.textContent,'3');let blocked=false;promoPage.elements.hintPromoDialog.listeners.cancel({preventDefault(){blocked=true}});assert.equal(blocked,true);promoPage.elements.promoClose.click();assert.equal(promoPage.elements.hintPromoDialog.open,true);promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'2');promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'1');promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'×');assert.equal(promoPage.elements.promoClose.disabled,false);assert.equal(promoPage.window.__game.state.hintKey,null,'Hint waits until the promotion is closed');promoPage.elements.promoClose.click();await new Promise(resolve=>setImmediate(resolve));assert.equal(promoPage.elements.hintPromoDialog.open,false);assert.equal(promoPage.window.__game.state.hintKey,'0,0,1');assert.equal(credits,2,'The first hint must leave two credits');
+await promoPage.elements.hintButton.listeners.click();await promoPage.elements.hintButton.listeners.click();assert.equal(credits,0);assert.equal(starts,1,'Remaining credits must not show another promotion');await promoPage.elements.hintButton.listeners.click();assert.equal(starts,2,'Zero credits must show the promotion again');
+const noLoginPage=page('');await noLoginPage.elements.hintButton.listeners.click();assert.match(noLoginPage.elements.cellInfo.textContent,/로그인/);
+
 hintApp.setInference(()=>({moves:[{key:hintCell,mine:true}],conflict:false}));hintApp.showHint();
 const mineStyle=JSON.stringify(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell))),mineMessage=hintPage.elements.cellInfo.textContent;
 hintApp.setInference(()=>({moves:[{key:hintCell,mine:false}],conflict:false}));hintApp.showHint();
@@ -224,34 +228,20 @@ hintApp.setRandom(()=>.9);hintApp.setInference(()=>({moves:[{key:hintCell,mine:t
 assert.equal(hintApp.state.hintKey,hintCell,'Hints must not prefer safe cells over mines');
 hintApp.setInference(()=>({moves:[{key:'1,1,0',mine:false,sources:['0,0,0','0,1,0']},{key:hintCell,mine:true,sources:['0,0,0'],method:'direct'}],conflict:false}));hintApp.showHint();
 assert.equal(hintApp.state.hintKey,hintCell,'Hints with fewer source clues must be preferred independently of their type');
-hintPage.elements.hintEvidence.children[0].children[0].click();
-assert.equal(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell)).fill,'#438c80');assert.equal(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell)).text,'·');
-const proofPage=page(''),proofBoard=setBoard(proofPage,['2,2,1','2,2,2']),proofApp=proofPage.window.__game;
-proofApp.showHint();assert.equal(proofPage.elements.hintExplanation.hidden,false);
-assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#364b5d','A related clue must be subtly highlighted');
-assert.equal(proofApp.tileStyle(proofApp.state.hintKey,proofBoard.cells.get(proofApp.state.hintKey)).fill,'#5b6d84','The target must keep its neutral hint color');
-assert.match(proofPage.elements.hintExplanationSummary.textContent,/숫자와 깃발 수/);
-const proofRow=proofPage.elements.hintEvidence.children[0];assert.match(proofRow.children[0].textContent,/0 − 0 = 0/);assert.match(proofRow.children[1].textContent,/\[힌트\]/);
-const savedHint=proofApp.state.hintKey;proofRow.children[0].click();assert.equal(proofApp.state.selectedClue,'0,0,0');assert.equal(proofApp.state.hintKey,savedHint);
-assert.equal(proofApp.tileStyle(savedHint,proofBoard.cells.get(savedHint)).fill,'#438c80','A hinted cell inside the movement range must show the range color');
-assert.equal(proofApp.tileStyle(savedHint,proofBoard.cells.get(savedHint)).text,'·','The hint marker must remain visible inside the movement range');
-assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#356a89','Selecting a clue must take priority over the hint color');
-proofApp.activate('2,0,0',true);assert.equal(proofPage.elements.hintExplanation.hidden,true,'Changing flags must clear stale hint evidence');
-assert.equal(proofApp.tileStyle('0,0,0',proofBoard.cells.get('0,0,0')).fill,'#26374a','Changing flags must remove the clue highlight');
+hintApp.activate('0,0,0',false);assert.equal(hintApp.state.selectedClue,'0,0,0');assert.equal(hintApp.state.hintKey,hintCell,'Selecting a clue must retain the hint');
+assert.doesNotMatch(html,/id="hintExplanation"/,'Hint explanation panel must be removed');
 const comparePage=page(''),compareApp=comparePage.window.__game,compare=compareApp.state,compareIds=[...compare.cells.keys()],[p,q,a,b,c]=compareIds;
 for(const cell of compare.cells.values()){cell.revealed=false;cell.flagged=false;cell.piece='K';}compare.cells.get(p).revealed=true;compare.cells.get(q).revealed=true;compare.mines.clear();compare.mines.add(b);compare.mines.add(c);
 const clueMap=new Map([[p,[a,b]],[q,[a,b,c]]]);compareApp.setCluePositions(pos=>(clueMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
 const inferred=compareApp.inferMoves().moves.find(move=>move.key===c);assert.equal(inferred.method,'compare');assert.deepEqual([...inferred.sources].sort(),[p,q].sort());
-compareApp.showHint();assert.equal(comparePage.elements.hintEvidence.children.length,2);assert.match(comparePage.elements.hintExplanationSummary.textContent,/겹침과 차이/);assert.match(comparePage.elements.hintExplanationSummary.textContent,/식을 빼/);
-assert.equal(compareApp.tileStyle(p,compare.cells.get(p)).fill,'#364b5d');assert.equal(compareApp.tileStyle(q,compare.cells.get(q)).fill,'#364b5d');
+compareApp.showHint();assert.ok(compareApp.state.hintKey,'Comparison hints must still be displayed');
 const searchPage=page(''),searchApp=searchPage.window.__game,search=searchApp.state,searchIds=[...search.cells.keys()],[p1,p2,p3,p4,a1,b1,c1,a2,b2,c2]=searchIds;
 for(const cell of search.cells.values()){cell.revealed=false;cell.flagged=false;cell.piece='K';}for(const id of [p1,p2,p3,p4])search.cells.get(id).revealed=true;
 search.mines.clear();search.mines.add(b1);search.mines.add(b2);const searchMap=new Map([[p1,[a1,b1]],[p2,[b1,c1]],[p3,[a2,b2]],[p4,[b2,c2]]]);
 searchApp.setCluePositions(pos=>(searchMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
 const searchMove=searchApp.inferMoves().moves.find(move=>move.key===b1);assert.equal(searchMove.method,'search');
 searchApp.setInference(()=>({moves:[searchMove],conflict:false}));searchApp.showHint();
-assert.equal(searchPage.elements.hintEvidence.children.length,2);assert.equal(searchPage.elements.hintOtherEvidence.children.length,2);assert.match(searchPage.elements.hintExplanationSummary.textContent,/다른 공개 단서/);
-assert.equal(searchApp.tileStyle(p1,search.cells.get(p1)).fill,'#364b5d');assert.equal(searchApp.tileStyle(p3,search.cells.get(p3)).fill,'#26374a');
+assert.equal(searchApp.state.hintKey,b1,'Search hints must still be displayed');
 console.log('Verified both modes, fast double taps, long-press flags, and drag cancellation');
 
 const largePage=page(''),largeApp=largePage.window.__game;

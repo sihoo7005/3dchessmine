@@ -78,6 +78,32 @@ class CrossOriginTests(TestCase):
         self.assertEqual(self.client.post('/chessmine/api/cross/logout', HTTP_ORIGIN=self.origin, HTTP_AUTHORIZATION=f'Bearer {alice_token}').status_code, 200)
         self.assertEqual(self.client.get('/chessmine/api/cross/session', HTTP_ORIGIN=self.origin, HTTP_AUTHORIZATION=f'Bearer {alice_token}').status_code, 401)
 
+    def test_hint_credits_are_per_account_and_promo_is_one_use(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import HintBalance
+        alice = {'HTTP_ORIGIN': self.origin, 'HTTP_AUTHORIZATION': 'Bearer ' + self.issue_token(self.alice)}
+        bob = {'HTTP_ORIGIN': self.origin, 'HTTP_AUTHORIZATION': 'Bearer ' + self.issue_token(self.bob)}
+        url = '/chessmine/api/cross/'
+        self.assertEqual(self.client.get(url + 'hints', **alice).json()['credits'], 0)
+        self.assertEqual(self.client.post(url + 'hint-use', **alice).status_code, 409)
+        ticket = self.client.post(url + 'hint-start', **alice).json()['ticket']
+        payload = json.dumps({'ticket': ticket})
+        self.assertEqual(self.client.post(url + 'hint-claim', payload, content_type='application/json', **alice).status_code, 400)
+        self.assertEqual(self.client.post(url + 'hint-claim', payload, content_type='application/json', **bob).status_code, 400)
+        HintBalance.objects.filter(user=self.alice).update(promo_ready_at=timezone.now() - timedelta(seconds=1))
+        self.assertEqual(self.client.post(url + 'hint-claim', payload, content_type='application/json', **alice).json()['credits'], 3)
+        self.assertEqual(self.client.post(url + 'hint-start', **alice).status_code, 409, 'A promotion starts only when no credits remain')
+        self.assertEqual(self.client.post(url + 'hint-claim', payload, content_type='application/json', **alice).status_code, 400)
+        alice_other = {'HTTP_ORIGIN': self.origin, 'HTTP_AUTHORIZATION': 'Bearer ' + self.issue_token(self.alice)}
+        self.assertEqual(self.client.get(url + 'hints', **alice_other).json()['credits'], 3, 'The same account shares credits across sessions')
+        self.assertEqual(self.client.get(url + 'hints', **bob).json()['credits'], 0)
+        for remaining in (2, 1, 0):
+            self.assertEqual(self.client.post(url + 'hint-use', **alice).json()['credits'], remaining)
+        self.assertEqual(self.client.post(url + 'hint-use', **alice).status_code, 409)
+        self.assertEqual(self.client.post(url + 'delete', **alice).status_code, 200)
+        self.assertFalse(HintBalance.objects.filter(user_id=self.alice.pk).exists())
+
     def test_invalid_record_and_account_deletion(self):
         token = self.issue_token(self.alice)
         auth = {'HTTP_ORIGIN': self.origin, 'HTTP_AUTHORIZATION': f'Bearer {token}'}
