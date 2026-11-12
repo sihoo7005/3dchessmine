@@ -9,7 +9,7 @@ class Element {
   contains(node){return this===node||this.children.some(child=>child.contains(node));}
   showModal(){this.open=true} close(){this.open=false} getBoundingClientRect(){return {left:0,right:800,top:0,bottom:600}}
 }
-const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={};let failSave=false,expired=false,serverUser='1';
+const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={};let failSave=false,expired=false,serverUser='1',records=[];
 const window={addEventListener(name,fn){events[name]=fn},open(url){popup.url=url;return popup}};
 const document={listeners:{},createElement:tag=>new Element(tag),getElementById:id=>id==='accountSlot'?accountSlot:area,addEventListener(name,fn){this.listeners[name]=fn}};
 const fetch=async(url,options={})=>{
@@ -17,7 +17,7 @@ const fetch=async(url,options={})=>{
   if(url.endsWith('/exchange'))return{ok:true,json:async()=>({token:'server-token-'+serverUser,name:'User',userId:serverUser})};
   if(url.endsWith('/session'))return{ok:true,json:async()=>({authenticated:true,name:'User',userId:serverUser})};
   if(url.endsWith('/records')&&options.method==='POST'){if(expired){expired=false;return{ok:false,status:401}}if(failSave){failSave=false;return{ok:false,status:500}}return{ok:true,status:201}};
-  return{ok:true,status:200,json:async()=>({records:[]})};
+  return{ok:true,status:200,json:async()=>({records})};
 };
 const crypto={randomUUID:()=> 'a8ddc11e-7077-4111-9c8d-844761443756'};
 const sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
@@ -39,6 +39,7 @@ assert.deepEqual(controls.children[0].children[1].children.map(child=>child.text
 controls.children[0].open=true;document.listeners.click({target:controls.children[0].children[1].children[0]});assert.equal(controls.children[0].open,true);document.listeners.click({target:area});assert.equal(controls.children[0].open,false);
 const recordsDialog=panel.children.find(child=>child.tag==='dialog');await controls.children[0].children[1].children[0].listeners.click();assert.equal(recordsDialog.open,true);assert.equal(recordsDialog.children[1].textContent,'아직 저장된 기록이 없습니다.');recordsDialog.listeners.click({target:recordsDialog,clientX:400,clientY:300});assert.equal(recordsDialog.open,true);recordsDialog.listeners.click({target:recordsDialog,clientX:-1,clientY:300});assert.equal(recordsDialog.open,false);
 await controls.children[0].children[1].children[0].listeners.click();recordsDialog.children[0].children[1].listeners.click();assert.equal(recordsDialog.open,false);
+records=[[4,6],[5,15],[6,35],[4,7],[4,6]].map(([board_size,mine_count],i)=>({board_size,mine_count,finished_at:'2026-11-12T00:00:00Z',mode:'no-guess-color',weights:{K:i===4?8:7,R:1,B:1,Q:1,N:1},result:'won',duration_ms:1000}));await controls.children[0].children[1].children[0].listeners.click();const rows=recordsDialog.children[1].children;for(const [i,label] of ['쉬움','보통','어려움'].entries())assert.match(rows[i].textContent,new RegExp(label));for(const row of rows.slice(3))assert.doesNotMatch(row.textContent,/쉬움|보통|어려움/);recordsDialog.close();
 events['chessmine:game-finished']({detail:{mode:'normal',size:3,mines:2,weights:{K:7,R:1,B:1,Q:1,N:1},result:'won',durationMs:1234}});
 await new Promise(resolve=>setImmediate(resolve));
 const firstPost=calls.find(call=>call.url.endsWith('/records')&&call.options.method==='POST');
