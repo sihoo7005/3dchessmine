@@ -9,14 +9,14 @@ class Element {
   contains(node){return this===node||this.children.some(child=>child.contains(node));}
   showModal(){this.open=true} close(){this.open=false} getBoundingClientRect(){return {left:0,right:800,top:0,bottom:600}}
 }
-const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={},hintBalances={'1':0,'2':0};let failSave=false,expired=false,serverUser='1',records=[],confirmResult=true;
+const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={},hintBalances={'1':0,'2':0};let failSave=false,failHints=false,expired=false,serverUser='1',records=[],confirmResult=true;
 const window={addEventListener(name,fn){events[name]=fn},open(url){popup.url=url;return popup},dispatchEvent(event){events[event.type]?.(event)}};
 const document={listeners:{},createElement:tag=>new Element(tag),getElementById:id=>id==='accountSlot'?accountSlot:area,addEventListener(name,fn){this.listeners[name]=fn}};
 const fetch=async(url,options={})=>{
   calls.push({url,options});
   if(url.endsWith('/exchange'))return{ok:true,json:async()=>({token:'server-token-'+serverUser,name:'User',userId:serverUser})};
   if(url.endsWith('/session'))return{ok:true,json:async()=>({authenticated:true,name:'User',userId:serverUser})};
-  if(url.endsWith('/hints'))return{ok:true,json:async()=>({credits:hintBalances[serverUser]})};
+  if(url.endsWith('/hints')){if(failHints)throw new TypeError('offline');return{ok:true,json:async()=>({credits:hintBalances[serverUser]})};}
   if(url.endsWith('/hint-start'))return{ok:true,json:async()=>({ticket:'promo-ticket'})};
   if(url.endsWith('/hint-claim'))return{ok:true,json:async()=>({credits:hintBalances[serverUser]+=3})};
   if(url.endsWith('/hint-use'))return{ok:true,json:async()=>({credits:--hintBalances[serverUser]})};
@@ -41,6 +41,7 @@ assert.equal(calls.length,before,'Messages with a mismatched login state must be
 await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:loginState,code:'ticket'}});
 assert.equal(storage.get('chessmine:session'),'server-token-1');
 assert.equal(window.chessmineHints.state(),'authenticated');assert.equal(window.chessmineHints.owner(),'1');
+failHints=true;await assert.rejects(window.chessmineHints.balance(),/network_unavailable/);failHints=false;
 assert.equal((await window.chessmineHints.balance()).credits,0);assert.equal((await window.chessmineHints.start()).ticket,'promo-ticket');assert.equal((await window.chessmineHints.claim('promo-ticket')).credits,3);assert.equal((await window.chessmineHints.use()).credits,2);
 assert.equal(controls.children[0].children[0].textContent,'계정');
 assert.deepEqual(controls.children[0].children[1].children.map(child=>child.textContent),['플레이 기록','로그아웃','계정 및 기록 삭제']);

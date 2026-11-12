@@ -23,33 +23,33 @@ async function screenshot(name){if(!process.env.MINESWEEPER_SCREENSHOT_DIR)retur
 try{
   await cdp('Page.enable');await cdp('Runtime.enable');
   await cdp('Emulation.setDeviceMetricsOverride',{width:1100,height:1100,deviceScaleFactor:1,mobile:false});
-  const path=resolve('3d_minesweeper.html');await navigate(pathToFileURL(path).href);
+  const path=resolve('3d_minesweeper.html');await navigate(pathToFileURL(path).href);await evaluate('document.getElementById("chooseHard").click()');
   assert.equal(await evaluate('document.getElementById("board3d").hidden'),false,'The original HTML must initialize in 3D');
   assert.deepEqual(errors,[]);await screenshot('minesweeper-initial.png');
-  const hook=`window.__game={cluePositions,countMines,inferMoves,pickPiece,find3d,find2d,layout2d,center,render3d,tileStyle,reveal,toggleFlag,startGame,setView,draw,resetCamera,cameraBasis,setCluePositions(fn){cluePositions=fn},
+  const hook=`window.__game={cluePositions,countMines,inferMoves,pickPiece,find3d,find2d,layout2d,center,render3d,tileStyle,reveal,showHint,toggleFlag,startGame,setView,draw,resetCamera,cameraBasis,setCluePositions(fn){cluePositions=fn},
     setCamera(y,p,d){yaw=y;pitch=p;distance=d;render3d();},
     get state(){return{N,cells,mines,ended,hintKey,yaw,pitch,distance,visibleCells,vertexCount,view,gl,width,height};}};`;
   const html=(await readFile(path,'utf8')).replace('window.addEventListener("resize",resize);',hook+'window.addEventListener("resize",resize);');
-  await navigate('data:text/html;base64,'+Buffer.from(html).toString('base64'));
+  await navigate('data:text/html;base64,'+Buffer.from(html).toString('base64'));await evaluate('document.getElementById("chooseHard").click()');
   const openingValid='(()=>{const g=__game.state,opened=[...g.cells].filter(([k,c])=>c.revealed);return opened.length===1&&!g.mines.has(opened[0][0])&&__game.countMines(opened[0][0].split(",").map(Number),opened[0][1].piece)===0&&g.mines.size===Number(document.getElementById("mineInput").value);})()';
   assert.equal(await evaluate(openingValid),true,'A new game must reveal exactly one safe zero clue');
   assert.equal(await evaluate('__game.inferMoves().moves.length>0&&__game.inferMoves().moves.every(m=>!m.mine)'),true,'An opening zero clue must logically prove its closed neighbors safe');
   const beforeHint=await evaluate('[...__game.state.cells.values()].filter(c=>c.revealed).length');
-  const beforeView=await evaluate('[document.getElementById("layer").value,__game.state.yaw,__game.state.pitch,__game.state.visibleCells.length]');
-  await evaluate('document.getElementById("hintButton").click()');
+  const beforeView=await evaluate('[__game.state.yaw,__game.state.pitch,__game.state.visibleCells.length]');
+  await evaluate('__game.showHint()');
   assert.equal(await evaluate('(()=>{const g=__game.state,c=g.cells.get(g.hintKey);return !!c&&!c.revealed&&!c.flagged&&!g.mines.has(g.hintKey)&&__game.tileStyle(g.hintKey,c).text==="·";})()'),true,'3D hint must mark a logically determined closed cell');
-  assert.deepEqual(await evaluate('[document.getElementById("layer").value,__game.state.yaw,__game.state.pitch,__game.state.visibleCells.length]'),beforeView,'A hint must preserve the visible layers and camera');
-  assert.equal(await evaluate(`(()=>{const g=__game.state,p=__game.center(g.hintKey.split(',').map(Number)),{eye,forward,right,up}=__game.cameraBasis(),d=p.map((v,i)=>v-eye[i]),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),depth=dot(d,forward),scale=g.height/(2*Math.tan(Math.PI/8));return __game.find3d(g.width/2+dot(d,right)*scale/depth,g.height/2-dot(d,up)*scale/depth)===g.hintKey;})()`),true,'A hint should prefer a cell visible from the current camera');
+  assert.deepEqual(await evaluate('[__game.state.yaw,__game.state.pitch,__game.state.visibleCells.length]'),beforeView,'A hint must preserve the visible layers and camera');
+  assert.equal(await evaluate(`(()=>{const g=__game.state,{eye,forward,right,up}=__game.cameraBasis(),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),scale=g.height/(2*Math.tan(Math.PI/8));let choices=__game.inferMoves().moves;if(choices.every(m=>m.sources?.length)){const fewest=Math.min(...choices.map(m=>m.sources.length));choices=choices.filter(m=>m.sources.length===fewest);}const visible=choices.filter(({key})=>{const p=__game.center(key.split(',').map(Number)),d=p.map((v,i)=>v-eye[i]),depth=dot(d,forward),x=g.width/2+dot(d,right)*scale/depth,y=g.height/2-dot(d,up)*scale/depth;return depth>0&&x>=0&&x<g.width&&y>=0&&y<g.height&&__game.find3d(x,y)===key;});return !visible.length||visible.some(x=>x.key===g.hintKey);})()`),true,'A hint should prefer a visible cell when one exists');
   assert.equal(await evaluate('[...__game.state.cells.values()].filter(c=>c.revealed).length'),beforeHint,'A hint must not open a cell');
   await evaluate('__game.reveal(__game.state.hintKey)');
   assert.equal(await evaluate('__game.state.hintKey'),null,'Opening the hinted cell must clear the hint');
-  await evaluate('__game.setView("2d");document.getElementById("hintButton").click()');
+  await evaluate('__game.setView("2d");__game.showHint()');
   assert.equal(await evaluate('(()=>{const g=__game.state,c=g.cells.get(g.hintKey);return !!c&&!c.revealed&&!c.flagged&&__game.inferMoves().moves.some(m=>m.key===g.hintKey)&&__game.tileStyle(g.hintKey,c).text==="·";})()'),true,'2D hint must mark a logically determined closed cell');
   await evaluate('__game.toggleFlag(__game.state.hintKey)');
   assert.equal(await evaluate('__game.state.hintKey'),null,'Flagging the hinted cell must clear the hint');
-  await evaluate('document.getElementById("hintButton").click();__game.startGame();__game.setView("3d")');
+  await evaluate('__game.showHint();__game.startGame();__game.setView("3d")');
   assert.equal(await evaluate('__game.state.hintKey'),null,'A new game must clear any hint');
-  await evaluate('__game.startGame();for(const c of __game.state.cells.values())c.revealed=false;__game.draw();document.getElementById("hintButton").click()');
+  await evaluate('__game.startGame();for(const c of __game.state.cells.values())c.revealed=false;__game.draw();__game.showHint()');
   assert.equal(await evaluate('__game.state.hintKey'),null,'Hints must not guess when public clues cannot prove a safe cell');
   assert.match(await evaluate('document.getElementById("cellInfo").textContent'),/확정할 수 있는 칸이 없습니다/,'An uncertain board must say that no move is proven');
   const deep=await evaluate(`(()=>{document.getElementById('sizeInput').value=3;document.getElementById('mineInput').value=2;__game.startGame();const g=__game.state,ids=[...g.cells.keys()],clues=ids.slice(0,4),a=ids[4],b=ids[5],c=ids[6],d=ids[7],e=ids[8],f=ids[9],map=new Map([[clues[0],[a,b]],[clues[1],[b,c]],[clues[2],[d,e]],[clues[3],[e,f]]]);for(const v of g.cells.values()){v.revealed=false;v.flagged=false;}for(const id of clues){g.cells.get(id).revealed=true;g.cells.get(id).piece='K';}g.mines.clear();g.mines.add(b);g.mines.add(e);__game.setCluePositions(pos=>(map.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));return{a,b,c,d,e,f};})()`);
@@ -70,11 +70,13 @@ try{
   assert.equal(await evaluate(openingValid),true,'A zero opening must work at the maximum feasible mine count');
   await evaluate("document.getElementById('weightR').value=0;document.getElementById('weightN').value=1;document.getElementById('mineInput').value=26;__game.startGame()");
   assert.equal(await evaluate(openingValid),true);assert.equal(await evaluate('__game.state.ended'),true);
-  assert.equal(await evaluate('document.getElementById("layer").value'),'1','An interior-only opening must be visible through its layer');
+  assert.equal(await evaluate('__game.state.view'),'2d','An interior-only opening must switch to 2D');
   await evaluate("for(const p of ['K','R','B','Q','N'])document.getElementById('weight'+p).value=1;document.getElementById('sizeInput').value=6;document.getElementById('mineInput').value=35;__game.startGame()");
-  for(let i=0;i<10;i++){await evaluate('__game.startGame()');assert.equal(await evaluate(openingValid),true);}
+  for(let i=0;i<10;i++){await evaluate('__game.startGame()');assert.equal(await evaluate(openingValid),true);}await evaluate('__game.setView("3d")');
   assert.equal(await evaluate(`(()=>{const g=__game.state.gl;__game.render3d();const pixels=new Uint8Array(g.drawingBufferWidth*g.drawingBufferHeight*4);g.readPixels(0,0,g.drawingBufferWidth,g.drawingBufferHeight,g.RGBA,g.UNSIGNED_BYTE,pixels);return pixels.some((v,i)=>i%4===3&&v>0)&&g.getError()===g.NO_ERROR;})()`),true,'WebGL must draw nonempty pixels without GL errors');
   assert.equal(await evaluate('__game.state.vertexCount'),216*36);
+  const spacingCheck=await evaluate(`(()=>{const g=__game.state.gl,names=['bufferData','texImage2D','texSubImage2D'],original=Object.fromEntries(names.map(name=>[name,g[name]])),calls={bufferData:0,texImage2D:0,texSubImage2D:0};try{for(const name of names)g[name]=function(...args){calls[name]++;return original[name].apply(this,args)};const slider=document.getElementById('spacing');slider.value='1.8';slider.dispatchEvent(new Event('input'));const pixels=new Uint8Array(g.drawingBufferWidth*g.drawingBufferHeight*4);g.readPixels(0,0,g.drawingBufferWidth,g.drawingBufferHeight,g.RGBA,g.UNSIGNED_BYTE,pixels);return{calls,center:__game.state.visibleCells.find(c=>c.key==='0,0,0').center[0],pixels:pixels.some((v,i)=>i%4===3&&v>0),error:g.getError()};}finally{for(const name of names)g[name]=original[name];}})()`);
+  assert.deepEqual(spacingCheck.calls,{bufferData:0,texImage2D:0,texSubImage2D:0},'Spacing must not rebuild geometry or textures');assert.equal(spacingCheck.center,-4.5,'Hit-test centers must follow the new spacing');assert.equal(spacingCheck.pixels,true);assert.equal(spacingCheck.error,0);
   await evaluate('document.getElementById("sizeInput").value=5;document.getElementById("mineInput").value=20;__game.startGame()');
   assert.deepEqual(await evaluate('Object.fromEntries(["K","R","B","Q","N"].map(p=>[p,__game.cluePositions([2,2,2],p).length]))'),{K:26,R:12,B:24,Q:36,N:24});
   assert.deepEqual(await evaluate('Object.fromEntries(["K","N"].map(p=>[p,__game.cluePositions([0,0,0],p).length]))'),{K:7,N:6});
@@ -85,9 +87,9 @@ try{
   assert.equal(await evaluate('__game.find3d(__game.state.width/2,__game.state.height/2)'),'1,2,1','Ray must hit nearest cube');
   await evaluate('__game.setCamera(Math.PI,0,20)');
   assert.equal(await evaluate('__game.find3d(__game.state.width/2,__game.state.height/2)'),'1,0,1','Ray must follow camera rotation');
-  await evaluate('document.getElementById("layer").value="1";document.getElementById("layer").dispatchEvent(new Event("change"))');
-  assert.equal(await evaluate('__game.state.visibleCells.length'),9,'Layer slicing must expose interior cells');
-  assert.equal(await evaluate('__game.state.vertexCount'),9*36);
+  assert.equal(await evaluate('document.getElementById("layer")'),null,'3D layer selector must be absent');
+  assert.equal(await evaluate('__game.state.visibleCells.length'),27,'All cubes must remain in the 3D view');
+  assert.equal(await evaluate('__game.state.vertexCount'),27*36);
   await evaluate('__game.state.mines.clear();__game.state.mines.add("0,0,0");__game.setCamera(0,0,20)');
   const point=await evaluate('(()=>{const r=document.getElementById("board3d").getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};})()');
   const mouse=(type,x,y,button='left',buttons=type==='mousePressed'?1:0)=>cdp('Input.dispatchMouseEvent',{type,x,y,button,buttons,clickCount:1});
@@ -148,7 +150,7 @@ try{
   for(let i=0;i<50;i++){if(await evaluate('__game.state.view === "2d"'))break;await new Promise(r=>setTimeout(r,20));}
   assert.equal(await evaluate('__game.state.view'),'2d');assert.equal(await evaluate('document.getElementById("board").hidden'),false);
   assert.deepEqual(errors,[]);
-  console.log('PASS: safe hints, piece weights, disabled pieces, guaranteed zero openings, impossible settings, original initialization, WebGL pixels, chess clues, 3D ray picking, layers, flags, reveal, rotation, zoom, 2D state, validation, win/loss, mobile touch, 1000 cubes, context-loss fallback.');
+  console.log('PASS: safe hints, piece weights, disabled pieces, guaranteed zero openings, impossible settings, original initialization, WebGL pixels, chess clues, 3D ray picking, spacing, flags, reveal, rotation, zoom, 2D state, validation, win/loss, mobile touch, 1000 cubes, context-loss fallback.');
 }finally{
   ws.close();await fetch(`${endpoint}/json/close/${tab.id}`);
 }

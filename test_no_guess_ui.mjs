@@ -3,22 +3,22 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const html=readFileSync('3d_minesweeper.html','utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,paintLabel,layout2d,find2d,showHint,autoFlag,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance,visibleCells};},countMines,inferMoves,activate,tileStyle,paintLabel,layout2d,find2d,showHint,autoFlag,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search,useDefaults=false,webgl=false,autoStart=true,savedSettings=new Map()){
   const glCalls={bufferData:0,texImage2D:0,texSubImage2D:0};
   const gl=new Proxy({}, {get(target,key){if(key==='getShaderParameter'||key==='getProgramParameter')return ()=>true;if(key in glCalls)return (...args)=>{glCalls[key]++;};if(typeof key==='string'&&key.toUpperCase()===key)return 1;return ()=>({});}});
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
   class Element{
-    constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.open=false;this.textContent='';this.listeners={};this.children=[];this.style={};const classes=new Set();this.classList={toggle(name,on){if(on)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains(name){return classes.has(name);}};}
+    constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.open=false;this.textContent='';this.listeners={};this.children=[];this.style={};this.attributes={};const classes=new Set();this.classList={toggle(name,on){if(on)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains(name){return classes.has(name);}};}
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
-    setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(child){this.children.push(child);} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;this.listeners.close?.({});}
+    setAttribute(name,value){this.attributes[name]=value} replaceChildren(...children){this.children=children;} append(...children){this.children.push(...children);} add(child){this.children.push(child);} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;this.listeners.close?.({});}
     getContext(kind){return kind==='2d'?ctx2d:kind==='webgl'&&webgl?gl:null;} getBoundingClientRect(){return this.rect||{width:800,height:600,left:0,top:0,right:800,bottom:600};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
   for(const [id,fallback] of [['sizeInput','3'],['mineInput','2']])elements[id].value=useDefaults?html.match(new RegExp(`id="${id}"[^>]*value="([^"]+)"`))[1]:fallback;
-  elements.spacing.value='1.3';elements.layer.value='all';
+  elements.spacing.value='1.3';
   for(const piece of ['K','R','B','Q','N'])elements['weight'+piece].value=html.match(new RegExp(`id="weight${piece}"[^>]*value="([^"]+)"`))[1];
   const urls=new Map();let nextUrl=0,workers=0;
   class FakeBlob{constructor(parts){this.text=parts.join('');}}
@@ -217,6 +217,7 @@ const promoPage=page(''),promoBoard=setBoard(promoPage,['0,0,1','2,2,2']);let cr
 promoPage.window.__game.setInference(()=>({moves:[{key:'0,0,1',mine:true}],conflict:false}));await promoPage.elements.hintButton.listeners.click();assert.equal(promoPage.elements.hintPromoDialog.open,true);assert.equal(promoPage.window.__game.state.hintKey,null,'Hint must wait for the promotion');assert.equal(promoPage.elements.promoClose.disabled,true);assert.equal(promoPage.elements.promoClose.textContent,'3');let blocked=false;promoPage.elements.hintPromoDialog.listeners.cancel({preventDefault(){blocked=true}});assert.equal(blocked,true);promoPage.elements.promoClose.click();assert.equal(promoPage.elements.hintPromoDialog.open,true);promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'2');promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'1');promoPage.advance(1000);assert.equal(promoPage.elements.promoClose.textContent,'×');assert.equal(promoPage.elements.promoClose.disabled,false);assert.equal(promoPage.window.__game.state.hintKey,null,'Hint waits until used');promoPage.elements.promoClose.click();await new Promise(resolve=>setImmediate(resolve));assert.equal(promoPage.elements.hintPromoDialog.open,false);assert.equal(promoPage.window.__game.state.hintKey,null);assert.equal(credits,3,'Closing the promotion must grant three unused credits');
 await promoPage.elements.hintButton.listeners.click();assert.equal(promoPage.window.__game.state.hintKey,'0,0,1');assert.equal(credits,2);await promoPage.elements.hintButton.listeners.click();await promoPage.elements.hintButton.listeners.click();assert.equal(credits,0);assert.equal(starts,1,'Remaining credits must not show another promotion');await promoPage.elements.hintButton.listeners.click();assert.equal(starts,2,'Zero credits must show the promotion again');
 const guestStorage=new Map(),guestPage=page('',false,false,true,guestStorage);setBoard(guestPage,['0,0,1','2,2,2']);guestPage.window.__game.setInference(()=>({moves:[{key:'0,0,1',mine:true}],conflict:false}));assert.equal(guestPage.elements.hintButton.textContent,'힌트 (0)');await guestPage.elements.hintButton.listeners.click();assert.equal(guestPage.elements.hintPromoDialog.open,true);guestPage.advance(3000);guestPage.elements.promoClose.click();await new Promise(resolve=>setImmediate(resolve));assert.equal(guestPage.elements.hintButton.textContent,'힌트 (3)');await guestPage.elements.hintButton.listeners.click();assert.equal(guestPage.elements.hintButton.textContent,'힌트 (2)');assert.equal(page('',false,false,true,guestStorage).elements.hintButton.textContent,'힌트 (0)','Guest hints must reset on reload');
+const offlinePage=page('');setBoard(offlinePage,['0,0,1','2,2,2']);offlinePage.window.__game.setInference(()=>({moves:[{key:'0,0,1',mine:true}],conflict:false}));offlinePage.window.chessmineHints={state:()=> 'authenticated',owner:()=> '1',balance:async()=>{throw new Error('network_unavailable')}};await offlinePage.elements.hintButton.listeners.click();assert.equal(offlinePage.elements.hintPromoDialog.open,true,'Offline account access must fall back to temporary guest hints');offlinePage.advance(3000);offlinePage.elements.promoClose.click();await new Promise(resolve=>setImmediate(resolve));assert.equal(offlinePage.elements.hintButton.textContent,'힌트 (3)');await offlinePage.elements.hintButton.listeners.click();assert.equal(offlinePage.elements.hintButton.textContent,'힌트 (2)');
 
 hintApp.setInference(()=>({moves:[{key:hintCell,mine:true}],conflict:false}));hintApp.showHint();
 const mineStyle=JSON.stringify(hintApp.tileStyle(hintCell,hintBoard.cells.get(hintCell))),mineMessage=hintPage.elements.cellInfo.textContent;
@@ -278,10 +279,10 @@ assert.equal(subtractBoard.cells.get('1,0,1').flagged,true,'Existing flags must 
 const fullscreenPage=page(''),fullscreenArea=fullscreenPage.elements.gameArea,fullscreenButton=fullscreenPage.elements.fullscreenButton;
 fullscreenButton.click();
 assert.equal(fullscreenArea.classList.contains('expanded'),true,'Unsupported fullscreen should use expanded layout');
-assert.equal(fullscreenButton.textContent,'전체화면 종료');
+assert.equal(fullscreenButton.attributes['aria-label'],'전체화면 종료');
 fullscreenPage.window.listeners.keydown({key:'Escape',target:{matches:()=>false}});
 assert.equal(fullscreenArea.classList.contains('expanded'),false,'Escape should exit expanded layout');
-assert.equal(fullscreenButton.textContent,'전체화면');
+assert.equal(fullscreenButton.attributes['aria-label'],'전체화면');
 fullscreenButton.click();fullscreenButton.click();
 assert.equal(fullscreenArea.classList.contains('expanded'),false,'Button should exit expanded layout');
 
@@ -290,10 +291,10 @@ nativeArea.requestFullscreen=async()=>{nativePage.document.fullscreenElement=nat
 nativePage.document.exitFullscreen=async()=>{nativePage.document.fullscreenElement=null;nativePage.document.listeners.fullscreenchange();};
 nativeButton.click();
 assert.equal(nativePage.document.fullscreenElement,nativeArea,'Button should enter native fullscreen when available');
-assert.equal(nativeButton.textContent,'전체화면 종료');
+assert.equal(nativeButton.attributes['aria-label'],'전체화면 종료');
 nativeButton.click();
 assert.equal(nativePage.document.fullscreenElement,null,'Button should exit native fullscreen');
-assert.equal(nativeButton.textContent,'전체화면');
+assert.equal(nativeButton.attributes['aria-label'],'전체화면');
 
 const renderPage=page('',false,true),renderApp=renderPage.window.__game,renderCalls=renderPage.glCalls;
 const geometryUploads=renderCalls.bufferData,textureUploads=renderCalls.texImage2D,partialUploads=renderCalls.texSubImage2D;
@@ -307,9 +308,8 @@ assert.equal(renderCalls.bufferData,geometryUploads,'Flagging must reuse geometr
 assert.equal(renderCalls.texImage2D,textureUploads,'Flagging must not upload the whole texture');
 assert.equal(renderCalls.texSubImage2D,partialUploads+1,'Flagging must upload only the changed tile');
 renderPage.elements.spacing.value='1.5';renderPage.elements.spacing.listeners.input();
-assert.equal(renderCalls.bufferData,geometryUploads+1,'Changing spacing must rebuild geometry');
-renderPage.elements.layer.value='0';renderPage.elements.layer.listeners.change();
-assert.equal(renderCalls.bufferData,geometryUploads+2,'Changing layers must rebuild geometry');
+assert.equal(renderCalls.bufferData,geometryUploads,'Changing spacing must reuse geometry');assert.equal(renderCalls.texImage2D,textureUploads,'Changing spacing must reuse the texture');assert.equal(renderCalls.texSubImage2D,partialUploads+1,'Changing spacing must not re-upload tiles');
+assert.equal(renderApp.state.visibleCells.length,27);assert.equal(renderApp.state.visibleCells.find(cell=>cell.key==='0,0,0').center[0],-1.5,'Hit-test centers must follow spacing');assert.doesNotMatch(html,/id="layer"/,'3D layer selector must be removed');
 const uploadsAfterLayout=renderCalls.bufferData;
 renderApp.setView('2d');
 const anotherClosed=[...renderApp.state.cells].find(([id,c])=>!c.revealed&&!c.flagged&&!renderApp.state.mines.has(id))[0];
