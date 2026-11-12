@@ -69,10 +69,13 @@
     try { const response = await request('delete', {method:'POST'});if (!response.ok) throw new Error('delete failed');pending=[];clearSession();status.textContent='계정과 기록을 삭제했습니다.'; }
     catch { status.textContent='계정을 삭제하지 못했습니다. 다시 시도해 주세요.'; }
   });
+  const accountMenu=document.createElement('details'), accountTitle=document.createElement('summary'), actions=document.createElement('div');
+  accountTitle.textContent='계정';accountMenu.className='header-menu';actions.append(showRecords,logout,deleteAccount);accountMenu.append(accountTitle,actions);
+  document.addEventListener('click', event => { if (!accountMenu.contains(event.target)) accountMenu.open=false; });
   const render = () => {
     controls.replaceChildren();retry.hidden = !session || !pending.length;
-    if (session) { const menu=document.createElement('details'), title=document.createElement('summary'), actions=document.createElement('div');title.textContent='계정';menu.className='header-menu';actions.append(showRecords,logout,deleteAccount);menu.append(title,actions);controls.append(menu); }
-    else controls.append(login);
+    if (session) controls.append(accountMenu);
+    else { accountMenu.open=false;controls.append(login); }
   };
   const reconnect = button('계정 다시 연결', async () => { await connect(); });reconnect.hidden = true;
   const connect = async () => {
