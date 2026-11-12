@@ -84,10 +84,14 @@ class CrossOriginTests(TestCase):
         for field, value in [('mode', 'unknown'), ('size', 11), ('mines', 27), ('durationMs', -1), ('result', 'pending'), ('clientId', 'bad'), ('weights', {'K': 0}), ('weights', {'K': 10**1000, 'R': 1, 'B': 1, 'Q': 1, 'N': 1})]:
             self.assertEqual(self.client.post('/chessmine/api/cross/records', json.dumps(dict(self.payload, **{field: value})), content_type='application/json', **auth).status_code, 400, field)
         self.assertEqual(self.client.post('/chessmine/api/cross/records', json.dumps(self.payload), content_type='application/json', **auth).status_code, 201)
+        bob_token = self.issue_token(self.bob)
+        bob_auth = {'HTTP_ORIGIN': self.origin, 'HTTP_AUTHORIZATION': f'Bearer {bob_token}'}
+        self.assertEqual(self.client.post('/chessmine/api/cross/records', json.dumps(self.payload), content_type='application/json', **bob_auth).status_code, 201)
         self.assertEqual(self.client.post('/chessmine/api/cross/delete', **auth).status_code, 200)
         self.assertFalse(get_user_model().objects.filter(pk=self.alice.pk).exists())
         self.assertTrue(get_user_model().objects.filter(pk=self.bob.pk).exists())
-        self.assertEqual(GameRecord.objects.count(), 0)
+        self.assertEqual(GameRecord.objects.count(), 1)
+        self.assertEqual(len(self.client.get('/chessmine/api/cross/records', **bob_auth).json()['records']), 1)
         self.assertEqual(self.client.get('/chessmine/api/cross/session', **auth).status_code, 401)
 
     def test_invalid_and_expired_ticket(self):
