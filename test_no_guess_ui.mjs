@@ -44,6 +44,7 @@ original.window.listeners.keydown({key:'r',target:{matches:()=>false}});assert.e
 original.elements.helpDialog.listeners.click({target:original.elements.helpDialog,clientX:400,clientY:300});assert.equal(original.elements.helpDialog.open,true,'Clicking inside the dialog must keep it open');
 original.elements.helpDialog.listeners.click({target:original.elements.helpDialog,clientX:-1,clientY:300});assert.equal(original.elements.helpDialog.open,false,'Clicking outside the dialog must close it');
 original.elements.helpButton.click();original.elements.helpClose.click();assert.equal(original.elements.helpDialog.open,false,'The close button must still close the dialog');assert.equal(original.window.__game.state.cells,boardBeforeHelp);
+original.elements.settingsButton.click();assert.equal(original.elements.settingsDialog.open,true,'Settings must open as a dialog');original.elements.settingsClose.click();assert.equal(original.elements.settingsDialog.open,false,'Settings must close');
 const game=page('?mode=no-guess');
 assert.equal(game.elements.start.disabled,true);assert.equal(game.window.__game.state.cells.size,0);
 for(let i=0;i<100&&game.elements.start.disabled;i++)await new Promise(resolve=>setTimeout(resolve,50));

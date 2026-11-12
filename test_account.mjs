@@ -33,7 +33,7 @@ assert.equal(calls.length,before,'Messages with a mismatched login state must be
 await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:loginState,code:'ticket'}});
 assert.equal(storage.get('chessmine:session'),'server-token-1');
 assert.equal(controls.children[0].children[0].textContent,'계정');
-assert.deepEqual(controls.children[0].children.slice(1).map(child=>child.textContent),['플레이 기록','로그아웃','계정 및 기록 삭제']);
+assert.deepEqual(controls.children[0].children[1].children.map(child=>child.textContent),['플레이 기록','로그아웃','계정 및 기록 삭제']);
 events['chessmine:game-finished']({detail:{mode:'normal',size:3,mines:2,weights:{K:7,R:1,B:1,Q:1,N:1},result:'won',durationMs:1234}});
 await new Promise(resolve=>setImmediate(resolve));
 const firstPost=calls.find(call=>call.url.endsWith('/records')&&call.options.method==='POST');
@@ -47,6 +47,6 @@ serverUser='2';controls.children[0].listeners.click();const secondState=new URL(
 await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:secondState,code:'ticket'}});
 await new Promise(resolve=>setImmediate(resolve));
 assert.equal(calls.filter(call=>call.url.endsWith('/records')&&call.options.method==='POST').length,postsBeforeAccountSwitch,'An unsaved record must not be sent to a different account');
-const deleteButton=controls.children[0].children.find(child=>child.textContent==='계정 및 기록 삭제');await deleteButton.listeners.click();
+const deleteButton=controls.children[0].children[1].children.find(child=>child.textContent==='계정 및 기록 삭제');await deleteButton.listeners.click();
 assert.equal(storage.has('chessmine:session'),false);assert.ok(calls.some(call=>call.url.endsWith('/delete')));
 console.log('Verified cross-origin login checks, record save, retry and account deletion');
