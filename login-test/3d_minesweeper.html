@@ -52,6 +52,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <div class="settings">
   <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
   <label>지뢰 수 <input id="mineInput" type="number" min="1" max="215" value="35"></label>
+  <label id="customReasoningLabel" hidden>추론 수준 <select id="customReasoning"><option value="">제한 없음</option><option value="1">단서 1개</option><option value="2">단서 최대 2개</option></select></label>
 </div>
 <fieldset class="settings">
   <legend>기물 생성 가중치</legend>
@@ -125,6 +126,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 (() => {
   "use strict";
   const gameMode=new URLSearchParams(location.search).get("mode"),colorMode=gameMode==="no-guess-color",noGuess=gameMode==="no-guess"||colorMode;
+  document.getElementById("customReasoningLabel").hidden=!noGuess;
   if(noGuess){document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
   if(colorMode){for(const id of ["groupPanel","groupHelp","groupHelpText","autoGroupWrap","autoGroupHelp","autoGroupHelpText"])document.getElementById(id).hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, hintBusy=false, hintOffline=false, premiumActive=false, premiumAvailable=false, promoTicket=null, guestHints=0, cellSize=40, width=0, height=0, twoDCols=2;
@@ -168,7 +170,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     if(!options.length){settingError.textContent=`이 가중치에서 숫자 0인 칸으로 시작하려면 지뢰 수를 ${capacity-minimumClues-1}개 이하로 설정하세요.`;return;}
     // Prefer the faces visible from the initial camera so the opening is visible.
     const surface=options.filter(({pos})=>pos.some(v=>v===size-1)),choices=surface.length?surface:options;
-    if(noGuess){startNoGuessGame({size,count,weights,positions,choices,hasSurface:!!surface.length,directOnly:$("difficulty").value==="easy"});return;}
+    if(noGuess){const difficulty=$("difficulty").value,maxSources=difficulty==="easy"?1:difficulty==="normal"?2:difficulty==="custom"?Number($("customReasoning").value)||null:null;startNoGuessGame({size,count,weights,positions,choices,hasSurface:!!surface.length,maxSources});return;}
     const startPiece=pickPiece(weights,PIECES.filter(p=>choices.some(c=>c.piece===p))),pieceChoices=choices.filter(c=>c.piece===startPiece);
     const opening=pieceChoices[Math.floor(Math.random()*pieceChoices.length)],openingKey=key(...opening.pos);
     const reserved=new Set([openingKey,...cluePositions(opening.pos,opening.piece,size).map(p=>key(...p))]);
@@ -278,7 +280,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   }
   function activateTap(k,rightClick){const cell=cells.get(k);activate(k,rightClick||(!editingGroup&&flagMode&&!!cell&&!cell.revealed));}
   function activateLongPress(k){const cell=cells.get(k);if(colorMode&&cell?.revealed&&!mines.has(k)){autoGroup(k,true);return;}activate(k,true);}
-  function inferMoves(nodeLimit=500000,directOnly=false){
+  function inferMoves(nodeLimit=500000,maxSources=null){
     if(ended)return{moves:[],conflict:false};
     const unknown=[...cells].filter(([,c])=>!c.revealed&&!c.flagged).map(([k])=>k),constraints=new Map();let conflict=false;
     function add(ids,total,sources=[],method="direct"){
@@ -298,12 +300,13 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       const forced=new Map();
       for(const{ids,total,sources,method}of constraints.values())if(total===0||total===ids.length)for(const id of ids){const mine=total>0;if(forced.has(id)&&forced.get(id).mine!==mine)return{moves:[],conflict:true};if(!forced.has(id))forced.set(id,{mine,sources,method});}
       if(forced.size)return{moves:[...forced].map(([key,proof])=>({key,...proof})),conflict:false};
-      if(directOnly)return{moves:[],conflict:false};
+      if(maxSources===1)return{moves:[],conflict:false};
       const equations=[...constraints.values()],sets=equations.map(e=>new Set(e.ids)),byCell=new Map(),pairs=new Set();let changed=false;
       equations.forEach((equation,i)=>equation.ids.forEach(id=>{if(!byCell.has(id))byCell.set(id,[]);for(const j of byCell.get(id))pairs.add(j*equations.length+i);byCell.get(id).push(i);}));
       for(const pair of pairs){
         const i=Math.floor(pair/equations.length),j=pair%equations.length,A=equations[i],B=equations[j],setA=sets[i],setB=sets[j];
         const sources=[...new Set([...A.sources,...B.sources])];
+        if(maxSources!==null&&sources.length>maxSources)continue;
         for(const[small,large,largeSet,smallSet]of[[A,B,setB,setA],[B,A,setA,setB]])if(small.ids.length<large.ids.length&&small.ids.every(id=>largeSet.has(id))){
           const before=constraints.size;add(large.ids.filter(id=>!smallSet.has(id)),large.total-small.total,sources,"compare");
           if(conflict)return{moves:[],conflict};if(constraints.size!==before)changed=true;
@@ -321,6 +324,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       }
       if(!changed)break;
     }
+    if(maxSources!==null)return{moves:[],conflict:false};
     const frontier=new Set([...constraints.values()].flatMap(e=>e.ids)),free=unknown.filter(id=>!frontier.has(id)),components=[],seen=new Set();
     for(const start of frontier){if(seen.has(start))continue;const ids=[],queue=[start];seen.add(start);for(let at=0;at<queue.length;at++){const id=queue[at];ids.push(id);for(const e of constraints.values())if(e.ids.includes(id))for(const other of e.ids)if(!seen.has(other)){seen.add(other);queue.push(other);}}components.push(ids);}
     const solved=[];let searchNodes=0;
@@ -350,7 +354,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     return{moves,conflict:false};
   }
   // ponytail: retries and time are bounded; use a constructive generator if difficult settings need better coverage.
-  function generateNoGuessBoard({size,count,weights,positions,choices,hasSurface,directOnly=false}){
+  function generateNoGuessBoard({size,count,weights,positions,choices,hasSurface,maxSources=null}){
     N=size;MINE_COUNT=count;ended=false;
     for(let attempt=1;attempt<=100;attempt++){
       postMessage({type:"progress",attempt});
@@ -361,7 +365,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       cells.get(openingKey).piece=piece;cells.get(openingKey).revealed=true;
       let valid=true;
       while([...cells].some(([id,c])=>!mines.has(id)&&!c.revealed)){
-        const result=inferMoves(20000,directOnly);if(result.conflict||result.limited||!result.moves.length){valid=false;break;}
+        const result=inferMoves(20000,maxSources);if(result.conflict||result.limited||!result.moves.length){valid=false;break;}
         for(const move of result.moves){const cell=cells.get(move.key);if(!cell||cell.revealed||cell.flagged||mines.has(move.key)!==move.mine){valid=false;break;}if(move.mine)cell.flagged=true;else cell.revealed=true;}
         if(!valid)break;
       }
@@ -639,7 +643,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   try{$("expansionMode").checked=localStorage.getItem("chessmine:expansionMode")==="instant";}catch{}
   $("expansionMode").addEventListener("change",()=>{try{localStorage.setItem("chessmine:expansionMode",$("expansionMode").checked?"instant":"step");}catch{}});
   $("settingsDialog").addEventListener("click",e=>{const dialog=$("settingsDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
-  let customSnapshot="";const customValues=()=>[sizeInput.value,mineInput.value,...PIECES.map(p=>$("weight"+p).value)].join("|");
+  let customSnapshot="";const customValues=()=>[sizeInput.value,mineInput.value,$("customReasoning").value,...PIECES.map(p=>$("weight"+p).value)].join("|");
   const openCustom=()=>{if(!$("customDialog").open){customSnapshot=customValues();stopExpansion();resetTap();$("customDialog").showModal();}};
   $("customButton").addEventListener("click",openCustom);$("customClose").addEventListener("click",()=>$("customDialog").close());
   $("customDialog").addEventListener("close",()=>{if(!cells.size||customSnapshot!==customValues())startGame();});
