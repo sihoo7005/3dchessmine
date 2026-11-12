@@ -21,7 +21,7 @@ const crypto={randomUUID:()=> 'a8ddc11e-7077-4111-9c8d-844761443756'};
 const sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
 const context={window,document,location:{origin:'https://sihoo7005.github.io',pathname:'/3dchessmine/3d_minesweeper.html'},fetch,crypto,sessionStorage,Date,String,confirm:()=>true,globalThis:{crypto}};
 vm.runInNewContext(source,context);
-const panel=area.children[0],controls=accountSlot.children[0];assert.equal(controls.children[0].textContent,'Google로 로그인');
+const panel=area.children[0],controls=accountSlot.children[0];assert.equal(controls.children[0].textContent,'로그인');
 controls.children[0].listeners.click();
 const loginState=new URL(popup.url).searchParams.get('state');assert.ok(loginState);
 const before=calls.length;await events.message({origin:'https://attacker.example',source:popup,data:{type:'chessmine-login',state:loginState,code:'fake'}});
@@ -41,7 +41,7 @@ assert.equal(firstPost.options.headers.Authorization,'Bearer server-token-1');as
 failSave=true;events['chessmine:game-finished']({detail:{mode:'normal'}});await new Promise(resolve=>setImmediate(resolve));
 const retry=panel.children.find(child=>child.textContent==='기록 저장 다시 시도');assert.equal(retry.hidden,false);await retry.listeners.click();assert.equal(retry.hidden,true);
 expired=true;events['chessmine:game-finished']({detail:{mode:'normal'}});await new Promise(resolve=>setImmediate(resolve));
-assert.equal(controls.children[0].textContent,'Google로 로그인');
+assert.equal(controls.children[0].textContent,'로그인');
 const postsBeforeAccountSwitch=calls.filter(call=>call.url.endsWith('/records')&&call.options.method==='POST').length;
 serverUser='2';controls.children[0].listeners.click();const secondState=new URL(popup.url).searchParams.get('state');
 await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:secondState,code:'ticket'}});
