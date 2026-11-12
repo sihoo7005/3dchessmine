@@ -29,7 +29,7 @@
     if (!response.ok) throw new Error('hint_request_failed');
     const data=await response.json();if(token!==currentToken || session?.userId!==userId)throw new Error('account_changed');if(Number.isSafeInteger(data.credits))publishCredits(data.credits);return data;
   };
-  window.chessmineHints={balance:()=>hintRequest('hints'),start:()=>hintRequest('hint-start','POST'),claim:ticket=>hintRequest('hint-claim','POST',{ticket}),use:()=>hintRequest('hint-use','POST')};
+  window.chessmineHints={state:()=>!token?'guest':session?'authenticated':'connecting',owner:()=>session?.userId??null,balance:()=>hintRequest('hints'),start:()=>hintRequest('hint-start','POST'),claim:ticket=>hintRequest('hint-claim','POST',{ticket}),use:()=>hintRequest('hint-use','POST')};
   const save = async () => {
     if (sending || !session || !pending.length) return;
     sending = true;

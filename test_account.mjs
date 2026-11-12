@@ -28,6 +28,7 @@ const sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>s
 const context={window,document,location:{origin:'https://sihoo7005.github.io',pathname:'/3dchessmine/3d_minesweeper.html'},fetch,crypto,sessionStorage,Date,String,AbortController,setTimeout,clearTimeout,CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},confirm:()=>confirmResult,globalThis:{crypto}};
 vm.runInNewContext(source,context);
 await assert.rejects(window.chessmineHints.balance(),/login_required/);
+assert.equal(window.chessmineHints.state(),'guest');
 const panel=area.children[0],controls=accountSlot.children[0];assert.equal(controls.children[0].textContent,'로그인');
 controls.children[0].listeners.click();
 const loginState=new URL(popup.url).searchParams.get('state');assert.ok(loginState);
@@ -39,6 +40,7 @@ await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type
 assert.equal(calls.length,before,'Messages with a mismatched login state must be ignored');
 await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:loginState,code:'ticket'}});
 assert.equal(storage.get('chessmine:session'),'server-token-1');
+assert.equal(window.chessmineHints.state(),'authenticated');assert.equal(window.chessmineHints.owner(),'1');
 assert.equal((await window.chessmineHints.balance()).credits,0);assert.equal((await window.chessmineHints.start()).ticket,'promo-ticket');assert.equal((await window.chessmineHints.claim('promo-ticket')).credits,3);assert.equal((await window.chessmineHints.use()).credits,2);
 assert.equal(controls.children[0].children[0].textContent,'계정');
 assert.deepEqual(controls.children[0].children[1].children.map(child=>child.textContent),['플레이 기록','로그아웃','계정 및 기록 삭제']);
