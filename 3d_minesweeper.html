@@ -22,7 +22,8 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 #accountSlot .header-menu>div{position:absolute;right:0;top:calc(100% + 6px);z-index:20;display:grid;gap:6px;min-width:180px;max-width:calc(100vw - 24px);padding:8px;border:1px solid #35465d;border-radius:10px;background:#172333;box-shadow:0 8px 20px #0008}#accountSlot .header-menu>div button{width:100%;margin:0;text-align:left}
 #helpDialog{width:min(92vw,520px);max-height:min(82vh,700px);overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}
 #helpDialog::backdrop{background:#070d16bb}
-#settingsDialog{width:min(92vw,680px);min-height:300px;max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}#settingsDialog::backdrop{background:#070d16bb}#settingsDialog a{display:block;margin:16px 0;color:#a4e3b3}
+#settingsDialog,#customDialog{width:min(92vw,680px);min-height:300px;max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}#settingsDialog::backdrop,#customDialog::backdrop{background:#070d16bb}#settingsDialog a{display:block;margin:16px 0;color:#a4e3b3}
+.records-dialog{width:min(92vw,680px);max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}.records-dialog::backdrop{background:#070d16bb}.records-dialog>div+div{margin-top:16px;line-height:1.8;overflow-wrap:anywhere}
 .helpHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.helpHeader h2{margin:0;font-size:1.25rem}
 .helpList{margin:14px 0 0}.helpList dt{margin-top:12px;font-weight:700;color:#a9d7ff}.helpList dd{margin:2px 0 0;color:#d1dfed;line-height:1.5}
 #gameArea:fullscreen,#gameArea.expanded{display:flex;flex-direction:column;width:100%;height:100%;padding:12px;background:#101722;overflow:auto}
@@ -35,6 +36,8 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <body><main>
 <header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><div class="header-actions"><button id="helpButton" type="button">조작법</button><div id="accountSlot"></div><button id="settingsButton" type="button">설정</button></div></header><div class="hint" id="boardInfo"></div>
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">설정</h2><button id="settingsClose" type="button">닫기</button></div><a id="modeLink" href="no_guess.html">추측 없는 게임</a><a href="no_guess_color.html">컬러 묶음 게임</a></dialog>
+<div class="settings"><label>난이도 <select id="difficulty"><option value="easy">쉬움</option><option value="normal">보통</option><option value="hard" selected>어려움</option><option value="custom">사용자 설정</option></select></label><button id="customButton" type="button" hidden>사용자 설정 열기</button><span class="hint">새 게임에 적용</span></div>
+<dialog id="customDialog" aria-labelledby="customTitle"><div class="helpHeader"><h2 id="customTitle">사용자 설정</h2><button id="customClose" type="button">닫기</button></div>
 <div class="settings">
   <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
   <label>지뢰 수 <input id="mineInput" type="number" min="1" max="215" value="35"></label>
@@ -49,6 +52,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   <span class="hint">값이 클수록 자주 생성됩니다. 0은 생성하지 않음 · 새 게임에 적용</span>
   <span class="hint" id="weightSummary"></span>
 </fieldset>
+</dialog>
 <div id="gameArea">
 <div class="toolbar">
   <div class="buttons"><button id="start">새 게임 시작</button><button id="cancelGeneration" hidden>생성 취소</button><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button><button id="fullscreenButton" aria-pressed="false">전체화면</button></div>
@@ -110,7 +114,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   </dl>
 </dialog>
 
-<script src="account.js?v=6"></script>
+<script src="account.js?v=7"></script>
 <script>
 (() => {
   "use strict";
@@ -669,6 +673,10 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   $("helpButton").addEventListener("click",()=>{if(!$("helpDialog").open){stopExpansion();resetTap();$("helpDialog").showModal();}});$("helpClose").addEventListener("click",()=>$("helpDialog").close());
   $("settingsButton").addEventListener("click",()=>{if(!$("settingsDialog").open){stopExpansion();resetTap();$("settingsDialog").showModal();}});$("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
   $("settingsDialog").addEventListener("click",e=>{const dialog=$("settingsDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
+  const openCustom=()=>{if(!$("customDialog").open){stopExpansion();resetTap();$("customDialog").showModal();}};
+  $("customButton").addEventListener("click",openCustom);$("customClose").addEventListener("click",()=>$("customDialog").close());
+  $("customDialog").addEventListener("click",e=>{const dialog=$("customDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
+  $("difficulty").addEventListener("change",()=>{const difficulty=$("difficulty").value;$("customButton").hidden=difficulty!=="custom";if(difficulty==="custom"){openCustom();return;}const preset={easy:[4,6],normal:[5,15],hard:[6,35]}[difficulty];if(!preset)return;sizeInput.value=String(preset[0]);mineInput.value=String(preset[1]);mineInput.max=preset[0]**3-1;for(const p of PIECES)$("weight"+p).value=p==="K"?"7":"1";updateWeightSummary();});
   $("helpDialog").addEventListener("click",e=>{const dialog=$("helpDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
   $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
   function fullscreenChanged(){
@@ -733,7 +741,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{
     if(e.key==="Escape"&&$("gameArea").classList.contains("expanded")){$("gameArea").classList.remove("expanded");fullscreenChanged();return;}
-    if($("helpDialog").open||$("settingsDialog").open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
+    if($("helpDialog").open||$("settingsDialog").open||$("customDialog").open||$("recordsDialog")?.open||e.target.matches("input,select,textarea")||e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key.toLowerCase();
     if(k==="v")setView(view==="3d"?"2d":"3d");if(k==="f")flagButton.click();if(k==="r")startGame();
     if(e.target===canvas3d){if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","=","-"].includes(e.key))e.preventDefault();
       if(k==="arrowleft")yaw-=.12;if(k==="arrowright")yaw+=.12;if(k==="arrowup")pitch=Math.min(1.45,pitch+.12);if(k==="arrowdown")pitch=Math.max(-1.45,pitch-.12);if(k==="+"||k==="=")zoom(.9);if(k==="-")zoom(1.1);render3d();}

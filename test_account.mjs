@@ -7,6 +7,7 @@ class Element {
   constructor(tag=''){this.tag=tag;this.children=[];this.hidden=false;this.listeners={};this.style={};this.textContent='';}
   setAttribute(){} append(...nodes){this.children.push(...nodes)} prepend(...nodes){this.children.unshift(...nodes)} replaceChildren(...nodes){this.children=nodes} addEventListener(name,fn){this.listeners[name]=fn}
   contains(node){return this===node||this.children.some(child=>child.contains(node));}
+  showModal(){this.open=true} close(){this.open=false} getBoundingClientRect(){return {left:0,right:800,top:0,bottom:600}}
 }
 const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={};let failSave=false,expired=false,serverUser='1';
 const window={addEventListener(name,fn){events[name]=fn},open(url){popup.url=url;return popup}};
@@ -36,6 +37,8 @@ assert.equal(storage.get('chessmine:session'),'server-token-1');
 assert.equal(controls.children[0].children[0].textContent,'계정');
 assert.deepEqual(controls.children[0].children[1].children.map(child=>child.textContent),['플레이 기록','로그아웃','계정 및 기록 삭제']);
 controls.children[0].open=true;document.listeners.click({target:controls.children[0].children[1].children[0]});assert.equal(controls.children[0].open,true);document.listeners.click({target:area});assert.equal(controls.children[0].open,false);
+const recordsDialog=panel.children.find(child=>child.tag==='dialog');await controls.children[0].children[1].children[0].listeners.click();assert.equal(recordsDialog.open,true);assert.equal(recordsDialog.children[1].textContent,'아직 저장된 기록이 없습니다.');recordsDialog.listeners.click({target:recordsDialog,clientX:400,clientY:300});assert.equal(recordsDialog.open,true);recordsDialog.listeners.click({target:recordsDialog,clientX:-1,clientY:300});assert.equal(recordsDialog.open,false);
+await controls.children[0].children[1].children[0].listeners.click();recordsDialog.children[0].children[1].listeners.click();assert.equal(recordsDialog.open,false);
 events['chessmine:game-finished']({detail:{mode:'normal',size:3,mines:2,weights:{K:7,R:1,B:1,Q:1,N:1},result:'won',durationMs:1234}});
 await new Promise(resolve=>setImmediate(resolve));
 const firstPost=calls.find(call=>call.url.endsWith('/records')&&call.options.method==='POST');
