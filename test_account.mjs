@@ -9,7 +9,7 @@ class Element {
   contains(node){return this===node||this.children.some(child=>child.contains(node));}
   showModal(){this.open=true} close(){this.open=false} getBoundingClientRect(){return {left:0,right:800,top:0,bottom:600}}
 }
-const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={};let failSave=false,expired=false,serverUser='1',records=[];
+const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={};let failSave=false,expired=false,serverUser='1',records=[],confirmResult=true;
 const window={addEventListener(name,fn){events[name]=fn},open(url){popup.url=url;return popup}};
 const document={listeners:{},createElement:tag=>new Element(tag),getElementById:id=>id==='accountSlot'?accountSlot:area,addEventListener(name,fn){this.listeners[name]=fn}};
 const fetch=async(url,options={})=>{
@@ -21,7 +21,7 @@ const fetch=async(url,options={})=>{
 };
 const crypto={randomUUID:()=> 'a8ddc11e-7077-4111-9c8d-844761443756'};
 const sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
-const context={window,document,location:{origin:'https://sihoo7005.github.io',pathname:'/3dchessmine/3d_minesweeper.html'},fetch,crypto,sessionStorage,Date,String,confirm:()=>true,globalThis:{crypto}};
+const context={window,document,location:{origin:'https://sihoo7005.github.io',pathname:'/3dchessmine/3d_minesweeper.html'},fetch,crypto,sessionStorage,Date,String,confirm:()=>confirmResult,globalThis:{crypto}};
 vm.runInNewContext(source,context);
 const panel=area.children[0],controls=accountSlot.children[0];assert.equal(controls.children[0].textContent,'로그인');
 controls.children[0].listeners.click();
@@ -53,6 +53,8 @@ serverUser='2';controls.children[0].listeners.click();const secondState=new URL(
 await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:secondState,code:'ticket'}});
 await new Promise(resolve=>setImmediate(resolve));
 assert.equal(calls.filter(call=>call.url.endsWith('/records')&&call.options.method==='POST').length,postsBeforeAccountSwitch,'An unsaved record must not be sent to a different account');
+const logoutButton=controls.children[0].children[1].children.find(child=>child.textContent==='로그아웃');confirmResult=false;const beforeLogout=calls.length;await logoutButton.listeners.click();assert.equal(calls.length,beforeLogout,'Cancelling logout must not call the server');assert.equal(storage.get('chessmine:session'),'server-token-2');confirmResult=true;await logoutButton.listeners.click();assert.equal(storage.has('chessmine:session'),false);assert.ok(calls.some(call=>call.url.endsWith('/logout')));
+controls.children[0].listeners.click();const thirdState=new URL(popup.url).searchParams.get('state');await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type:'chessmine-login',state:thirdState,code:'ticket'}});
 const deleteButton=controls.children[0].children[1].children.find(child=>child.textContent==='계정 및 기록 삭제');await deleteButton.listeners.click();
 assert.equal(storage.has('chessmine:session'),false);assert.ok(calls.some(call=>call.url.endsWith('/delete')));
 console.log('Verified cross-origin login checks, record save, retry and account deletion');

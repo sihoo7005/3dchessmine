@@ -62,7 +62,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <div id="gameArea">
 <div class="toolbar">
   <div class="buttons"><button id="start">새 게임 시작</button><button id="cancelGeneration" hidden>생성 취소</button><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button><button id="fullscreenButton" aria-pressed="false">전체화면</button></div>
-  <div class="buttons"><button id="hintButton">추론 가능한 칸</button><button id="autoFlagButton">자동 깃발</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
+  <div class="buttons"><button id="hintButton">힌트</button><button id="autoFlagButton">자동 깃발</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button></div>
 </div>
 <div id="groupPanel" class="camera-controls" hidden>
   <button id="groupEdit" aria-pressed="false">묶음 만들기</button>
@@ -120,7 +120,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   </dl>
 </dialog>
 
-<script src="account.js?v=8"></script>
+<script src="account.js?v=9"></script>
 <script>
 (() => {
   "use strict";
@@ -752,7 +752,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   });
   $("groupSelect").addEventListener("change",()=>{activeGroup=$("groupSelect").value===""?-1:Number($("groupSelect").value);updateGroups();draw();});
   $("groupDelete").addEventListener("click",()=>{if(activeGroup<0||editingGroup)return;groups.splice(activeGroup,1);activeGroup=groups.length?Math.min(activeGroup,groups.length-1):-1;refreshGroupOptions();updateGroups();draw();});
-  $("hintButton").addEventListener("click",showHint);$("autoFlagButton").addEventListener("click",autoFlag);
+  $("hintButton").addEventListener("click",()=>{cellInfo.textContent="힌트는 광고 시청 기능을 준비 중입니다.";});$("autoFlagButton").addEventListener("click",()=>{cellInfo.textContent="자동 깃발은 프리미엄 기능입니다. 결제 기능을 준비 중입니다.";});
   flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
   layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});

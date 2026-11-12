@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const html=readFileSync('3d_minesweeper.html','utf8');
-const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,paintLabel,layout2d,find2d,showHint,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,paintLabel,layout2d,find2d,showHint,autoFlag,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 function page(search,useDefaults=false,webgl=false,autoStart=true,savedSettings=new Map()){
   const glCalls={bufferData:0,texImage2D:0,texSubImage2D:0};
@@ -40,6 +40,7 @@ function page(search,useDefaults=false,webgl=false,autoStart=true,savedSettings=
 const initialPage=page('',true,false,false);assert.equal(initialPage.elements.difficultyDialog.open,true,'Difficulty selection must open on entry');assert.equal(initialPage.window.__game.state.cells.size,0,'A game must wait for difficulty selection');initialPage.elements.chooseEasy.click();assert.equal(initialPage.elements.difficultyDialog.open,false);assert.equal(initialPage.window.__game.state.cells.size,64);assert.equal(initialPage.window.__game.state.mines.size,6);
 const initialCustom=page('',true,false,false);initialCustom.elements.chooseCustom.click();assert.equal(initialCustom.elements.customDialog.open,true);initialCustom.elements.customClose.click();assert.equal(initialCustom.window.__game.state.cells.size,216,'Closing initial custom settings must start a game');
 const original=page('');
+assert.match(html,/<button id="hintButton">힌트<\/button>/);original.elements.hintButton.click();assert.match(original.elements.cellInfo.textContent,/광고/);assert.equal(original.window.__game.state.hintKey,null,'The hint button must stay locked');
 assert.equal(original.workers,0);assert.equal(original.window.__game.state.cells.size,27);
 const defaultPage=page('',true);assert.equal(defaultPage.window.__game.state.cells.size,216);assert.equal(defaultPage.window.__game.state.mines.size,35);
 for(const [difficulty,size,mines] of [['easy','4','6'],['normal','5','15'],['hard','6','35']]){const previous=defaultPage.window.__game.state.cells;defaultPage.elements.difficulty.value=difficulty;defaultPage.elements.difficulty.listeners.change();assert.equal(defaultPage.elements.sizeInput.value,size);assert.equal(defaultPage.elements.mineInput.value,mines);assert.equal(defaultPage.elements.customButton.hidden,true);assert.notEqual(defaultPage.window.__game.state.cells,previous,'Changing difficulty must start a new game');}
@@ -267,18 +268,18 @@ assert.match(largePage.elements.cellInfo.textContent,/스크롤/, 'Off-screen hi
 const autoFlagPage=page(''),autoFlagBoard=setBoard(autoFlagPage,['0,0,1','2,2,2']),autoFlagApp=autoFlagPage.window.__game;
 for(const id of ['1,0,0','0,1,0','1,1,0','1,0,1','0,1,1','1,1,1'])autoFlagBoard.cells.get(id).revealed=true;
 autoFlagApp.setInference(()=>{throw new Error('Automatic flags must not use deep inference');});
-autoFlagPage.elements.autoFlagButton.click();
+autoFlagPage.elements.autoFlagButton.click();assert.match(autoFlagPage.elements.cellInfo.textContent,/프리미엄/);assert.equal(autoFlagBoard.cells.get('0,0,1').flagged,false,'Premium button must not place flags');autoFlagApp.autoFlag();
 assert.equal(autoFlagBoard.cells.get('0,0,1').flagged,true,'A direct clue should flag its only remaining mine');
 assert.equal(autoFlagBoard.cells.get('2,2,2').flagged,false,'A mine outside a direct clue must stay unflagged');
 assert.match(autoFlagPage.elements.cellInfo.textContent,/1칸/);
 const conflictFlagPage=page(''),conflictFlagBoard=setBoard(conflictFlagPage,['0,0,1','2,2,2']);
 conflictFlagBoard.cells.get('1,0,0').flagged=true;conflictFlagBoard.cells.get('0,1,0').flagged=true;
-conflictFlagPage.elements.autoFlagButton.click();
+conflictFlagPage.window.__game.autoFlag();
 assert.equal(conflictFlagBoard.cells.get('0,0,1').flagged,false,'Contradictory flags must not place new flags');
 assert.match(conflictFlagPage.elements.cellInfo.textContent,/맞지 않습니다/);
 const subtractPage=page(''),subtractBoard=setBoard(subtractPage,['0,0,1','1,0,1']);
 for(const id of ['1,0,0','0,1,0','1,1,0','0,1,1','1,1,1'])subtractBoard.cells.get(id).revealed=true;
-subtractBoard.cells.get('0,0,1').flagged=true;subtractPage.elements.autoFlagButton.click();
+subtractBoard.cells.get('0,0,1').flagged=true;subtractPage.window.__game.autoFlag();
 assert.equal(subtractBoard.cells.get('1,0,1').flagged,true,'Existing flags must be subtracted from the clue');
 
 const fullscreenPage=page(''),fullscreenArea=fullscreenPage.elements.gameArea,fullscreenButton=fullscreenPage.elements.fullscreenButton;
