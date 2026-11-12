@@ -83,7 +83,7 @@
       if (!response.ok) throw new Error('session failed');
       session=await response.json();reconnect.hidden=true;
       const before=pending.length;pending=pending.filter(item=>item.owner ? item.owner===session.userId : item.token===token);
-      render();status.textContent=before!==pending.length?'다른 계정에서 저장하지 못한 기록은 전송하지 않았습니다.':'로그인됨';save();
+      render();status.textContent=before!==pending.length?'다른 계정에서 저장하지 못한 기록은 전송하지 않았습니다.':'';save();
     } catch { session=null;reconnect.hidden=false;render();status.textContent='계정 서비스에 연결하지 못했습니다. 다시 연결해 주세요.'; }
   };
   window.addEventListener('message', async event => {
