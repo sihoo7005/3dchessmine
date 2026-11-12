@@ -18,7 +18,7 @@
 @keyframes successPop{0%{opacity:0;transform:scale(.5) rotate(-8deg)}70%{opacity:1;transform:scale(1.08) rotate(2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
 @keyframes confettiFall{to{transform:translateY(120vh) rotate(720deg)}}
 @media(prefers-reduced-motion:reduce){#successEffect,#successEffect *{animation:none}}
-header{position:relative;padding-right:78px}#helpButton{position:absolute;right:0;top:0}
+header{justify-content:flex-start}#settingsMenu{margin-left:auto}.header-menu{position:relative}.header-menu summary{cursor:pointer;list-style:none;border:1px solid #35465d;border-radius:8px;padding:8px 12px;background:#1b2838;color:#eaf2ff}.header-menu summary::-webkit-details-marker{display:none}.header-menu[open]{z-index:10}.header-menu[open] a,.header-menu[open] button{display:block;margin-top:6px}.header-menu a{color:#a4e3b3}.header-menu:focus-within{z-index:10}
 #helpDialog{width:min(92vw,520px);max-height:min(82vh,700px);overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}
 #helpDialog::backdrop{background:#070d16bb}
 .helpHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.helpHeader h2{margin:0;font-size:1.25rem}
@@ -31,7 +31,7 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
 </style>
 </head>
 <body><main>
-<header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><a id="modeLink" href="no_guess.html" style="color:#68c7ff">추측 없는 게임</a><a href="no_guess_color.html" style="color:#a4e3b3">컬러 묶음 게임</a><div class="hint" id="boardInfo"></div><button id="helpButton" type="button">조작법</button></header>
+<header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><button id="helpButton" type="button">조작법</button><div id="accountSlot"></div><details class="header-menu" id="settingsMenu"><summary>설정</summary><a id="modeLink" href="no_guess.html">추측 없는 게임</a><a href="no_guess_color.html">컬러 묶음 게임</a></details></header><div class="hint" id="boardInfo"></div>
 <div class="settings">
   <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
   <label>지뢰 수 <input id="mineInput" type="number" min="1" max="215" value="35"></label>
@@ -112,8 +112,8 @@ header{position:relative;padding-right:78px}#helpButton{position:absolute;right:
 (() => {
   "use strict";
   const gameMode=new URLSearchParams(location.search).get("mode"),colorMode=gameMode==="no-guess-color",noGuess=gameMode==="no-guess"||colorMode;
-  if(noGuess){document.title="추측 없는 3D 체스 지뢰찾기";document.getElementById("gameTitle").textContent="♟ 추측 없는 3D 체스 지뢰찾기";document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
-  if(colorMode){document.title="추측 없는 3D 체스 지뢰찾기 · 컬러 묶음";document.getElementById("gameTitle").textContent="♟ 추측 없는 게임 · 컬러 묶음";for(const id of ["groupPanel","groupHelp","groupHelpText"])document.getElementById(id).hidden=false;}
+  if(noGuess){document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
+  if(colorMode){for(const id of ["groupPanel","groupHelp","groupHelpText"])document.getElementById(id).hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, cellSize=40, width=0, height=0, twoDCols=2;
   let hintClues=new Set();
   let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="",draftLayout=null;
