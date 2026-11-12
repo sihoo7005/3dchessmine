@@ -732,11 +732,11 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       if(!confirm("광고를 보고 힌트 3개를 받으시겠습니까?"))return;
       promoTicket=(await window.chessmineHints.start()).ticket;
       const close=$("promoClose"),deadline=performance.now()+3000;close.disabled=true;close.textContent="3";close.setAttribute("aria-label","3초 후 닫기 가능");$("hintPromoDialog").showModal();
-      const timer=setInterval(()=>{const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));if(remaining){close.textContent=String(remaining);close.setAttribute("aria-label",`${remaining}초 후 닫기 가능`);}else{clearInterval(timer);close.disabled=false;close.textContent="×";close.setAttribute("aria-label","홍보 닫고 힌트 보기");}},250);
+      const timer=setInterval(()=>{const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));if(remaining){close.textContent=String(remaining);close.setAttribute("aria-label",`${remaining}초 후 닫기 가능`);}else{clearInterval(timer);close.disabled=false;close.textContent="×";close.setAttribute("aria-label","홍보 닫고 힌트 받기");}},250);
     }catch(error){hintError(error);}finally{setHintBusy(false);}
   });
   $("promoClose").addEventListener("click",()=>{if(!$("promoClose").disabled)$("hintPromoDialog").close();});$("hintPromoDialog").addEventListener("cancel",e=>{if($("promoClose").disabled)e.preventDefault();});
-  $("hintPromoDialog").addEventListener("close",async()=>{if(!promoTicket)return;const ticket=promoTicket;promoTicket=null;setHintBusy(true);try{await window.chessmineHints.claim(ticket);await useHint();}catch(error){hintError(error);}finally{setHintBusy(false);}});
+  $("hintPromoDialog").addEventListener("close",async()=>{if(!promoTicket)return;const ticket=promoTicket;promoTicket=null;setHintBusy(true);try{await window.chessmineHints.claim(ticket);cellInfo.textContent="힌트 3개를 받았습니다. 힌트 버튼을 눌러 사용하세요.";}catch(error){hintError(error);}finally{setHintBusy(false);}});
   $("autoFlagButton").addEventListener("click",()=>{cellInfo.textContent="자동 깃발은 프리미엄 기능입니다. 결제 기능을 준비 중입니다.";});
   flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
   layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
