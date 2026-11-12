@@ -121,3 +121,11 @@ class CrossOriginTests(TestCase):
         self.assertContains(bridge, self.state)
         self.assertContains(bridge, self.origin)
         self.assertNotIn('_auth_user_id', self.client.session, 'Popup session must end after issuing the ticket')
+        import re
+        ticket = re.search(r'"code": "([A-Za-z0-9_-]+)"', bridge.content.decode()).group(1)
+        exchanged = self.client.post('/chessmine/api/cross/exchange', json.dumps({'code': ticket}), content_type='application/json', HTTP_ORIGIN=self.origin)
+        self.assertEqual(exchanged.status_code, 200)
+        token = exchanged.json()['token']
+        saved = self.client.post('/chessmine/api/cross/records', json.dumps(self.payload), content_type='application/json', HTTP_ORIGIN=self.origin, HTTP_AUTHORIZATION='Bearer ' + token)
+        self.assertEqual(saved.status_code, 201)
+        self.assertEqual(GameRecord.objects.count(), 1)
