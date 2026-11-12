@@ -62,7 +62,7 @@
     status.textContent = popup ? 'Google 로그인 창에서 계속해 주세요.' : '로그인 창이 차단됐습니다. 팝업을 허용해 주세요.';
   });
   const logout = button('로그아웃', async () => {
-    if (pending.length && !confirm('저장하지 못한 기록이 있습니다. 로그아웃하면 이 기록은 사라집니다. 계속할까요?')) return;
+    if (!confirm(pending.length?'저장하지 못한 기록이 있습니다. 로그아웃하면 이 기록은 사라집니다. 계속할까요?':'로그아웃하시겠습니까?')) return;
     try { const response = await request('logout', {method:'POST'});if (!response.ok) throw new Error('logout failed');pending=[];clearSession();status.textContent='로그아웃했습니다.'; }
     catch { status.textContent='로그아웃하지 못했습니다. 다시 시도해 주세요.'; }
   });
