@@ -53,7 +53,7 @@
     token = null;session = null;try { sessionStorage.removeItem(storageKey); } catch {}
     list.hidden = true;render();
   };
-  const login = button('Google로 로그인', () => {
+  const login = button('로그인', () => {
     if (!globalThis.crypto?.randomUUID) { status.textContent = '안전한 브라우저에서 로그인해 주세요.';return; }
     loginState = crypto.randomUUID();
     popup = window.open(`${base}auth/start?state=${encodeURIComponent(loginState)}`, 'chessmine-login', 'popup,width=520,height=700');
