@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const html=readFileSync('3d_minesweeper.html','utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)[1].replace('window.addEventListener("resize",resize);','window.__game={get state(){return {cells,mines,ended,hintKey,selectedClue,selectedClosed,clueRange,yaw,distance};},countMines,inferMoves,activate,tileStyle,paintLabel,layout2d,find2d,showHint,toggleFlag,setView,draw,setFind3d(fn){find3d=fn;},setInference(fn){inferMoves=fn;},setCluePositions(fn){cluePositions=fn;},setRandom(fn){Math.random=fn;}};window.addEventListener("resize",resize);');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
-function page(search,useDefaults=false,webgl=false,autoStart=true){
+function page(search,useDefaults=false,webgl=false,autoStart=true,savedSettings=new Map()){
   const glCalls={bufferData:0,texImage2D:0,texSubImage2D:0};
   const gl=new Proxy({}, {get(target,key){if(key==='getShaderParameter'||key==='getProgramParameter')return ()=>true;if(key in glCalls)return (...args)=>{glCalls[key]++;};if(typeof key==='string'&&key.toUpperCase()===key)return 1;return ()=>({});}});
   const ctx2d=new Proxy({}, {get:(target,key)=>target[key]||(()=>{}),set:(target,key,value)=>(target[key]=value,true)});
@@ -30,7 +30,8 @@ function page(search,useDefaults=false,webgl=false,autoStart=true){
   }
   let tick=0,nextInterval=0;const intervals=new Map();const events=[];const window={devicePixelRatio:1,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;},dispatchEvent(event){events.push(event);this.listeners[event.type]?.(event);}};
   const document={getElementById:id=>elements[id],createElement:tag=>new Element(tag),title:'',listeners:{},addEventListener(name,fn){this.listeners[name]=fn;}};
-  const globals={window,document,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
+  const localStorage={getItem:key=>savedSettings.get(key)||null,setItem:(key,value)=>savedSettings.set(key,value)};
+  const globals={window,document,localStorage,location:{search},URLSearchParams,URL:fakeURL,Blob:FakeBlob,Worker:FakeWorker,Option:class{constructor(text,value){this.text=text;this.value=value;}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},setTimeout,clearTimeout,setInterval:fn=>{const id=++nextInterval;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),performance:{now:()=>tick},console:{error(){}}};
   vm.runInNewContext(script,globals);
   if(autoStart){elements.difficultyDialog.close();elements.start.click();}
   return{window,document,elements,glCalls,events,advance(ms){tick+=ms;for(const fn of intervals.values())fn();},get workers(){return workers;}};
@@ -118,6 +119,7 @@ if(background3dPage.window.__game.state.ended)background3dPage.elements.start.cl
 const nonzeroPage=page(''),nonzero=setBoard(nonzeroPage,['0,0,1','2,2,2']);nonzeroPage.window.__game.activate(null,false);nonzeroPage.window.__game.activate(null,false);
 assert.equal([...nonzero.cells.values()].filter(c=>c.revealed).length,1,'Hidden zero clues must not be expanded');
 const chainPage=page(''),chain=setBoard(chainPage,['2,2,1','2,2,2']),chainMap=new Map([['0,0,0',['1,0,0']],['1,0,0',['2,0,0']],['2,0,0',['2,2,2']]]);
+const instantSettings=new Map(),instantPage=page('',false,false,true,instantSettings),instant=setBoard(instantPage,['2,2,1','2,2,2']);instantPage.elements.expansionMode.value='instant';instantPage.elements.expansionMode.listeners.change();instantPage.window.__game.setCluePositions(pos=>(chainMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));instantPage.window.__game.activate(null,false);instantPage.window.__game.activate(null,false);assert.equal(instant.cells.get('2,0,0').revealed,true,'Instant mode must open the whole chain without a timer');assert.equal(instant.cells.get('1,1,1').revealed,false);assert.equal(page('',false,false,true,instantSettings).elements.expansionMode.value,'instant','Expansion setting must persist');
 chainPage.window.__game.setCluePositions(pos=>(chainMap.get(pos.join(','))||[]).map(id=>id.split(',').map(Number)));
 chainPage.window.__game.activate(null,false);chainPage.window.__game.activate(null,false);
 assert.equal(chain.cells.get('1,0,0').revealed,true);assert.equal(chain.cells.get('2,0,0').revealed,false,'The next cell must wait for the animation');
@@ -342,9 +344,11 @@ const colorApp=colorPage.window.__game,colorBoard=colorApp.state;
 const colorIds=[...colorBoard.cells].filter(([id,c])=>!c.revealed&&!colorBoard.mines.has(id)).slice(0,4).map(([id])=>id);
 const badges=id=>colorApp.tileStyle(id,colorBoard.cells.get(id)).badges||[];
 colorPage.elements.groupEdit.click();for(const id of colorIds)colorApp.activate(id,false);
+assert.equal(colorPage.elements.groupEditor.hidden,false,'Group editor must be visible while selecting');
 assert.equal(colorPage.elements.groupDraft.textContent,'칸 4개 선택');
 colorPage.elements.groupMineCount.value='1';colorPage.elements.groupMineUp.click();assert.equal(colorPage.elements.groupMineCount.value,'2');for(let i=0;i<5;i++)colorPage.elements.groupMineUp.click();assert.equal(colorPage.elements.groupMineCount.value,'4');for(let i=0;i<5;i++)colorPage.elements.groupMineDown.click();assert.equal(colorPage.elements.groupMineCount.value,'0');
 colorPage.elements.groupMineCount.value='2';colorPage.elements.groupSave.click();
+assert.equal(colorPage.elements.groupEditor.hidden,true,'Saving must close the group editor');
 assert.equal(badges(colorIds[0])[0].text,'2/4');const firstColor=badges(colorIds[0])[0].color;
 colorPage.elements.groupEdit.click();colorApp.activate(colorIds[2],false);colorApp.activate(colorIds[3],false);
 colorPage.elements.groupMineCount.value='1';colorPage.elements.groupSave.click();
@@ -390,8 +394,10 @@ const pointerId=[...colorApp.state.cells].find(([,cell])=>!cell.revealed&&!cell.
 const [gx,gy,gz]=pointerId.split(',').map(Number),gLayout=colorApp.layout2d();
 const groupTap={pointerId:17,button:0,clientX:gLayout.left+(gz%gLayout.cols)*(3+.58)*gLayout.s+(gx+.5)*gLayout.s,clientY:gLayout.top+Math.floor(gz/gLayout.cols)*(3+.72)*gLayout.s+(.42+gy+.5)*gLayout.s};
 colorPage.elements.board.listeners.pointerdown(groupTap);colorPage.elements.board.listeners.pointerup(groupTap);
-assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택','Selection must work even while flag mode is enabled');
-assert.equal(colorApp.state.cells.get(pointerId).flagged,false,'Selection must not place a flag');
+assert.equal(colorApp.state.cells.get(pointerId).flagged,true,'Flag mode must work while editing a group');assert.equal(colorPage.elements.groupDraft.textContent,'칸 0개 선택');
+colorPage.elements.board.listeners.pointerdown(groupTap);colorPage.elements.board.listeners.pointerup(groupTap);assert.equal(colorApp.state.cells.get(pointerId).flagged,false,'Flag mode must remove a flag while editing');
+colorPage.elements.flagMode.click();colorPage.elements.board.listeners.pointerdown(groupTap);colorPage.elements.board.listeners.pointerup(groupTap);assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택','Normal taps must select cells for the group');
+colorApp.activate(pointerId,true);assert.equal(colorApp.state.cells.get(pointerId).flagged,true,'Long press must flag a cell while editing');assert.equal(colorPage.elements.groupDraft.textContent,'칸 0개 선택','Flagged cells must leave the draft');colorApp.activate(pointerId,true);colorApp.activate(pointerId,false);assert.equal(colorPage.elements.groupDraft.textContent,'칸 1개 선택');
 
 const shownClue=[...colorApp.state.cells].find(([,cell])=>cell.revealed)[0];
 colorApp.activate(shownClue,false);
