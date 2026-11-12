@@ -23,7 +23,7 @@
   const hintRequest = async (action, method='GET', body) => {
     if (!token || !session) throw new Error('login_required');
     const currentToken=token, userId=session.userId, controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),15000);
-    let response;try{response=await request(action,{method,signal:controller.signal,...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});}finally{clearTimeout(timeout);}
+    let response;try{response=await request(action,{method,signal:controller.signal,...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});}catch{if(token!==currentToken || session?.userId!==userId)throw new Error('account_changed');throw new Error('network_unavailable');}finally{clearTimeout(timeout);}
     if (token!==currentToken || session?.userId!==userId) throw new Error('account_changed');
     if (response.status===401) { clearSession();throw new Error('login_required'); }
     if (!response.ok) throw new Error('hint_request_failed');

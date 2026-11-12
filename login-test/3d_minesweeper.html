@@ -28,6 +28,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 #premiumDialog{width:min(88vw,340px);padding:22px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;text-align:center;box-shadow:0 16px 60px #0008}#premiumDialog::backdrop{background:#070d16bb}#premiumDialog p{line-height:1.5}#premiumDialog small{color:#b9c8d9}
 #difficultyDialog{width:min(94vw,1000px);max-height:92vh;overflow:auto;padding:12px;border:0;background:transparent;color:#edf3fb;box-shadow:none}#difficultyDialog::backdrop{background:#070d16dd}#difficultyTitle{text-align:center;outline:none}.difficulty-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.difficulty-options button{min-height:clamp(110px,22vh,160px);font-size:1.15rem}.difficulty-options small{display:block;margin-top:8px;color:#b9c8d9;font-size:.8rem;font-weight:400}@media(orientation:landscape){.difficulty-options{grid-template-columns:repeat(4,minmax(0,1fr))}}
 #groupMineCount{appearance:textfield;-moz-appearance:textfield}#groupMineCount::-webkit-inner-spin-button,#groupMineCount::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.toolbar .buttons:last-child{margin-left:auto}#fullscreenButton{min-width:44px;margin-left:auto;font-size:1.2rem}#fullscreenButton[aria-pressed="true"]{background:#2862a1;border-color:#55a1f3}
 #groupPanel{height:44px;min-height:44px;flex-wrap:nowrap;overflow-x:auto}#groupPanel>*{flex-shrink:0}#groupEdit{min-width:7.5em}#groupStatus{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}#groupEditor{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;white-space:nowrap}#groupManageLabel{white-space:nowrap}#groupSelect{max-width:min(50vw,220px)}
 .helpHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.helpHeader h2{margin:0;font-size:1.25rem}
 .helpList{margin:14px 0 0}.helpList dt{margin-top:12px;font-weight:700;color:#a9d7ff}.helpList dd{margin:2px 0 0;color:#d1dfed;line-height:1.5}
@@ -38,6 +39,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 @media(max-width:600px){#gameArea:fullscreen,#gameArea.expanded{padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));gap:4px}#gameArea:fullscreen .toolbar,#gameArea.expanded .toolbar,#gameArea:fullscreen .camera-controls,#gameArea.expanded .camera-controls{gap:4px;margin:0}#gameArea:fullscreen .buttons,#gameArea.expanded .buttons{gap:4px}#gameArea:fullscreen button,#gameArea.expanded button,#gameArea:fullscreen select,#gameArea.expanded select{padding:5px 7px;font-size:.78rem}#gameArea:fullscreen .status,#gameArea.expanded .status{min-height:0;gap:4px;font-size:.78rem}#gameArea:fullscreen #cellInfo,#gameArea.expanded #cellInfo{min-height:0;margin:0;font-size:.75rem}#gameArea:fullscreen input[type=range],#gameArea.expanded input[type=range]{width:80px}}
 @media(max-width:600px){#gameArea:fullscreen #cellInfo,#gameArea.expanded #cellInfo{flex:0 0 2.6em;height:2.6em;line-height:1.3;overflow-y:auto;overscroll-behavior:contain}}
 #gameArea:fullscreen #promoClose,#gameArea.expanded #promoClose{padding:0;font-size:1.2rem}
+#gameArea:fullscreen #fullscreenButton,#gameArea.expanded #fullscreenButton{font-size:1.2rem}
 </style>
 </head>
 <body><main>
@@ -66,7 +68,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <dialog id="premiumDialog" aria-labelledby="premiumTitle"><h2 id="premiumTitle">프리미엄 기능</h2><p>자동 깃발 결제 기능을 준비하고 있습니다.</p><button type="button">닫기</button><br><small>아무 곳이나 누르면 닫힙니다.</small></dialog>
 <div class="toolbar">
   <div class="buttons"><button id="start">새 게임 시작</button><button id="cancelGeneration" hidden>생성 취소</button><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button></div>
-  <div class="buttons"><button id="hintButton">힌트</button><button id="autoFlagButton">자동 깃발</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button><button id="fullscreenButton" aria-pressed="false">전체화면</button></div>
+  <div class="buttons"><button id="hintButton">힌트</button><button id="autoFlagButton">자동 깃발</button><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button><button id="fullscreenButton" aria-label="전체화면" title="전체화면" aria-pressed="false">⛶</button></div>
 </div>
 <div id="groupPanel" class="camera-controls" hidden>
   <button id="groupEdit" aria-pressed="false">묶음 만들기</button>
@@ -77,7 +79,6 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   <button id="groupDelete">삭제</button><span id="groupStatus" class="hint" aria-live="polite"></span>
 </div>
 <div class="camera-controls" id="cameraControls">
-  <label>표시할 층 <select id="layer" aria-label="표시할 층"><option value="all">모든 층</option></select></label>
   <label>칸 간격 <input id="spacing" type="range" min="1.05" max="2" step="0.05" value="1.3"></label>
   <button id="resetCamera">시점 초기화</button>
   <span class="hint">드래그: 회전 · 휠 / 두 손가락: 확대·축소</span>
@@ -119,14 +120,14 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   </dl>
 </dialog>
 
-<script src="account.js?v=11"></script>
+<script src="account.js?v=12"></script>
 <script>
 (() => {
   "use strict";
   const gameMode=new URLSearchParams(location.search).get("mode"),colorMode=gameMode==="no-guess-color",noGuess=gameMode==="no-guess"||colorMode;
   if(noGuess){document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
   if(colorMode){for(const id of ["groupPanel","groupHelp","groupHelpText"])document.getElementById(id).hidden=false;}
-  let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, hintBusy=false, promoTicket=null, guestHints=0, cellSize=40, width=0, height=0, twoDCols=2;
+  let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, hintBusy=false, hintOffline=false, promoTicket=null, guestHints=0, cellSize=40, width=0, height=0, twoDCols=2;
   let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="",draftLayout=null;
   const groupColors=[["노랑","#ffd166"],["청록","#81e6d9"],["분홍","#ff9bbd"],["보라","#c3adff"],["연두","#b4ef8a"],["주황","#ffb77c"]];
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
@@ -136,7 +137,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
   const $=id=>document.getElementById(id);
   const canvas=$("board"),canvas3d=$("board3d"),scroller=$("board2dScroller"),ctx=canvas.getContext("2d"),stats=$("stats"),message=$("message");
-  const sizeInput=$("sizeInput"),mineInput=$("mineInput"),settingError=$("settingError"),boardInfo=$("boardInfo"),flagButton=$("flagMode"),layer=$("layer"),spacing=$("spacing"),cellInfo=$("cellInfo");
+  const sizeInput=$("sizeInput"),mineInput=$("mineInput"),settingError=$("settingError"),boardInfo=$("boardInfo"),flagButton=$("flagMode"),spacing=$("spacing"),cellInfo=$("cellInfo");
   const key=(x,y,z)=>`${x},${y},${z}`,parse=k=>k.split(",").map(Number);
   function allPositions(size=N){const a=[];for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++)a.push([x,y,z]);return a;}
   function readWeights(){return Object.fromEntries(PIECES.map(p=>[p,$("weight"+p).value.trim()===""?NaN:Number($("weight"+p).value)]));}
@@ -177,9 +178,8 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     mines=new Set(minePositions.slice(0,MINE_COUNT).map(p=>key(...p)));cells=new Map();
     for(const p of positions)cells.set(key(...p),{revealed:false,flagged:false,piece:pickPiece(weights)});
     cells.get(openingKey).piece=opening.piece;
-    layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
-    if(!surface.length)layer.value=String(opening.pos[2]);
     ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();startClock(weights);reveal(openingKey);if(view==="2d")resize();cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    if(!surface.length&&view==="3d")showInteriorOpening(opening.pos);
   }
   function cluePositions([x,y,z],piece,size=N){
     const out=[];
@@ -382,9 +382,8 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       if(data.type!=="ready"){settingError.textContent="이 설정에서 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";return;}
       stopExpansion();N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개 · 추측 없이 풀이 가능`;
       mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
-      layer.replaceChildren(new Option("모든 층","all"));for(let z=0;z<N;z++)layer.add(new Option(`z = ${z}`,String(z)));
-      if(!data.hasSurface)layer.value=String(data.opening[2]);
       resetGroups();hideSuccess();ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();startClock(options.weights);reveal(data.openingKey);if(view==="2d")resize();cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+      if(!data.hasSurface&&view==="3d")showInteriorOpening(data.opening);
     };
     generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="보드 생성 중 오류가 발생했습니다. 다시 시도하세요.";};
     generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";},45000);
@@ -418,7 +417,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
         return cx>=scrollX&&cx<scrollX+(scroller.clientWidth||r.width)&&cy>=scrollY&&cy<scrollY+(scroller.clientHeight||r.height);});
     }
     const choice=visibleHint||choices[0];hintKey=choice.key;
-    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(!visibleHint?(view==="3d"?" 현재 화면에서 가려져 있다면 보드를 돌리거나 해당 층을 선택하세요.":" 표시된 좌표를 찾으려면 보드를 스크롤하세요."):"");
+    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(!visibleHint?(view==="3d"?" 현재 화면에서 가려져 있다면 보드를 돌리거나 2D 보기를 사용하세요.":" 표시된 좌표를 찾으려면 보드를 스크롤하세요."):"");
   }
   function autoFlag(){
     stopExpansion();resetTap();
@@ -467,6 +466,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     const s=Math.min((width-24)/(cols*N+(cols-1)*gap),(height-24)/(rows*(N+label)+(rows-1)*.3),58);
     return{cols,s,left:(width-(cols*N+(cols-1)*gap)*s)/2,top:(height-(rows*(N+label)+(rows-1)*.3)*s)/2};
   }
+  function showInteriorOpening([x,y,z]){setView("2d");const {cols,s,left,top}=layout2d(),r=scroller.getBoundingClientRect();scroller.scrollLeft=Math.max(0,left+(z%cols)*(N+.58)*s+(x+.5)*s-(scroller.clientWidth||r.width)/2);scroller.scrollTop=Math.max(0,top+Math.floor(z/cols)*(N+.72)*s+(.42+y+.5)*s-(scroller.clientHeight||r.height)/2);if(!ended)message.textContent="시작 칸이 내부에 있어 2D 보기를 표시합니다.";}
   function draw2d(){
     ctx.clearRect(0,0,width,height);const{cols,s,left,top}=layout2d();cellSize=s;
     for(let z=0;z<N;z++){
@@ -491,10 +491,10 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       gl=canvas3d.getContext("webgl",{alpha:true,antialias:true});if(!gl)throw new Error("WebGL unavailable");
       program=gl.createProgram();
       gl.attachShader(program,shader(gl.VERTEX_SHADER,`
-        attribute vec3 position; attribute vec3 normal; attribute vec2 uv;
-        uniform mat4 projection; uniform mat4 camera;
+        attribute vec3 cellCenter; attribute vec3 offset; attribute vec3 normal; attribute vec2 uv;
+        uniform mat4 projection; uniform mat4 camera; uniform float cellSpacing;
         varying vec2 texcoord; varying float light;
-        void main(){texcoord=uv;light=0.62+0.38*max(dot(normal,normalize(vec3(0.4,0.85,0.65))),0.0);gl_Position=projection*camera*vec4(position,1.0);}
+        void main(){texcoord=uv;light=0.62+0.38*max(dot(normal,normalize(vec3(0.4,0.85,0.65))),0.0);gl_Position=projection*camera*vec4(cellCenter*cellSpacing+offset,1.0);}
       `));
       gl.attachShader(program,shader(gl.FRAGMENT_SHADER,`
         precision mediump float; uniform sampler2D tiles;
@@ -504,7 +504,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
       gl.useProgram(program);buffer=gl.createBuffer();texture=gl.createTexture();
       gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
-      for(const[name,size,offset]of[["position",3,0],["normal",3,12],["uv",2,24]]){const location=gl.getAttribLocation(program,name);gl.enableVertexAttribArray(location);gl.vertexAttribPointer(location,size,gl.FLOAT,false,32,offset);}
+      for(const[name,size,offset]of[["cellCenter",3,0],["offset",3,12],["normal",3,24],["uv",2,36]]){const location=gl.getAttribLocation(program,name);gl.enableVertexAttribArray(location);gl.vertexAttribPointer(location,size,gl.FLOAT,false,44,offset);}
       gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);gl.uniform1i(gl.getUniformLocation(program,"tiles"),0);
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
@@ -514,9 +514,9 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   function center([x,y,z]){const s=Number(spacing.value),mid=(N-1)/2;return[(x-mid)*s,(z-mid)*s,(y-mid)*s];}
   function build3d(){
     if(!gl)return;
-    const nextKey=`${N}|${layer.value}|${spacing.value}`,tile=64;
+    const nextKey=String(N),tile=64;
     if(geometryKey!==nextKey){
-      visibleCells=allPositions().filter(p=>layer.value==="all"||p[2]===Number(layer.value)).map(p=>({key:key(...p),center:center(p)}));
+      visibleCells=allPositions().map(p=>({key:key(...p),pos:p,center:center(p)}));
       tileCols=Math.ceil(Math.sqrt(visibleCells.length));atlas=document.createElement("canvas");
       atlas.width=atlas.height=2**Math.ceil(Math.log2(tileCols*tile));atlasContext=atlas.getContext("2d");
       tileCanvas=document.createElement("canvas");tileCanvas.width=tileCanvas.height=tile;tileContext=tileCanvas.getContext("2d");tileStyles=[];
@@ -531,9 +531,9 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       visibleCells.forEach((cell,index)=>{
         const tx=(index%tileCols)*tile,ty=Math.floor(index/tileCols)*tile;
         const uv=[[tx+.5,ty+.5],[tx+tile-.5,ty+.5],[tx+tile-.5,ty+tile-.5],[tx+.5,ty+tile-.5]];
-        for(const[normal,corners]of faces)for(const i of[0,3,2,0,2,1])vertices.push(...corners[i].map((v,axis)=>cell.center[axis]+v*HALF),...normal,uv[i][0]/atlas.width,uv[i][1]/atlas.height);
+        const [x,y,z]=cell.pos,mid=(N-1)/2;for(const[normal,corners]of faces)for(const i of[0,3,2,0,2,1])vertices.push(x-mid,z-mid,y-mid,...corners[i].map(v=>v*HALF),...normal,uv[i][0]/atlas.width,uv[i][1]/atlas.height);
       });
-      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);vertexCount=vertices.length/8;
+      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);vertexCount=vertices.length/11;
       geometryKey=nextKey;
     }
     const changed=[];
@@ -560,6 +560,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     const camera=[r[0],u[0],-f[0],0,r[1],u[1],-f[1],0,r[2],u[2],-f[2],0,-dot(r,eye),-dot(u,eye),dot(f,eye),1];
     gl.viewport(0,0,canvas3d.width,canvas3d.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     gl.uniformMatrix4fv(gl.getUniformLocation(program,"projection"),false,new Float32Array(projection));gl.uniformMatrix4fv(gl.getUniformLocation(program,"camera"),false,new Float32Array(camera));
+    gl.uniform1f(gl.getUniformLocation(program,"cellSpacing"),Number(spacing.value));
     gl.drawArrays(gl.TRIANGLES,0,vertexCount);
   }
   function resetCamera(){
@@ -664,7 +665,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
   function fullscreenChanged(){
     const expanded=document.fullscreenElement===$("gameArea")||$("gameArea").classList.contains("expanded");
-    $("fullscreenButton").textContent=expanded?"전체화면 종료":"전체화면";
+    $("fullscreenButton").setAttribute("aria-label",expanded?"전체화면 종료":"전체화면");$("fullscreenButton").title=expanded?"전체화면 종료":"전체화면";
     $("fullscreenButton").setAttribute("aria-pressed",String(expanded));resize();
   }
   $("fullscreenButton").addEventListener("click",async()=>{
@@ -722,17 +723,18 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   $("groupDelete").addEventListener("click",()=>{if(activeGroup<0||editingGroup)return;groups.splice(activeGroup,1);activeGroup=groups.length?Math.min(activeGroup,groups.length-1):-1;refreshGroupOptions();updateGroups();draw();});
   let startWasDisabled=false;
   function setHintBusy(busy){hintBusy=busy;$("hintButton").disabled=busy;$("difficulty").disabled=busy;if(busy){startWasDisabled=$("start").disabled;$("start").disabled=true;}else $("start").disabled=startWasDisabled;}
-  function hintState(){return window.chessmineHints?.state()||"guest";}
+  function hintState(){const state=window.chessmineHints?.state();return !hintOffline&&state==="authenticated"?state:"guest";}
   function showGuestHints(){if(hintState()==="guest")$("hintButton").textContent=`힌트 (${guestHints})`;}
   function hintError(error){cellInfo.textContent=error?.message==="login_required"?"계정 연결을 확인하고 다시 시도하세요.":"힌트를 처리하지 못했습니다. 연결을 확인하고 다시 시도하세요.";}
   async function useHint(guest){const result=inferMoves();if(result.conflict||result.limited||!result.moves.length){showHint(result);return;}if(guest){guestHints--;showGuestHints();}else await window.chessmineHints.use();showHint(result);}
-  window.addEventListener("chessmine:hint-credits",event=>{if(Number.isSafeInteger(event.detail?.credits))$("hintButton").textContent=`힌트 (${event.detail.credits})`;else if(hintState()==="guest")showGuestHints();else $("hintButton").textContent="힌트";});showGuestHints();
+  window.addEventListener("chessmine:hint-credits",event=>{if(Number.isSafeInteger(event.detail?.credits)){hintOffline=false;$("hintButton").textContent=`힌트 (${event.detail.credits})`;}else if(hintState()==="guest")showGuestHints();else $("hintButton").textContent="힌트";});showGuestHints();
   $("hintButton").addEventListener("click",async()=>{
     if(hintBusy||$("hintPromoDialog").open)return;if(!cells.size||ended){showHint();return;}if(generationWorker){cellInfo.textContent="보드 생성이 끝난 뒤 힌트를 사용하세요.";return;}
     stopExpansion();resetTap();setHintBusy(true);
     try{
-      const state=hintState();if(state==="connecting")throw new Error("login_required");const guest=state==="guest",owner=guest?null:window.chessmineHints.owner();
-      const credits=guest?guestHints:(await window.chessmineHints.balance()).credits;if(credits>0){await useHint(guest);return;}
+      let guest=hintState()==="guest",owner=guest?null:window.chessmineHints.owner(),credits=guestHints;
+      if(!guest){try{credits=(await window.chessmineHints.balance()).credits;}catch(error){if(error?.message!=="network_unavailable"&&error?.message!=="login_required")throw error;hintOffline=true;guest=true;owner=null;credits=guestHints;showGuestHints();cellInfo.textContent="계정 서버에 연결할 수 없어 임시 힌트로 진행합니다. 새로고침하면 초기화됩니다.";}}
+      if(credits>0){await useHint(guest);return;}
       if(!confirm("광고를 보고 힌트 3개를 받으시겠습니까?"))return;
       promoTicket=guest?{guest:true}:{guest:false,owner,ticket:(await window.chessmineHints.start()).ticket};
       const close=$("promoClose"),deadline=performance.now()+3000;close.disabled=true;close.textContent="3";close.setAttribute("aria-label","3초 후 닫기 가능");$("hintPromoDialog").showModal();
@@ -743,7 +745,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   $("hintPromoDialog").addEventListener("close",async()=>{if(!promoTicket)return;const promo=promoTicket;promoTicket=null;setHintBusy(true);try{if(promo.guest){guestHints+=3;showGuestHints();cellInfo.textContent=hintState()==="guest"?"힌트 3개를 받았습니다. 힌트 버튼을 눌러 사용하세요.":"비로그인 힌트 3개를 받았습니다. 로그아웃하면 사용할 수 있습니다.";}else{if(hintState()!=="authenticated"||window.chessmineHints.owner()!==promo.owner)throw new Error("account_changed");await window.chessmineHints.claim(promo.ticket);cellInfo.textContent="힌트 3개를 받았습니다. 힌트 버튼을 눌러 사용하세요.";}}catch(error){hintError(error);}finally{setHintBusy(false);}});
   $("autoFlagButton").addEventListener("click",()=>{if(!$("premiumDialog").open){stopExpansion();resetTap();$("premiumDialog").showModal();}});$("premiumDialog").addEventListener("click",()=>$("premiumDialog").close());
   flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
-  layer.addEventListener("change",()=>{resetTap();draw();});spacing.addEventListener("input",()=>{resetTap();resetCamera();draw();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
+  spacing.addEventListener("input",()=>{resetTap();for(const cell of visibleCells)cell.center=center(cell.pos);resetCamera();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{
     if($("hintPromoDialog").open||$("premiumDialog").open)return;
