@@ -13,7 +13,7 @@ function page(search,useDefaults=false,webgl=false){
     constructor(id){this.id=id;this.value='';this.hidden=false;this.disabled=false;this.open=false;this.textContent='';this.listeners={};this.children=[];this.style={};const classes=new Set();this.classList={toggle(name,on){if(on)classes.add(name);else classes.delete(name);},add(name){classes.add(name);},remove(name){classes.delete(name);},contains(name){return classes.has(name);}};}
     addEventListener(name,fn){this.listeners[name]=fn;}
     click(){this.listeners.click?.({});}
-    setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(child){this.children.push(child);} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;}
+    setAttribute(){} replaceChildren(...children){this.children=children;if(this.id==='layer')this.value=children[0]?.value??'';} append(...children){this.children.push(...children);} add(child){this.children.push(child);} setPointerCapture(){} focus(){} showModal(){this.open=true;} close(){this.open=false;this.listeners.close?.({});}
     getContext(kind){return kind==='2d'?ctx2d:kind==='webgl'&&webgl?gl:null;} getBoundingClientRect(){return this.rect||{width:800,height:600,left:0,top:0,right:800,bottom:600};}
   }
   const elements=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
@@ -38,8 +38,9 @@ function page(search,useDefaults=false,webgl=false){
 const original=page('');
 assert.equal(original.workers,0);assert.equal(original.window.__game.state.cells.size,27);
 const defaultPage=page('',true);assert.equal(defaultPage.window.__game.state.cells.size,216);assert.equal(defaultPage.window.__game.state.mines.size,35);
-for(const [difficulty,size,mines] of [['easy','4','6'],['normal','5','15'],['hard','6','35']]){defaultPage.elements.difficulty.value=difficulty;defaultPage.elements.difficulty.listeners.change();assert.equal(defaultPage.elements.sizeInput.value,size);assert.equal(defaultPage.elements.mineInput.value,mines);assert.equal(defaultPage.elements.customButton.hidden,true);}
+for(const [difficulty,size,mines] of [['easy','4','6'],['normal','5','15'],['hard','6','35']]){const previous=defaultPage.window.__game.state.cells;defaultPage.elements.difficulty.value=difficulty;defaultPage.elements.difficulty.listeners.change();assert.equal(defaultPage.elements.sizeInput.value,size);assert.equal(defaultPage.elements.mineInput.value,mines);assert.equal(defaultPage.elements.customButton.hidden,true);assert.notEqual(defaultPage.window.__game.state.cells,previous,'Changing difficulty must start a new game');}
 defaultPage.elements.difficulty.value='custom';defaultPage.elements.difficulty.listeners.change();assert.equal(defaultPage.elements.customDialog.open,true);assert.equal(defaultPage.elements.customButton.hidden,false);defaultPage.elements.customClose.click();assert.equal(defaultPage.elements.customDialog.open,false);defaultPage.elements.customButton.click();assert.equal(defaultPage.elements.customDialog.open,true);defaultPage.elements.customDialog.listeners.click({target:defaultPage.elements.customDialog,clientX:-1,clientY:300});assert.equal(defaultPage.elements.customDialog.open,false);
+const beforeCustom=defaultPage.window.__game.state.cells;defaultPage.elements.customButton.click();defaultPage.elements.sizeInput.value='4';defaultPage.elements.mineInput.value='6';defaultPage.elements.customClose.click();assert.notEqual(defaultPage.window.__game.state.cells,beforeCustom,'Changing custom settings must start a new game');
 assert.equal(original.elements.weightK.value,'7');for(const piece of ['R','B','Q','N'])assert.equal(original.elements['weight'+piece].value,'1');
 const boardBeforeHelp=original.window.__game.state.cells;original.elements.helpButton.click();assert.equal(original.elements.helpDialog.open,true,'Help must open as a dialog');
 original.window.listeners.keydown({key:'r',target:{matches:()=>false}});assert.equal(original.window.__game.state.cells,boardBeforeHelp,'Game shortcuts must not run while help is open');
@@ -352,8 +353,9 @@ colorPage.elements.groupSelect.value='0';colorPage.elements.groupSelect.listener
 assert.equal(badges(colorIds[2]).length,2,'Choosing a group for management must not hide other groups');
 colorApp.toggleFlag(colorIds[0]);assert.equal(badges(colorIds[1]).find(b=>b.color===firstColor).text,'1/3');
 assert.match(colorPage.elements.groupSelect.children[1].text,/1\/3/,'Group list must reflect flags');
-colorApp.toggleFlag(colorIds[2]);assert.equal(badges(colorIds[1]).some(b=>b.color===firstColor),false,'A zero-mine group must be hidden');
-assert.match(colorPage.elements.groupSelect.children[1].text,/0\/2 · 숨김/,'Hidden groups must remain in the list');
+colorApp.toggleFlag(colorIds[2]);assert.equal(badges(colorIds[1]).find(b=>b.color===firstColor).text,'0/2','A zero-mine group must stay visible');
+assert.match(colorPage.elements.groupSelect.children[1].text,/0\/2/,'Zero-mine groups must remain in the list');
+assert.doesNotMatch(colorPage.elements.groupSelect.children[1].text,/숨김/,'Zero-mine groups must not be labeled hidden');
 colorApp.toggleFlag(colorIds[2]);assert.equal(badges(colorIds[1]).find(b=>b.color===firstColor).text,'1/3','Unflagging must restore a hidden group');
 colorApp.activate(colorIds[1],false);colorApp.activate(colorIds[1],false);
 assert.equal(badges(colorIds[3]).find(b=>b.color===firstColor).text,'1/2','Opening a safe cell must reduce the denominator');
