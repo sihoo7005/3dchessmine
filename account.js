@@ -44,7 +44,7 @@
       const labels = {'normal':'일반','no-guess':'추측 없음','no-guess-color':'컬러 묶음'};
       for (const record of data.records) {
         const seconds = Math.floor(record.duration_ms / 1000),row = document.createElement('div');
-        row.textContent = `${new Date(record.finished_at).toLocaleString('ko-KR')} · ${labels[record.mode]} · ${record.board_size}×${record.board_size}×${record.board_size} · 지뢰 ${record.mine_count}개 · ${record.result === 'won' ? '성공' : '실패'} · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} · 가중치 ${['K','R','B','Q','N'].map(piece=>record.weights[piece]).join(':')}`;
+        row.textContent = `${labels[record.mode]} · ${record.board_size}×${record.board_size}×${record.board_size} · 지뢰 ${record.mine_count}개 · ${record.result === 'won' ? '성공' : '실패'} · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} · 가중치 ${['K','R','B','Q','N'].map(piece=>record.weights[piece]).join(':')}`;
         list.append(row);
       }
     } catch { list.textContent = '기록을 불러오지 못했습니다.'; }
