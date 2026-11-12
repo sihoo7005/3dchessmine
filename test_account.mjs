@@ -6,10 +6,11 @@ const source=readFileSync('account.js','utf8');
 class Element {
   constructor(tag=''){this.tag=tag;this.children=[];this.hidden=false;this.listeners={};this.style={};this.textContent='';}
   setAttribute(){} append(...nodes){this.children.push(...nodes)} prepend(...nodes){this.children.unshift(...nodes)} replaceChildren(...nodes){this.children=nodes} addEventListener(name,fn){this.listeners[name]=fn}
+  contains(node){return this===node||this.children.some(child=>child.contains(node));}
 }
 const area=new Element(),accountSlot=new Element(),events={},calls=[],storage=new Map(),popup={};let failSave=false,expired=false,serverUser='1';
 const window={addEventListener(name,fn){events[name]=fn},open(url){popup.url=url;return popup}};
-const document={createElement:tag=>new Element(tag),getElementById:id=>id==='accountSlot'?accountSlot:area};
+const document={listeners:{},createElement:tag=>new Element(tag),getElementById:id=>id==='accountSlot'?accountSlot:area,addEventListener(name,fn){this.listeners[name]=fn}};
 const fetch=async(url,options={})=>{
   calls.push({url,options});
   if(url.endsWith('/exchange'))return{ok:true,json:async()=>({token:'server-token-'+serverUser,name:'User',userId:serverUser})};
@@ -34,6 +35,7 @@ await events.message({origin:'https://jsaur.duckdns.org',source:popup,data:{type
 assert.equal(storage.get('chessmine:session'),'server-token-1');
 assert.equal(controls.children[0].children[0].textContent,'계정');
 assert.deepEqual(controls.children[0].children[1].children.map(child=>child.textContent),['플레이 기록','로그아웃','계정 및 기록 삭제']);
+controls.children[0].open=true;document.listeners.click({target:controls.children[0].children[1].children[0]});assert.equal(controls.children[0].open,true);document.listeners.click({target:area});assert.equal(controls.children[0].open,false);
 events['chessmine:game-finished']({detail:{mode:'normal',size:3,mines:2,weights:{K:7,R:1,B:1,Q:1,N:1},result:'won',durationMs:1234}});
 await new Promise(resolve=>setImmediate(resolve));
 const firstPost=calls.find(call=>call.url.endsWith('/records')&&call.options.method==='POST');
