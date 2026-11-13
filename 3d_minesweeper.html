@@ -22,7 +22,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 #accountSlot .header-menu>div{position:absolute;right:0;top:calc(100% + 6px);z-index:20;display:grid;gap:6px;min-width:180px;max-width:calc(100vw - 24px);padding:8px;border:1px solid #35465d;border-radius:10px;background:#172333;box-shadow:0 8px 20px #0008}#accountSlot .header-menu>div button{width:100%;margin:0;text-align:left}
 #helpDialog{width:min(92vw,520px);max-height:min(82vh,700px);overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}
 #helpDialog::backdrop{background:#070d16bb}
-#settingsDialog,#customDialog{width:min(92vw,680px);min-height:300px;max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}#settingsDialog::backdrop,#customDialog::backdrop{background:#070d16bb}#settingsDialog a{display:block;margin:16px 0;color:#a4e3b3}
+#settingsDialog,#customDialog{width:min(92vw,680px);min-height:300px;max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}#settingsDialog::backdrop,#customDialog::backdrop{background:#070d16bb}#settingsDialog > label{display:block;margin:14px 0}#settingsDialog a{display:block;margin:16px 0;color:#a4e3b3}
 .records-dialog{width:min(92vw,680px);max-height:82vh;overflow:auto;padding:20px;border:1px solid #536982;border-radius:16px;background:#172333;color:#edf3fb;box-shadow:0 16px 60px #0008}.records-dialog::backdrop{background:#070d16bb}.records-dialog>div+div{margin-top:16px;line-height:1.8;overflow-wrap:anywhere}
 #hintPromoDialog{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));border:0;background:radial-gradient(circle at 50% 25%,#29496a,#101722 70%);color:#edf3fb;text-align:center}#hintPromoDialog[open]{display:flex;flex-direction:column;justify-content:center;align-items:center}#hintPromoDialog::backdrop{background:#070d16}#hintPromoDialog .promo-content{max-width:560px}#hintPromoDialog h2{font-size:clamp(2rem,7vw,3.4rem);margin:.3em 0}#hintPromoDialog p{line-height:1.6;color:#d0dfed}#hintPromoDialog a{display:inline-block;margin:16px 0;padding:14px 22px;border-radius:10px;background:#2862a1;color:white;font-size:1.1rem;font-weight:700;text-decoration:none}#promoClose{position:absolute;top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));width:44px;height:44px;padding:0;border-radius:50%;font-size:1.2rem;background:#1b2838}#promoClose:disabled{opacity:.8;cursor:default}
 #autoGroupWrap{position:relative}#premiumNotice{position:absolute;z-index:20;top:calc(100% + 6px);left:0;width:max-content;max-width:calc(100vw - 24px);padding:10px 12px;border:1px solid #536982;border-radius:10px;background:#172333;color:#edf3fb;box-shadow:0 8px 20px #0008;white-space:nowrap}
@@ -45,7 +45,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 </head>
 <body><main>
 <header><h1 id="gameTitle">♟ 3D Chess Minesweeper</h1><div class="header-actions"><button id="helpButton" type="button">How to Play</button><div id="accountSlot"></div><button id="settingsButton" type="button">Settings</button></div></header><div class="hint" id="boardInfo"></div>
-<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">Settings</h2><button id="settingsClose" type="button">Close</button></div><label>Language <select id="languageSelect"><option value="ko">한국어</option><option value="en">English</option></select></label><label><input id="expansionMode" type="checkbox"> Double-tap the background to open immediately</label><p hidden><label><input id="premiumTest" type="checkbox" disabled> Premium test</label><br><small id="premiumTestStatus">Available after login.</small></p><a id="modeLink" href="no_guess.html">No-Guess Mode</a><a href="no_guess_color.html">Color Groups Mode</a></dialog>
+<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">Settings</h2><button id="settingsClose" type="button">Close</button></div><label>Language <select id="languageSelect"><option value="en">English</option><option value="ko">한국어</option></select></label><label><input id="expansionMode" type="checkbox"> Double-tap the background to open immediately</label><p hidden><label><input id="premiumTest" type="checkbox" disabled> Premium test</label><br><small id="premiumTestStatus">Available after login.</small></p><a id="modeLink" href="no_guess.html">No-Guess Mode</a><a href="no_guess_color.html">Color Groups Mode</a></dialog>
 <dialog id="difficultyDialog" aria-labelledby="difficultyTitle"><h2 id="difficultyTitle" tabindex="-1" autofocus>Choose a difficulty</h2><div class="difficulty-options"><button id="chooseEasy" type="button">Easy<small>4×4×4 · 10 mines</small></button><button id="chooseNormal" type="button">Normal<small>5×5×5 · 20 mines</small></button><button id="chooseHard" type="button">Hard<small>6×6×6 · 35 mines</small></button><button id="chooseCustom" type="button">Custom settings<small>Choose the board size and mine count</small></button></div></dialog>
 <div class="settings"><label>Difficulty <select id="difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard" selected>Hard</option><option value="custom">Custom settings</option></select></label><button id="customButton" type="button" hidden>Open custom settings</button><span class="hint">Changing the difficulty starts a new game</span></div>
 <dialog id="customDialog" aria-labelledby="customTitle"><div class="helpHeader"><h2 id="customTitle">Custom settings</h2><button id="customClose" type="button">Close</button></div>
@@ -149,7 +149,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, hintBusy=false, hintOffline=false, premiumActive=false, premiumAvailable=false, promoTicket=null, guestHints=0, cellSize=40, width=0, height=0, twoDCols=2;
   let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="",draftLayout=null;
   const groupColors=[["Yellow","#ffd166"],["Teal","#81e6d9"],["Pink","#ff9bbd"],["Purple","#c3adff"],["Light green","#b4ef8a"],["Orange","#ffb77c"]];
-  let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
+  let selectedClue=null,selectedClosed=null,clueRange=new Set(),hintSources=new Set(),lastTapKey=null,lastTapAt=0;
   let successTimer=null,expansionTimer=null,clockTimer=null,gameStartedAt=0,gameWeights=null;
   const DOUBLE_TAP_MS=450,LONG_PRESS_MS=500;
   const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
@@ -226,7 +226,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   function stopClock(){if(clockTimer!==null){updateTime();clearInterval(clockTimer);clockTimer=null;}}
   function hideSuccess(){clearTimeout(successTimer);successTimer=null;$("successEffect").hidden=true;}
   function showSuccess(){const effect=$("successEffect");hideSuccess();void effect.offsetWidth;effect.hidden=false;successTimer=setTimeout(hideSuccess,4000);}
-  function clearHint(){hintKey=null;}
+  function clearHint(){hintKey=null;hintSources.clear();}
   function reveal(k,deferDraw=false){if(ended)return;const c=cells.get(k);if(!c||c.revealed||c.flagged)return;clearHint();c.revealed=true;
     if(mines.has(k)){ended=true;won=false;message.textContent="You hit a mine! Start a new game and try again.";}
     else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;won=true;message.textContent="You win! All safe cells are open.";showSuccess();}
@@ -365,9 +365,9 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     const suffix=Array(solved.length+1);suffix[solved.length]=new Set([0]);for(let i=solved.length-1;i>=0;i--){const sums=new Set();for(const a of solved[i].counts)for(const b of suffix[i+1])sums.add(a+b);suffix[i]=sums;}
     function compatible(left,right,target,freeCount=free.length){for(const a of left){const low=Math.max(0,target-a-freeCount),high=target-a;for(let b=low;b<=high;b++)if(right.has(b))return true;}return false;}
     if(!compatible(prefix.at(-1),new Set([0]),remainingMines))return{moves:[],conflict:true};
-    const moves=[];
-    for(let i=0;i<solved.length;i++){const c=solved[i],otherCounts=new Set();for(const a of prefix[i])for(const b of suffix[i+1])otherCounts.add(a+b);for(let j=0;j<c.ids.length;j++){let safe=false,mine=false;for(const total of c.counts){if(!compatible(new Set([total]),otherCounts,remainingMines))continue;const mask=c.possible[total][j];safe||=!!(mask&1);mine||=!!(mask&2);}if(safe!==mine)moves.push({key:c.ids[j],mine,method:"search"});}}
-    if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines,free.length-1),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine,method:"search"})));}
+    const moves=[],searchSources=[...new Set([...constraints.values()].flatMap(e=>e.sources))];
+    for(let i=0;i<solved.length;i++){const c=solved[i],otherCounts=new Set();for(const a of prefix[i])for(const b of suffix[i+1])otherCounts.add(a+b);for(let j=0;j<c.ids.length;j++){let safe=false,mine=false;for(const total of c.counts){if(!compatible(new Set([total]),otherCounts,remainingMines))continue;const mask=c.possible[total][j];safe||=!!(mask&1);mine||=!!(mask&2);}if(safe!==mine)moves.push({key:c.ids[j],mine,method:"search",sources:searchSources});}}
+    if(free.length){const possibleSafe=compatible(prefix.at(-1),new Set([0]),remainingMines,free.length-1),possibleMine=compatible(prefix.at(-1),new Set([0]),remainingMines-1,free.length-1);if(possibleSafe!==possibleMine)moves.push(...free.map(key=>({key,mine:possibleMine,method:"search",sources:searchSources})));}
     return{moves,conflict:false};
   }
   // ponytail: retries and time are bounded; use a constructive generator if difficult settings need better coverage.
@@ -439,7 +439,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       visibleHint=choices.find(({key})=>{const [x,y,z]=parse(key),cx=left+(z%cols)*(N+.58)*s+(x+.5)*s,cy=top+Math.floor(z/cols)*(N+.72)*s+(.42+y+.5)*s;
         return cx>=scrollX&&cx<scrollX+(scroller.clientWidth||r.width)&&cy>=scrollY&&cy<scrollY+(scroller.clientHeight||r.height);});
     }
-    const choice=visibleHint||choices[0];hintKey=choice.key;
+    const choice=visibleHint||choices[0];hintKey=choice.key;hintSources=new Set(choice.sources||[]);
     draw();cellInfo.textContent=`Inferred cell: (${parse(hintKey).join(", ")}) · Check the clues.`+(!visibleHint?(view==="3d"?" If it is hidden, rotate the board or use 2D view.":" Scroll the board to find the marked coordinates."):"");
   }
   function setView(v){
@@ -454,7 +454,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       style.badges=groups.filter(group=>group.ids.has(k)&&group.closed>0).map(group=>({text:group.invalid?"!":`${group.remaining}/${group.closed}`,color:group.color,slot:group.slot,fontScale:group.fontScale,widthScale:group.widthScale}));
       if(draftLayout&&groupDraft.has(k))style.badges.push({text:"●",color:"#fff2a8",slot:draftLayout.slot,fontScale:draftLayout.fontScale,widthScale:draftLayout.widthScale});
     }
-    if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";
+    if(hintSources.has(k))style.fill="#9b6b20";else if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";
     return style;
   }
   function paintLabel(context,s,cx,cy,size){
