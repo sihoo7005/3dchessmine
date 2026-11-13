@@ -53,7 +53,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 </head>
 <body><main>
 <header><h1 id="gameTitle">♟ 3D Chess Minesweeper</h1><div class="header-actions"><button id="helpButton" type="button">How to Play</button><div id="accountSlot"></div><button id="settingsButton" type="button">Settings</button></div></header><div class="hint" id="boardInfo"></div>
-<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">Settings</h2><button id="settingsClose" type="button">Close</button></div><label>Language <select id="languageSelect"><option value="en">English</option><option value="ko">한국어</option></select></label><label><input id="expansionMode" type="checkbox"> Double-tap the background to open immediately</label><p hidden><label><input id="premiumTest" type="checkbox" disabled> Premium test</label><br><small id="premiumTestStatus">Available after login.</small></p><a id="modeLink" href="no_guess.html">No-Guess Mode</a><a href="no_guess_color.html">Color Groups Mode</a></dialog>
+<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">Settings</h2><button id="settingsClose" type="button">Close</button></div><label>Language <select id="languageSelect"><option value="en">English</option><option value="ko">한국어</option></select></label><label><input id="expansionMode" type="checkbox"> Double-tap the background to open immediately</label><p hidden><label><input id="premiumTest" type="checkbox" disabled> Premium test</label><br><small id="premiumTestStatus">Available after login.</small></p></dialog>
 <dialog id="difficultyDialog" aria-labelledby="difficultyTitle"><h2 id="difficultyTitle" tabindex="-1" autofocus>Choose a difficulty</h2><div class="difficulty-options"><button id="chooseEasy" type="button">Easy<small>4×4×4 · 10 mines</small></button><button id="chooseNormal" type="button">Normal<small>5×5×5 · 20 mines</small></button><button id="chooseHard" type="button">Hard<small>6×6×6 · 35 mines</small></button><button id="chooseCustom" type="button">Custom settings<small>Choose the board size and mine count</small></button></div></dialog>
 <div class="settings"><label>Difficulty <select id="difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard" selected>Hard</option><option value="custom">Custom settings</option></select></label><button id="customButton" type="button" hidden>Open custom settings</button><span class="hint">Changing the difficulty starts a new game</span></div>
 <dialog id="customDialog" aria-labelledby="customTitle"><div class="helpHeader"><h2 id="customTitle">Custom settings</h2><button id="customClose" type="button">Close</button></div>
@@ -150,9 +150,9 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 <script>
 (() => {
   "use strict";
-  const gameMode=new URLSearchParams(location.search).get("mode"),colorMode=gameMode==="no-guess-color",noGuess=gameMode==="no-guess"||colorMode;
+  const colorMode=true,noGuess=true;
   document.getElementById("customReasoningLabel").hidden=!noGuess;
-  if(noGuess){document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="Original game";document.getElementById("modeDescription").hidden=false;}
+  document.getElementById("modeDescription").hidden=false;
   if(colorMode){for(const id of ["groupPanel","groupHelp","groupHelpText","autoGroupWrap","autoGroupHelp","autoGroupHelpText"])document.getElementById(id).hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, hintBusy=false, hintOffline=false, premiumActive=false, premiumAvailable=false, promoTicket=null, guestHints=0, cellSize=40, width=0, height=0, twoDCols=2;
   let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="",draftLayout=null;
