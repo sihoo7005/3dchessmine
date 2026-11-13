@@ -35,6 +35,14 @@ class SetupTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(parse_qs(urlparse(response['Location']).query)['redirect_uri'], ['https://jsaur.duckdns.org/chessmine/accounts/google/login/callback/'])
 
+    def test_proxy_google_callback_uses_pages_host(self):
+        headers = {'secure': True, 'HTTP_HOST': 'jsaur.duckdns.org', 'HTTP_X_CHESSMINE_PAGES': '1'}
+        self.client.get('/chessmine/auth/start', {'state': self.state, 'origin': 'https://3dchessmine.pages.dev'}, **headers)
+        token = self.client.cookies['chessmine_csrf'].value
+        response = self.client.post('/chessmine/accounts/google/login/', {'csrfmiddlewaretoken': token}, HTTP_ORIGIN='https://3dchessmine.pages.dev', **headers)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(parse_qs(urlparse(response['Location']).query)['redirect_uri'], ['https://3dchessmine.pages.dev/chessmine/accounts/google/login/callback/'])
+
 class CrossOriginTests(TestCase):
     origin = 'https://sihoo7005.github.io'
     def setUp(self):

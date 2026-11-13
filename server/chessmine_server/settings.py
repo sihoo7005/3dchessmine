@@ -12,6 +12,7 @@ if not SECRET_KEY:
 ALLOWED_HOSTS = [host for host in os.environ.get('CHESSMINE_ALLOWED_HOSTS', '127.0.0.1,localhost' if DEBUG else '').split(',') if host]
 if not ALLOWED_HOSTS:
     raise RuntimeError('CHESSMINE_ALLOWED_HOSTS is required')
+ALLOWED_HOSTS.append('3dchessmine.pages.dev')
 INSTALLED_APPS = [
     'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions',
     'django.contrib.messages', 'django.contrib.sites',
@@ -19,7 +20,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google', 'records',
 ]
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware', 'records.middleware.GoogleOnlyAccountRoutes', 'django.contrib.sessions.middleware.SessionMiddleware',
+    'records.middleware.CloudflarePublicHost', 'django.middleware.security.SecurityMiddleware', 'records.middleware.GoogleOnlyAccountRoutes', 'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware',

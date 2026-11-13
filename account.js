@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   if (!(location.origin === 'https://3dchessmine.pages.dev' || (location.origin === 'https://sihoo7005.github.io' && location.pathname.startsWith('/3dchessmine/')))) return;
-  const server = 'https://jsaur.duckdns.org';
+  const server = location.origin === 'https://3dchessmine.pages.dev' ? location.origin : 'https://jsaur.duckdns.org';
   const base = `${server}/chessmine/`;
   const storageKey = 'chessmine:session';
   let token = null, session = null, pending = [], sending = false, popup = null, loginState = null;
