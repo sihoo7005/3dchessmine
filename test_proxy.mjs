@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync('functions/chessmine/[[path]].js','utf8');
+const {onRequest}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+let forwarded;
+globalThis.fetch=async (url,options)=>{forwarded={url,options};return new Response(null,{status:302,headers:{Location:'https://accounts.google.com/', 'Set-Cookie':'chessmine_csrf=test; Path=/chessmine/; Secure'}})};
+let response=await onRequest({request:new Request('https://3dchessmine.pages.dev/chessmine/auth/start?state=abc')});
+assert.equal(forwarded.url,'https://jsaur.duckdns.org/chessmine/auth/start?state=abc');
+assert.equal(forwarded.options.redirect,'manual');assert.equal(forwarded.options.headers.get('X-Chessmine-Pages'),'1');
+assert.equal(response.status,302);assert.equal(response.headers.get('location'),'https://accounts.google.com/');assert.match(response.headers.get('set-cookie'),/chessmine_csrf/);assert.equal(response.headers.get('cache-control'),'no-store');
+await onRequest({request:new Request('https://3dchessmine.pages.dev/chessmine/api/cross/session')});assert.equal(forwarded.options.headers.get('origin'),'https://3dchessmine.pages.dev');
+await onRequest({request:new Request('https://3dchessmine.pages.dev/chessmine/api/cross/session',{headers:{Origin:'https://evil.example'}})});assert.equal(forwarded.options.headers.get('origin'),'https://evil.example');
+console.log('Verified proxy host, cookies, redirects and origin handling');
