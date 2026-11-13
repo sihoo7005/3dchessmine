@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  if (location.origin !== 'https://sihoo7005.github.io' || !location.pathname.startsWith('/3dchessmine/')) return;
+  if (!(location.origin === 'https://3dchessmine.pages.dev' || (location.origin === 'https://sihoo7005.github.io' && location.pathname.startsWith('/3dchessmine/')))) return;
   const server = 'https://jsaur.duckdns.org';
   const base = `${server}/chessmine/`;
   const storageKey = 'chessmine:session';
@@ -72,7 +72,7 @@
   const login = button('로그인', () => {
     if (!globalThis.crypto?.randomUUID) { status.textContent = '안전한 브라우저에서 로그인해 주세요.';return; }
     loginState = crypto.randomUUID();
-    popup = window.open(`${base}auth/start?state=${encodeURIComponent(loginState)}`, 'chessmine-login', 'popup,width=520,height=700');
+    popup = window.open(`${base}auth/start?state=${encodeURIComponent(loginState)}&origin=${encodeURIComponent(location.origin)}`, 'chessmine-login', 'popup,width=520,height=700');
     status.textContent = popup ? 'Google 로그인 창에서 계속해 주세요.' : '로그인 창이 차단됐습니다. 팝업을 허용해 주세요.';
   });
   const logout = button('로그아웃', async () => {

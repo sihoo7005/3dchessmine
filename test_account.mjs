@@ -27,13 +27,15 @@ const fetch=async(url,options={})=>{
 const crypto={randomUUID:()=> 'a8ddc11e-7077-4111-9c8d-844761443756'};
 const sessionStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
 const backgroundTimeout=(fn,ms)=>{const id=setTimeout(fn,ms);id.unref();return id};
-const context={window,document,location:{origin:'https://sihoo7005.github.io',pathname:'/3dchessmine/3d_minesweeper.html'},fetch,crypto,sessionStorage,Date,String,AbortController,setTimeout:backgroundTimeout,clearTimeout,CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},confirm:()=>confirmResult,globalThis:{crypto}};
+const cloud=process.argv.includes('--cloud'),origin=cloud?'https://3dchessmine.pages.dev':'https://sihoo7005.github.io';
+const context={window,document,location:{origin,pathname:cloud?'/3d_minesweeper.html':'/3dchessmine/3d_minesweeper.html'},fetch,crypto,sessionStorage,Date,String,AbortController,setTimeout:backgroundTimeout,clearTimeout,CustomEvent:class{constructor(type,options){this.type=type;this.detail=options.detail;}},confirm:()=>confirmResult,globalThis:{crypto}};
 vm.runInNewContext(source,context);
 await assert.rejects(window.chessmineHints.balance(),/login_required/);
 assert.equal(window.chessmineHints.state(),'guest');
 const panel=area.children[0],controls=accountSlot.children[0];assert.equal(controls.children[0].textContent,'로그인');
 controls.children[0].listeners.click();
 const loginState=new URL(popup.url).searchParams.get('state');assert.ok(loginState);
+assert.equal(new URL(popup.url).searchParams.get('origin'),origin);
 const before=calls.length;await events.message({origin:'https://attacker.example',source:popup,data:{type:'chessmine-login',state:loginState,code:'fake'}});
 assert.equal(calls.length,before,'Messages from other origins must be ignored');
 await events.message({origin:'https://jsaur.duckdns.org',source:{},data:{type:'chessmine-login',state:loginState,code:'fake'}});
