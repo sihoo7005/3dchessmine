@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /login-test/
+Disallow: /chessmine/
+
+Sitemap: https://3dchessmine.pages.dev/sitemap.xml
