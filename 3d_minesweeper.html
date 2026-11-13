@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>3D 체스 지뢰찾기</title>
+<title>3D Chess Minesweeper</title>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:18px;background:#101722;color:#edf3fb;font-family:system-ui,"Malgun Gothic",sans-serif}main{max-width:1100px;margin:auto}header,.toolbar,.status{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{margin:0;font-size:1.4rem}.hint,footer{color:#9eafc3;font-size:.88rem}.toolbar{margin:14px 0 8px}.buttons{display:flex;gap:8px;flex-wrap:wrap}button,input,select{border:1px solid #35465d;border-radius:8px;padding:8px 12px;background:#1b2838;color:#eaf2ff;font:inherit}button{cursor:pointer}button:hover{background:#26384d}button.active{background:#2862a1;border-color:#55a1f3}button.flag.active{background:#815f19;border-color:#e9bd4a}button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid #68c7ff;outline-offset:3px}.settings,.camera-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0;color:#b9c8d9;font-size:.9rem}.settings input{width:82px}.camera-controls label{display:flex;align-items:center;gap:8px}input[type=range]{width:110px;padding:0;accent-color:#68c7ff}.status{min-height:40px;color:#b9c8d9;font-size:.92rem}#message,#settingError{color:#ffd66a;font-weight:700}canvas.board{display:block;width:100%;height:min(68vh,650px);min-height:420px;border:1px solid #2b3a4d;border-radius:14px;background:radial-gradient(ellipse at 50% 40%,#1b2a3c,#111923 75%);touch-action:none}#board2dScroller{height:min(68vh,650px);min-height:420px;overflow:auto}#board{min-height:0;touch-action:pan-x pan-y}#board3d{cursor:grab}#board3d.dragging{cursor:grabbing}[hidden]{display:none!important}#cellInfo{min-height:24px;margin:8px 0;color:#b9c8d9;font-size:.88rem}footer{margin-top:12px;line-height:1.8}kbd{padding:1px 5px;border:1px solid #526276;border-radius:4px}.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}.legend b{white-space:nowrap}@media(max-width:600px){body{padding:12px}canvas.board{min-height:380px;height:60vh}#board2dScroller{min-height:380px;height:60vh}#board{min-height:0}.settings{gap:8px}.settings input{width:66px}}
 </style>
@@ -44,100 +44,114 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
 </style>
 </head>
 <body><main>
-<header><h1 id="gameTitle">♟ 3D 체스 지뢰찾기</h1><div class="header-actions"><button id="helpButton" type="button">조작법</button><div id="accountSlot"></div><button id="settingsButton" type="button">설정</button></div></header><div class="hint" id="boardInfo"></div>
-<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">설정</h2><button id="settingsClose" type="button">닫기</button></div><label><input id="expansionMode" type="checkbox"> 배경을 두 번 누르면 즉시 열기</label><p hidden><label><input id="premiumTest" type="checkbox" disabled> 프리미엄 테스트</label><br><small id="premiumTestStatus">로그인 후 이용할 수 있습니다.</small></p><a id="modeLink" href="no_guess.html">추측 없는 게임</a><a href="no_guess_color.html">컬러 묶음 게임</a></dialog>
-<dialog id="difficultyDialog" aria-labelledby="difficultyTitle"><h2 id="difficultyTitle" tabindex="-1" autofocus>난이도를 선택하세요</h2><div class="difficulty-options"><button id="chooseEasy" type="button">쉬움<small>4×4×4 · 지뢰 10개</small></button><button id="chooseNormal" type="button">보통<small>5×5×5 · 지뢰 20개</small></button><button id="chooseHard" type="button">어려움<small>6×6×6 · 지뢰 35개</small></button><button id="chooseCustom" type="button">사용자 설정<small>칸과 지뢰를 직접 선택</small></button></div></dialog>
-<div class="settings"><label>난이도 <select id="difficulty"><option value="easy">쉬움</option><option value="normal">보통</option><option value="hard" selected>어려움</option><option value="custom">사용자 설정</option></select></label><button id="customButton" type="button" hidden>사용자 설정 열기</button><span class="hint">난이도를 바꾸면 새 게임이 시작됩니다</span></div>
-<dialog id="customDialog" aria-labelledby="customTitle"><div class="helpHeader"><h2 id="customTitle">사용자 설정</h2><button id="customClose" type="button">닫기</button></div>
+<header><h1 id="gameTitle">♟ 3D Chess Minesweeper</h1><div class="header-actions"><button id="helpButton" type="button">How to Play</button><div id="accountSlot"></div><button id="settingsButton" type="button">Settings</button></div></header><div class="hint" id="boardInfo"></div>
+<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="helpHeader"><h2 id="settingsTitle">Settings</h2><button id="settingsClose" type="button">Close</button></div><label>Language <select id="languageSelect"><option value="ko">한국어</option><option value="en">English</option></select></label><label><input id="expansionMode" type="checkbox"> Double-tap the background to open immediately</label><p hidden><label><input id="premiumTest" type="checkbox" disabled> Premium test</label><br><small id="premiumTestStatus">Available after login.</small></p><a id="modeLink" href="no_guess.html">No-Guess Mode</a><a href="no_guess_color.html">Color Groups Mode</a></dialog>
+<dialog id="difficultyDialog" aria-labelledby="difficultyTitle"><h2 id="difficultyTitle" tabindex="-1" autofocus>Choose a difficulty</h2><div class="difficulty-options"><button id="chooseEasy" type="button">Easy<small>4×4×4 · 10 mines</small></button><button id="chooseNormal" type="button">Normal<small>5×5×5 · 20 mines</small></button><button id="chooseHard" type="button">Hard<small>6×6×6 · 35 mines</small></button><button id="chooseCustom" type="button">Custom settings<small>Choose the board size and mine count</small></button></div></dialog>
+<div class="settings"><label>Difficulty <select id="difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard" selected>Hard</option><option value="custom">Custom settings</option></select></label><button id="customButton" type="button" hidden>Open custom settings</button><span class="hint">Changing the difficulty starts a new game</span></div>
+<dialog id="customDialog" aria-labelledby="customTitle"><div class="helpHeader"><h2 id="customTitle">Custom settings</h2><button id="customClose" type="button">Close</button></div>
 <div class="settings">
-  <label>한 변의 칸 수 <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
-  <label>지뢰 수 <input id="mineInput" type="number" min="1" max="215" value="35"></label>
-  <label id="customReasoningLabel" hidden>추론 수준 <select id="customReasoning"><option value="">제한 없음</option><option value="1">단서 1개</option><option value="2">단서 최대 2개</option></select></label>
+  <label>Cells per side <input id="sizeInput" type="number" min="3" max="10" value="6"></label>
+  <label>Mine count <input id="mineInput" type="number" min="1" max="215" value="35"></label>
+  <label id="customReasoningLabel" hidden>Reasoning limit <select id="customReasoning"><option value="">No limit</option><option value="1">1 clue</option><option value="2">Up to 2 clues</option></select></label>
 </div>
 <fieldset class="settings">
-  <legend>기물 생성 가중치</legend>
-  <label>♚ 킹 <input id="weightK" type="number" min="0" max="1000" step="any" value="7"></label>
-  <label>♜ 룩 <input id="weightR" type="number" min="0" max="1000" step="any" value="1"></label>
-  <label>♝ 비숍 <input id="weightB" type="number" min="0" max="1000" step="any" value="1"></label>
-  <label>♛ 퀸 <input id="weightQ" type="number" min="0" max="1000" step="any" value="1"></label>
-  <label>♞ 나이트 <input id="weightN" type="number" min="0" max="1000" step="any" value="1"></label>
-  <span class="hint">값이 클수록 자주 생성됩니다. 0은 생성하지 않음 · 새 게임에 적용</span>
+  <legend>Piece generation weights</legend>
+  <label>♚ King <input id="weightK" type="number" min="0" max="1000" step="any" value="7"></label>
+  <label>♜ Rook <input id="weightR" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♝ Bishop <input id="weightB" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♛ Queen <input id="weightQ" type="number" min="0" max="1000" step="any" value="1"></label>
+  <label>♞ Knight <input id="weightN" type="number" min="0" max="1000" step="any" value="1"></label>
+  <span class="hint">Higher values appear more often. 0 disables a piece · Applies to new games</span>
   <span class="hint" id="weightSummary"></span>
 </fieldset>
 </dialog>
 <div id="gameArea">
-<dialog id="hintPromoDialog" aria-labelledby="hintPromoTitle"><button id="promoClose" type="button" disabled aria-label="3초 후 닫기 가능">3</button><div class="promo-content"><p>잠깐, 다른 게임도 만나보세요</p><h2 id="hintPromoTitle">초파리, 세 차선</h2><p>세 차선의 장애물을 피하며 20턴 완주에 도전해 보세요.<br>초파리 모델이 어떤 차선을 고르는지도 살펴볼 수 있어요.</p><a href="https://sihoo7005.github.io/fly/game.html" target="_blank" rel="noopener noreferrer">게임 보러 가기</a><p id="promoReward">카운트다운이 끝나면 X를 눌러 힌트 3개를 받으세요.</p></div></dialog>
-<dialog id="promoConfirmDialog" aria-labelledby="promoConfirmText"><p id="promoConfirmText"></p><div class="buttons"><button id="promoCancel" type="button">취소</button><button id="promoAccept" type="button">광고 보기</button></div></dialog>
+<dialog id="hintPromoDialog" aria-labelledby="hintPromoTitle"><button id="promoClose" type="button" disabled aria-label="Can close in 3 seconds">3</button><div class="promo-content"><p>While you wait, try another game</p><h2 id="hintPromoTitle">Fruit Fly: Three Lanes</h2><p>Avoid obstacles across three lanes and try to complete all 20 turns.<br>See which lane the fruit fly model chooses.</p><a href="https://sihoo7005.github.io/fly/game.html" target="_blank" rel="noopener noreferrer">Visit the game</a><p id="promoReward">When the countdown ends, press X to claim 3 hints.</p></div></dialog>
+<dialog id="promoConfirmDialog" aria-labelledby="promoConfirmText"><p id="promoConfirmText"></p><div class="buttons"><button id="promoCancel" type="button">Cancel</button><button id="promoAccept" type="button">Watch ad</button></div></dialog>
 <div class="toolbar">
-  <div class="buttons"><button id="start">새 게임 시작</button><button id="cancelGeneration" hidden>생성 취소</button><button id="view3d" class="active" aria-pressed="true">3D 보기</button><button id="view2d" aria-pressed="false">층별 2D 보기</button></div>
-  <div class="buttons"><button id="hintButton">힌트</button><span id="autoGroupWrap" hidden><button id="autoGroupButton" aria-expanded="false" aria-controls="premiumNotice">자동 묶음</button><span id="premiumNotice" role="status" hidden>자동 묶음은 프리미엄 전용입니다.</span></span><button id="flagMode" class="flag" aria-pressed="false">깃발 모드: 끔</button><button id="fullscreenButton" aria-label="전체화면" title="전체화면" aria-pressed="false">⛶</button></div>
+  <div class="buttons"><button id="start">New Game</button><button id="cancelGeneration" hidden>Cancel generation</button><button id="view3d" class="active" aria-pressed="true">3D View</button><button id="view2d" aria-pressed="false">2D View</button></div>
+  <div class="buttons"><button id="hintButton">Hint</button><span id="autoGroupWrap" hidden><button id="autoGroupButton" aria-expanded="false" aria-controls="premiumNotice">Auto Group</button><span id="premiumNotice" role="status" hidden>Auto Group is a premium feature.</span></span><button id="flagMode" class="flag" aria-pressed="false">Flag mode: Off</button><button id="fullscreenButton" aria-label="Fullscreen" title="Fullscreen" aria-pressed="false">⛶</button></div>
 </div>
 <div id="groupPanel" class="camera-controls" hidden>
-  <button id="groupEdit" aria-pressed="false">묶음 만들기</button>
-  <div id="groupEditor" hidden><span id="groupDraft">칸 0개 선택</span>
-  <span id="groupCountLabel">지뢰 <button id="groupMineDown" type="button" aria-label="묶음 지뢰 수 줄이기">▼</button> <input id="groupMineCount" type="number" min="0" value="1" readonly inputmode="none" aria-label="묶음 지뢰 수" style="width:55px;text-align:center"> <button id="groupMineUp" type="button" aria-label="묶음 지뢰 수 늘리기">▲</button></span>
-  <button id="groupSave">저장</button><button id="groupCancel">취소</button></div>
-  <label id="groupManageLabel">묶음 관리 <select id="groupSelect" aria-label="관리할 묶음"><option value="">없음</option></select></label>
-  <button id="groupDelete">삭제</button><span id="groupStatus" class="hint" aria-live="polite"></span>
+  <button id="groupEdit" aria-pressed="false">Create Group</button>
+  <div id="groupEditor" hidden><span id="groupDraft">0 cells selected</span>
+  <span id="groupCountLabel">Mines: <button id="groupMineDown" type="button" aria-label="Decrease group mine count">▼</button> <input id="groupMineCount" type="number" min="0" value="1" readonly inputmode="none" aria-label="Group mine count" style="width:55px;text-align:center"> <button id="groupMineUp" type="button" aria-label="Increase group mine count">▲</button></span>
+  <button id="groupSave">Save</button><button id="groupCancel">Cancel</button></div>
+  <label id="groupManageLabel">Manage groups <select id="groupSelect" aria-label="Group to manage"><option value="">None</option></select></label>
+  <button id="groupDelete">Delete</button><span id="groupStatus" class="hint" aria-live="polite"></span>
 </div>
 <div class="camera-controls" id="cameraControls">
-  <label>칸 간격 <input id="spacing" type="range" min="1.05" max="2" step="0.05" value="1.3"></label>
-  <button id="resetCamera">시점 초기화</button>
-  <span class="hint">드래그: 회전 · 휠 / 두 손가락: 확대·축소</span>
+  <label>Cell spacing <input id="spacing" type="range" min="1.05" max="2" step="0.05" value="1.3"></label>
+  <button id="resetCamera">Reset view</button>
+  <span class="hint">Drag: rotate · Wheel / two fingers: zoom</span>
 </div>
-<div class="status"><span id="stats"></span><span id="gameTime">시간 00:00</span><span id="message" role="status" aria-live="polite"></span><span id="settingError" role="alert"></span></div>
-<canvas id="board3d" class="board" tabindex="0" aria-label="3D 지뢰찾기. 드래그 또는 방향키로 회전, 빠르게 두 번 눌러 칸 열기"></canvas>
-<div id="board2dHint" class="hint" hidden>층별 보드를 스크롤해서 이동하세요.</div>
-<div id="board2dScroller" hidden><canvas id="board" class="board" tabindex="0" aria-label="층별 2D 지뢰찾기 보드" hidden></canvas></div>
-<div id="cellInfo" aria-live="polite">칸을 빠르게 두 번 눌러 열기 · 길게 눌러 깃발 표시</div>
+<div class="status"><span id="stats"></span><span id="gameTime">Time 00:00</span><span id="message" role="status" aria-live="polite"></span><span id="settingError" role="alert"></span></div>
+<canvas id="board3d" class="board" tabindex="0" aria-label="3D Minesweeper. Drag or use arrow keys to rotate; double-tap to open a cell"></canvas>
+<div id="board2dHint" class="hint" hidden>Scroll to move between board levels.</div>
+<div id="board2dScroller" hidden><canvas id="board" class="board" tabindex="0" aria-label="2D Minesweeper board" hidden></canvas></div>
+<div id="cellInfo" aria-live="polite">Double-tap a cell to open it · Long-press to flag it</div>
 
 <div id="successEffect" hidden aria-hidden="true">
-  <div class="successCopy"><div class="successTitle">성공!</div><p class="successNote">모든 안전한 칸을 찾았습니다</p></div>
+  <div class="successCopy"><div class="successTitle">You Win!</div><p class="successNote">You found every safe cell</p></div>
   <span class="confetti" style="--x:5%;--color:#ffce63;--delay:-.4s"></span><span class="confetti" style="--x:14%;--color:#8ed4ff;--delay:-1.7s"></span><span class="confetti" style="--x:23%;--color:#ff94a9;--delay:-.9s"></span><span class="confetti" style="--x:32%;--color:#a3ec9e;--delay:-2.1s"></span><span class="confetti" style="--x:41%;--color:#d1a7ff;--delay:-1.2s"></span><span class="confetti" style="--x:50%;--color:#ffce63;--delay:-2.4s"></span><span class="confetti" style="--x:59%;--color:#8ed4ff;--delay:-.1s"></span><span class="confetti" style="--x:68%;--color:#ff94a9;--delay:-1.5s"></span><span class="confetti" style="--x:77%;--color:#a3ec9e;--delay:-.7s"></span><span class="confetti" style="--x:86%;--color:#d1a7ff;--delay:-2s"></span><span class="confetti" style="--x:95%;--color:#ffce63;--delay:-1.1s"></span>
 </div>
 </div>
 <footer>
-  <p id="modeDescription" hidden>시작 칸에서 올바른 단서와 깃발을 따라가면 추측 없이 모든 안전한 칸을 열 수 있는 보드만 생성합니다.</p>
-  추론 힌트는 공개된 기물 숫자와 깃발로 가능한 배치를 비교하고, 남은 지뢰 수와 맞춰 확정 칸을 찾습니다.<br>
-  열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다.
-  <p><a href="privacy.html" style="color:#8ccfff">개인정보처리방침</a></p>
-  <div class="legend"><b style="color:#68c7ff">♚ 킹: 주변 26칸</b><b style="color:#8cde91">♜ 룩: 세 축 직선</b><b style="color:#d2a0ff">♝ 비숍: 두 축 대각선</b><b style="color:#ffc46b">♛ 퀸: 룩 + 비숍</b><b style="color:#ff8da1">♞ 나이트: 한 축 2칸, 다른 축 1칸</b></div>
+  <p id="modeDescription" hidden>Only boards that can be solved without guessing are generated. Follow the clues and flags from the starting cell to open every safe cell.</p>
+  Reasoning hints compare possible layouts using revealed piece numbers and flags, then use the remaining mine count to find certain cells.<br>
+  An open cell’s <b>chess piece + number</b> shows the mine count using that piece’s movement rules. Mines and other cells do not block its paths.
+  <p><a href="privacy.html" style="color:#8ccfff">Privacy Policy</a></p>
+  <div class="legend"><b style="color:#68c7ff">♚ King: 26 surrounding cells</b><b style="color:#8cde91">♜ Rook: straight lines along three axes</b><b style="color:#d2a0ff">♝ Bishop: diagonals across two axes</b><b style="color:#ffc46b">♛ Queen: Rook + Bishop</b><b style="color:#ff8da1">♞ Knight: 2 cells on one axis, 1 on another</b></div>
 </footer>
 </main>
 <dialog id="helpDialog" aria-labelledby="helpTitle">
-  <div class="helpHeader"><h2 id="helpTitle">조작법</h2><button id="helpClose" type="button" aria-label="조작법 닫기" autofocus>닫기</button></div>
+  <div class="helpHeader"><h2 id="helpTitle">How to Play</h2><button id="helpClose" type="button" aria-label="How to Play Close" autofocus>Close</button></div>
   <dl class="helpList">
-    <dt>칸 열기</dt><dd>닫힌 칸을 빠르게 두 번 누르세요.</dd>
-    <dt>깃발</dt><dd>칸을 길게 누르거나 오른쪽 클릭하세요. 깃발 모드에서는 한 번 누릅니다.</dd>
-    <dt>탐지 범위</dt><dd>열린 기물을 한 번 누르면 범위가 나타납니다.</dd>
-    <dt>범위 열기</dt><dd>열린 기물을 빠르게 두 번 누르세요. 깃발 수와 숫자가 같아야 합니다. 깃발이 틀리면 지뢰가 열릴 수 있습니다.</dd>
-    <dt>자동 열기</dt><dd>빈 배경을 빠르게 두 번 누르면 깃발 수와 숫자가 같은 기물의 범위를 차례로 엽니다.</dd>
-    <dt>전체화면</dt><dd>전체화면 버튼으로 게임 화면을 확대하거나 원래대로 돌립니다.</dd>
-    <dt>시점 조작</dt><dd>드래그로 회전하고, 휠이나 두 손가락으로 확대·축소하세요.</dd>
-    <dt>층별 보기</dt><dd>2D 보기에서는 스크롤하여 각 층을 확인할 수 있습니다.</dd>
-    <dt>추론 힌트</dt><dd>버튼을 누르면 추론할 칸과 관련 단서가 표시됩니다.</dd>
-    <dt id="autoGroupHelp" hidden>자동 묶음</dt><dd id="autoGroupHelpText" hidden>프리미엄에서는 열린 기물을 길게 누르거나 기물을 선택하고 자동 묶음을 눌러 남은 칸과 지뢰 수를 묶을 수 있습니다. 깃발은 지뢰로 계산합니다.</dd>
-    <dt id="groupHelp" hidden>컬러 묶음</dt><dd id="groupHelpText" hidden>묶음 만들기에서 열린 기물의 범위를 확인하고 닫힌 칸을 선택한 뒤 지뢰 수를 입력해 저장하세요. 모든 묶음이 표시되며 깃발과 열린 칸에 따라 숫자가 바뀝니다.</dd>
-    <dt>키보드</dt><dd>V: 보기 · F: 깃발 · R: 새 게임 · 방향키: 회전 · + / −: 확대·축소</dd>
+    <dt>Cells Open</dt><dd>Double-tap a closed cell.</dd>
+    <dt>Flag</dt><dd>Long-press or right-click a cell. In Flag mode, click or tap once.</dd>
+    <dt>Piece range</dt><dd>Select an open piece to show its range.</dd>
+    <dt>Open range</dt><dd>Double-tap an open piece. The flag count must match its number. Incorrect flags may open a mine.</dd>
+    <dt>Auto-open</dt><dd>Double-tap an empty area to open the ranges of pieces whose numbers match their flag counts.</dd>
+    <dt>Fullscreen</dt><dd>Use the fullscreen button to enlarge or restore the game view.</dd>
+    <dt>View controls</dt><dd>Drag to rotate; use the wheel or two fingers to zoom.</dd>
+    <dt>2D view</dt><dd>Scroll to view each level in 2D mode.</dd>
+    <dt>Reasoning hint</dt><dd>Press the button to show a cell you can infer and its related clues.</dd>
+    <dt id="autoGroupHelp" hidden>Auto Group</dt><dd id="autoGroupHelpText" hidden>Premium users can long-press an open piece or select it and press Auto Group to group its remaining cells and mines. Flags count as mines.</dd>
+    <dt id="groupHelp" hidden>Color Groups</dt><dd id="groupHelpText" hidden>In Create Group mode, view an open piece’s range, select closed cells, enter the mine count, and save. All groups are shown, and their counts change as cells are flagged or opened.</dd>
+    <dt>Keyboard</dt><dd>V: view · F: flag · R: new game · Arrow keys: rotate · + / −: zoom</dd>
   </dl>
 </dialog>
 
+<script>
+(() => {
+  const key="chessmine:language", saved=localStorage.getItem(key), language=saved||(/^en/i.test(navigator.language)?"en":"ko");
+  window.chessmineLanguage=language;
+  const translations=[["Language", "언어"], ['Account and game history', '계정 및 플레이 기록'], ['Your session expired. Please sign in again.', '로그인이 만료됐습니다. 다시 로그인해 주세요.'], ['Game history saved.', '플레이 기록을 저장했습니다.'], ['Could not save game history. Select Retry to try again.', '기록을 저장하지 못했습니다. 다시 시도를 눌러 주세요.'], ['Retry saving', '기록 저장 다시 시도'], ['Game History', '플레이 기록'], ['Loading game history…', '기록을 불러오는 중…'], ['No saved games yet.', '아직 저장된 기록이 없습니다.'], ['Standard', '일반'], ['No-Guess', '추측 없음'], ['Color Groups', '컬러 묶음'], ['Won', '성공'], ['Lost', '실패'], ['Weights ', '가중치 '], ['Could not load game history.', '기록을 불러오지 못했습니다.'], ['Please sign in using a secure browser.', '안전한 브라우저에서 로그인해 주세요.'], ['Continue in the Google sign-in window.', 'Google 로그인 창에서 계속해 주세요.'], ['The sign-in window was blocked. Allow pop-ups and try again.', '로그인 창이 차단됐습니다. 팝업을 허용해 주세요.'], ['Some game history could not be saved. It will be lost if you sign out. Continue?', '저장하지 못한 기록이 있습니다. 로그아웃하면 이 기록은 사라집니다. 계속할까요?'], ['Sign out?', '로그아웃하시겠습니까?'], ['Signed out.', '로그아웃했습니다.'], ['Could not sign out. Please try again.', '로그아웃하지 못했습니다. 다시 시도해 주세요.'], ['Delete account and history', '계정 및 기록 삭제'], ['Delete your account and all game history? This cannot be undone.', '계정과 모든 플레이 기록을 삭제합니다. 삭제한 기록은 복구할 수 없습니다. 계속할까요?'], ['Account and history deleted.', '계정과 기록을 삭제했습니다.'], ['Could not delete the account. Please try again.', '계정을 삭제하지 못했습니다. 다시 시도해 주세요.'], ['Reconnect account', '계정 다시 연결'], ['Unsent history from another account was not uploaded.', '다른 계정에서 저장하지 못한 기록은 전송하지 않았습니다.'], ['Could not connect to the account service. Please reconnect.', '계정 서비스에 연결하지 못했습니다. 다시 연결해 주세요.'], ['Sign-in failed. Please try again.', '로그인에 실패했습니다. 다시 시도해 주세요.'], ['Please save game history using a secure browser.', '안전한 브라우저에서 기록을 저장해 주세요.'], ["In Create Group mode, view an open piece’s range, select closed cells, enter the mine count, and save. All groups are shown, and their counts change as cells are flagged or opened.", "묶음 만들기에서 열린 기물의 범위를 확인하고 닫힌 칸을 선택한 뒤 지뢰 수를 입력해 저장하세요. 모든 묶음이 표시되며 깃발과 열린 칸에 따라 숫자가 바뀝니다."], ["An open cell’s <b>chess piece + number</b> shows the mine count using that piece’s movement rules. Mines and other cells do not block its paths.", "열린 칸의 <b>체스 기물 + 숫자</b>는 그 기물의 이동 규칙으로 센 지뢰 수입니다. 지뢰나 다른 칸이 경로를 막지는 않습니다."], ["Premium users can long-press an open piece or select it and press Auto Group to group its remaining cells and mines. Flags count as mines.", "프리미엄에서는 열린 기물을 길게 누르거나 기물을 선택하고 자동 묶음을 눌러 남은 칸과 지뢰 수를 묶을 수 있습니다. 깃발은 지뢰로 계산합니다."], ["Only boards that can be solved without guessing are generated. Follow the clues and flags from the starting cell to open every safe cell.", "시작 칸에서 올바른 단서와 깃발을 따라가면 추측 없이 모든 안전한 칸을 열 수 있는 보드만 생성합니다."], ["Reasoning hints compare possible layouts using revealed piece numbers and flags, then use the remaining mine count to find certain cells.", "추론 힌트는 공개된 기물 숫자와 깃발로 가능한 배치를 비교하고, 남은 지뢰 수와 맞춰 확정 칸을 찾습니다."], ["Avoid obstacles across three lanes and try to complete all 20 turns.<br>See which lane the fruit fly model chooses.", "세 차선의 장애물을 피하며 20턴 완주에 도전해 보세요.<br>초파리 모델이 어떤 차선을 고르는지도 살펴볼 수 있어요."], ["Could not connect to the account server, so temporary hints are in use. They reset when you refresh.", "계정 서버에 연결할 수 없어 임시 힌트로 진행합니다. 새로고침하면 초기화됩니다."], ["Double-tap an open piece. The flag count must match its number. Incorrect flags may open a mine.", "열린 기물을 빠르게 두 번 누르세요. 깃발 수와 숫자가 같아야 합니다. 깃발이 틀리면 지뢰가 열릴 수 있습니다."], ["There are too many possible layouts to finish this inference. Open more cells to reveal clues.", "가능한 배치가 너무 많아 이번 추론을 끝내지 못했습니다. 더 많은 칸을 열어 단서를 늘려 보세요."], ["Double-tap an empty area to open the ranges of pieces whose numbers match their flag counts.", "빈 배경을 빠르게 두 번 누르면 깃발 수와 숫자가 같은 기물의 범위를 차례로 엽니다."], ["No board found with these settings. Change the mine count or piece weights and try again.", "이 설정에서 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요."], ["Could not find a board in time. Change the mine count or piece weights and try again.", "시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요."], ["With these weights, to start on a cell showing 0, set the mine count to at most ", "이 가중치에서 숫자 0인 칸으로 시작하려면 지뢰 수를 "], ["Select cells and enter a mine count between 0 and the number of selected cells.", "칸을 선택하고 지뢰 수를 0부터 선택한 칸 수 사이로 입력하세요."], ["3D rendering stopped, so the game switched to 2D view. Refresh to try again.", "3D 렌더링이 중단되어 2D 보기로 전환했습니다. 새로고침하면 다시 시도합니다."], ["3D Minesweeper. Drag or use arrow keys to rotate; double-tap to open a cell", "3D 지뢰찾기. 드래그 또는 방향키로 회전, 빠르게 두 번 눌러 칸 열기"], ["Higher values appear more often. 0 disables a piece · Applies to new games", "값이 클수록 자주 생성됩니다. 0은 생성하지 않음 · 새 게임에 적용"], ["Enter weights from 0 to 1000, with at least one value greater than 0.", "가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요."], ["Press the button to show a cell you can infer and its related clues.", "버튼을 누르면 추론할 칸과 관련 단서가 표시됩니다."], ["Long-press or right-click a cell. In Flag mode, click or tap once.", "칸을 길게 누르거나 오른쪽 클릭하세요. 깃발 모드에서는 한 번 누릅니다."], ["Could not process the hint. Check your connection and try again.", "힌트를 처리하지 못했습니다. 연결을 확인하고 다시 시도하세요."], ["3D is unavailable in this environment, so the 2D view is shown.", "이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다."], [" · Showing range. Select closed cells to add them to the group.", " · 범위 표시 중. 닫힌 칸을 눌러 묶음에 추가하세요."], ["The starting cell is inside the board, so the 2D view is shown.", "시작 칸이 내부에 있어 2D 보기를 표시합니다."], ["Use the fullscreen button to enlarge or restore the game view.", "전체화면 버튼으로 게임 화면을 확대하거나 원래대로 돌립니다."], ["Flags or open cells conflict with this group. Check the count.", "깃발이나 열린 칸이 묶음과 맞지 않습니다. 기록을 확인하세요."], ["Could not start the board generator. Check your browser.", "보드 생성 기능을 시작하지 못했습니다. 브라우저를 확인하세요."], ["An error occurred while generating the board. Try again.", "보드 생성 중 오류가 발생했습니다. 다시 시도하세요."], ["Double-tap an empty area to open eligible piece ranges.", "배경을 빠르게 두 번 누르면 조건에 맞는 기물의 범위를 엽니다."], ["Could not verify premium status. Check your connection.", "프리미엄 상태를 확인하지 못했습니다. 연결을 확인하세요."], ["Flags conflict with revealed numbers. Check the flags.", "깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요."], ["Drag to rotate; use the wheel or two fingers to zoom.", "드래그로 회전하고, 휠이나 두 손가락으로 확대·축소하세요."], ["Double-tap a cell to open it · Long-press to flag it", "칸을 빠르게 두 번 눌러 열기 · 길게 눌러 깃발 표시"], [" · Showing range. Double-tap to open eligible cells.", " · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다."], ["No open piece has a number matching the flag count.", "깃발 수가 숫자와 같은 열린 기물이 없습니다."], ["When the countdown ends, press X to claim 3 hints.", "카운트다운이 끝나면 X를 눌러 힌트 3개를 받으세요."], ["The revealed clues do not determine any cells yet.", "현재 공개된 단서만으로 확정할 수 있는 칸이 없습니다."], [" If it is hidden, rotate the board or use 2D view.", " 현재 화면에서 가려져 있다면 보드를 돌리거나 2D 보기를 사용하세요."], [" Scroll the board to find the marked coordinates.", " 표시된 좌표를 찾으려면 보드를 스크롤하세요."], ["Could not save the change. Check your connection.", "변경하지 못했습니다. 연결을 확인하세요."], ["You received 3 guest hints. Log out to use them.", "비로그인 힌트 3개를 받았습니다. 로그아웃하면 사용할 수 있습니다."], ["You hit a mine! Start a new game and try again.", "지뢰를 밟았습니다! 새 게임으로 다시 도전하세요."], [" · Check the flags and open cells in the group.", " · 묶음의 깃발이나 열린 칸을 확인하세요."], ["The flag count does not match the piece number.", "깃발 수가 기물의 숫자와 맞지 않습니다."], ["You received 3 hints. Press Hint to use them.", "힌트 3개를 받았습니다. 힌트 버튼을 눌러 사용하세요."], ["Check your account connection and try again.", "계정 연결을 확인하고 다시 시도하세요."], ["♞ Knight: 2 cells on one axis, 1 on another", "♞ 나이트: 한 축 2칸, 다른 축 1칸"], ["Enter a whole number of cells from 3 to 10.", "칸 수는 3–10 사이의 정수로 입력하세요."], ["Use a hint after board generation finishes.", "보드 생성이 끝난 뒤 힌트를 사용하세요."], ["You received hints. Press Hint to use them.", "힌트를 받았습니다. 힌트 버튼을 눌러 사용하세요."], ["When the countdown ends, press X to claim ", "카운트다운이 끝나면 X를 눌러 힌트 "], ["Changing the difficulty starts a new game", "난이도를 바꾸면 새 게임이 시작됩니다"], ["Drag: rotate · Wheel / two fingers: zoom", "드래그: 회전 · 휠 / 두 손가락: 확대·축소"], ["♜ Rook: straight lines along three axes", "♜ 룩: 세 축 직선"], ["Select an open piece to show its range.", "열린 기물을 한 번 누르면 범위가 나타납니다."], ["Scroll to view each level in 2D mode.", "2D 보기에서는 스크롤하여 각 층을 확인할 수 있습니다."], ["Choose the board size and mine count", "칸과 지뢰를 직접 선택"], ["Scroll to move between board levels.", "층별 보드를 스크롤해서 이동하세요."], ["Create groups during an active game.", "진행 중인 게임에서 묶음을 만드세요."], ["♝ Bishop: diagonals across two axes", "♝ 비숍: 두 축 대각선"], ["The game is over. Start a new game.", "게임이 끝났습니다. 새 게임을 시작하세요."], ["There are no closed cells to group.", "묶을 닫힌 칸이 없습니다."], [" · A mine opened during auto-open.", " · 자동 개방 중 지뢰가 열렸습니다."], ["You win! All safe cells are open.", "성공! 모든 안전한 칸을 열었습니다."], [" · Showing range after game over.", " · 게임 종료 후 범위 표시 중."], ["Testing is currently unavailable.", "현재 테스트를 이용할 수 없습니다."], ["While you wait, try another game", "잠깐, 다른 게임도 만나보세요"], ["Auto Group is a premium feature.", "자동 묶음은 프리미엄 전용입니다."], ["Select a closed, unflagged cell.", "깃발이 없는 닫힌 칸을 선택하세요."], [" seconds until close is enabled", "초 후 닫기 가능"], ["Close promotion and claim hints", "홍보 닫고 힌트 받기"], ["Open immediately on double-tap", "배경을 두 번 누르면 즉시 열기"], ["Enter a mine count from 1 to ", "지뢰 수는 1–"], ["Generating a no-guess board… ", "추측 없이 풀 수 있는 보드 생성 중… "], ["♚ King: 26 surrounding cells", "♚ 킹: 주변 26칸"], [" · solvable without guessing", " · 추측 없이 풀이 가능"], ["Select an open piece first.", "열린 기물을 먼저 선택하세요."], ["Board generation canceled.", "보드 생성을 취소했습니다."], ["Could not exit fullscreen.", "전체화면을 종료하지 못했습니다."], ["Decrease group mine count", "묶음 지뢰 수 줄이기"], ["Increase group mine count", "묶음 지뢰 수 늘리기"], ["You found every safe cell", "모든 안전한 칸을 찾았습니다"], ["Double-tap a closed cell.", "닫힌 칸을 빠르게 두 번 누르세요."], [" cells · remaining mines ", "칸 · 남은 지뢰 "], ["Piece generation weights", "기물 생성 가중치"], ["Matching group removed.", "같은 묶음을 해제했습니다."], ["Watch an ad to receive ", "광고를 보고 힌트 "], ["This is a test setting.", "테스트용 설정입니다."], ["Available after login.", "로그인 후 이용할 수 있습니다."], ["Fruit Fly: Three Lanes", "초파리, 세 차선"], ["♛ Queen: rook + bishop", "♛ 퀸: 룩 + 비숍"], ["Can close in 3 seconds", "3초 후 닫기 가능"], [" · Double-tap to open", " · 빠르게 두 번 눌러 열기"], ["3D Chess Minesweeper", "3D 체스 지뢰찾기"], ["Open custom settings", "사용자 설정 열기"], ["2D Minesweeper board", "층별 2D 지뢰찾기 보드"], ["Auto-open complete: ", "자동 개방 완료: "], [") · Check the clues.", ") · 단서를 확인하세요."], ["Choose a difficulty", "난이도를 선택하세요"], ["Auto-open canceled.", "자동 개방을 중단했습니다."], ["Auto Group removed.", "자동 묶음을 해제했습니다."], ["Color Groups Mode", "컬러 묶음 게임"], ["Cancel generation", "생성 취소"], ["Close How to Play", "조작법 닫기"], ["Generating board…", "보드를 생성하고 있습니다…"], ["Start a new game.", "새 게임을 시작하세요."], ["0 cells selected", "칸 0개 선택"], ["Group mine count", "묶음 지뢰 수"], ["Inferred cell: (", "추론 가능한 칸: ("], ["Preparing board.", "보드를 준비하고 있습니다."], ["Reasoning limit", "추론 수준"], ["Group to manage", "관리할 묶음"], ["Starting cell: ", "시작 칸: "], ["Exit fullscreen", "전체화면 종료"], [" cells selected", "개 선택"], [" · check needed", " · 확인 필요"], ["Custom settings", "사용자 설정"], ["Privacy Policy", "개인정보처리방침"], ["Cells per side", "한 변의 칸 수"], ["Visit the game", "게임 보러 가기"], ["Flag mode: Off", "깃발 모드: 끔"], ["Reasoning hint", "추론 힌트"], ["Auto-opening: ", "자동 개방 중: "], [" · Open cells ", "개 · 연 칸 "], ["No-Guess Mode", "추측 없는 게임"], ["Up to 2 clues", "단서 최대 2개"], ["Manage groups", "묶음 관리"], [" cells opened", "칸 열기"], ["View controls", "시점 조작"], ["Original game", "기존 게임"], ["Spawn rates: ", "생성 비율: "], ["-rule mines: ", " 규칙으로 센 지뢰: "], ["Flag mode: On", "깃발 모드: 켬"], ["Back to game", "게임으로 돌아가기"], ["Premium test", "프리미엄 테스트"], ["Create Group", "묶음 만들기"], ["Cell spacing", "칸 간격"], ["Auto-opening", "자동 개방 중"], ["Auto Group: ", "자동 묶음: "], ["Color Groups", "컬러 묶음"], ["Retry saving", "기록 저장 다시 시도"], ["Game History", "플레이 기록"], ["How to Play", "조작법"], ["Piece range", "탐지 범위"], ["Light green", "연두"], ["Flag mode: ", "깃발 모드: "], ["Difficulty", "난이도"], ["Mine count", "지뢰 수"], ["Auto Group", "자동 묶음"], ["Fullscreen", "전체화면"], ["Reset view", "시점 초기화"], ["Time 00:00", "시간 00:00"], ["Open range", "범위 열기"], ["Arrow keys", "방향키"], [" / needed ", "개 / 필요 "], ["Auto-open", "자동 열기"], [" · Flags ", "개 · 깃발 "], ["Selecting", "선택 중"], ["Settings", "설정"], ["No limit", "제한 없음"], ["Watch ad", "광고 보기"], ["New Game", "새 게임 시작"], ["You Win!", "성공!"], ["Keyboard", "키보드"], ["Standard", "일반"], ["Sign out", "로그아웃"], ["3D View", "3D 보기"], ["2D View", "층별 2D 보기"], ["2D view", "층별 보기"], [" mines.", "개 이하로 설정하세요."], ["Flagged", "깃발 표시"], [" hints?", "개를 받으시겠습니까?"], ["Account", "계정"], ["Sign in", "로그인"], ["Normal", "보통"], ["Custom", "사용자 설정"], ["1 clue", "단서 1개"], ["Bishop", "비숍"], ["Knight", "나이트"], ["Cancel", "취소"], ["Delete", "삭제"], ["rotate", "회전"], ["Yellow", "노랑"], ["Purple", "보라"], ["Orange", "주황"], ["Mines ", "지뢰 "], ["Flags ", "깃발 "], ["Cells ", "칸 "], ["Closed", "닫힌 칸"], ["Group ", "묶음 "], ["Color ", "색상 "], ["Hint (", "힌트 ("], ["Close", "닫기"], ["Queen", "퀸"], ["Time ", "시간 "], ["Open", "열기"], ["Easy", "쉬움"], ["Hard", "어려움"], ["King", "킹"], ["Rook", "룩"], ["Hint", "힌트"], ["Save", "저장"], ["None", "없음"], ["Flag", "깃발"], ["zoom", "확대·축소"], ["Teal", "청록"], ["Pink", "분홍"], ["Mine", "지뢰"], ["Off", "끔"], [" .", " 사이의 정수로 입력하세요."], [" )", ")"], ["On", "켬"]];
+  const toKorean=value=>{if(language!=="ko")return value;for(const [english,korean] of translations)value=value.replaceAll(english,korean);return value;};
+  window.chessmineTranslate=toKorean;
+  const translateNode=node=>{if(node.nodeType===Node.TEXT_NODE){node.nodeValue=toKorean(node.nodeValue);return;}if(node.nodeType!==Node.ELEMENT_NODE)return;for(const child of node.childNodes)translateNode(child);for(const name of ["aria-label","title"]){const value=node.getAttribute(name);if(value)node.setAttribute(name,toKorean(value));}};
+  translateNode(document.body);
+  new MutationObserver(records=>{for(const record of records){if(record.type==="characterData")translateNode(record.target);for(const node of record.addedNodes)translateNode(node);if(record.type==="attributes")translateNode(record.target);}}).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["aria-label","title"]});
+  const select=document.getElementById("languageSelect");select.value=language;select.addEventListener("change",()=>{localStorage.setItem(key,select.value);location.reload();});
+  document.documentElement.lang=language;
+})();
+</script>
 <script src="account.js?v=16"></script>
 <script>
 (() => {
   "use strict";
   const gameMode=new URLSearchParams(location.search).get("mode"),colorMode=gameMode==="no-guess-color",noGuess=gameMode==="no-guess"||colorMode;
   document.getElementById("customReasoningLabel").hidden=!noGuess;
-  if(noGuess){document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="기존 게임";document.getElementById("modeDescription").hidden=false;}
+  if(noGuess){document.getElementById("modeLink").href="3d_minesweeper.html";document.getElementById("modeLink").textContent="Original game";document.getElementById("modeDescription").hidden=false;}
   if(colorMode){for(const id of ["groupPanel","groupHelp","groupHelpText","autoGroupWrap","autoGroupHelp","autoGroupHelpText"])document.getElementById(id).hidden=false;}
   let N=6, MINE_COUNT=35, view="3d", flagMode=false, cells=new Map(), mines=new Set(), ended=false, won=false, hintKey=null, hintBusy=false, hintOffline=false, premiumActive=false, premiumAvailable=false, promoTicket=null, guestHints=0, cellSize=40, width=0, height=0, twoDCols=2;
   let groups=[],groupDraft=new Set(),editingGroup=false,activeGroup=-1,nextGroupColor=0,visibleGroupCount=0,groupOptionsKey="",draftLayout=null;
-  const groupColors=[["노랑","#ffd166"],["청록","#81e6d9"],["분홍","#ff9bbd"],["보라","#c3adff"],["연두","#b4ef8a"],["주황","#ffb77c"]];
+  const groupColors=[["Yellow","#ffd166"],["Teal","#81e6d9"],["Pink","#ff9bbd"],["Purple","#c3adff"],["Light green","#b4ef8a"],["Orange","#ffb77c"]];
   let selectedClue=null,selectedClosed=null,clueRange=new Set(),lastTapKey=null,lastTapAt=0;
   let successTimer=null,expansionTimer=null,clockTimer=null,gameStartedAt=0,gameWeights=null;
   const DOUBLE_TAP_MS=450,LONG_PRESS_MS=500;
   const PIECES=["K","R","B","Q","N"], PIECE_COLORS={K:"#68c7ff",R:"#8cde91",B:"#d2a0ff",Q:"#ffc46b",N:"#ff8da1"};
-  const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"킹",R:"룩",B:"비숍",Q:"퀸",N:"나이트"};
+  const SYMBOLS={K:"♚",R:"♜",B:"♝",Q:"♛",N:"♞"},NAMES={K:"King",R:"Rook",B:"Bishop",Q:"Queen",N:"Knight"};
   const $=id=>document.getElementById(id);
   const canvas=$("board"),canvas3d=$("board3d"),scroller=$("board2dScroller"),ctx=canvas.getContext("2d"),stats=$("stats"),message=$("message");
   const sizeInput=$("sizeInput"),mineInput=$("mineInput"),settingError=$("settingError"),boardInfo=$("boardInfo"),flagButton=$("flagMode"),spacing=$("spacing"),cellInfo=$("cellInfo");
@@ -151,7 +165,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   }
   function updateWeightSummary(){
     const weights=readWeights(),total=PIECES.reduce((sum,p)=>sum+weights[p],0);
-    $("weightSummary").textContent=validWeights(weights)?"생성 비율: "+PIECES.map(p=>`${NAMES[p]} ${(weights[p]/total*100).toFixed(1)}%`).join(" · "):"가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";
+    $("weightSummary").textContent=validWeights(weights)?"Spawn rates: "+PIECES.map(p=>`${NAMES[p]} ${(weights[p]/total*100).toFixed(1)}%`).join(" · "):"Enter weights from 0 to 1000, with at least one value greater than 0.";
   }
   function startGame(){
     if(hintBusy)return;
@@ -159,16 +173,16 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     hideSuccess();
     if(noGuess)stopGeneration();
     const size=Number(sizeInput.value),count=Number(mineInput.value),capacity=size**3;
-    if(!Number.isInteger(size)||size<3||size>10){settingError.textContent="칸 수는 3–10 사이의 정수로 입력하세요.";return;}
-    if(!Number.isInteger(count)||count<1||count>=capacity){settingError.textContent=`지뢰 수는 1–${capacity-1} 사이의 정수로 입력하세요.`;return;}
+    if(!Number.isInteger(size)||size<3||size>10){settingError.textContent="Enter a whole number of cells from 3 to 10.";return;}
+    if(!Number.isInteger(count)||count<1||count>=capacity){settingError.textContent=`Enter a whole number of mines from 1 to ${capacity-1}.`;return;}
     const weights=readWeights();
-    if(!validWeights(weights)){settingError.textContent="가중치는 0–1000 사이로 입력하고, 하나 이상을 0보다 크게 설정하세요.";return;}
+    if(!validWeights(weights)){settingError.textContent="Enter weights from 0 to 1000, with at least one value greater than 0.";return;}
     const positions=allPositions(size),options=[];let minimumClues=Infinity;
     for(const piece of PIECES.filter(p=>weights[p]>0))for(const pos of positions){
       const clues=cluePositions(pos,piece,size).length;minimumClues=Math.min(minimumClues,clues);
       if(clues<=capacity-count-1)options.push({pos,piece});
     }
-    if(!options.length){settingError.textContent=`이 가중치에서 숫자 0인 칸으로 시작하려면 지뢰 수를 ${capacity-minimumClues-1}개 이하로 설정하세요.`;return;}
+    if(!options.length){settingError.textContent=`With these weights, to start on a cell showing 0, set the mine count to ${capacity-minimumClues-1} or less.`;return;}
     // Prefer the faces visible from the initial camera so the opening is visible.
     const surface=options.filter(({pos})=>pos.some(v=>v===size-1)),choices=surface.length?surface:options;
     if(noGuess){const difficulty=$("difficulty").value,maxSources=difficulty==="easy"?1:difficulty==="normal"?2:difficulty==="custom"?Number($("customReasoning").value)||null:null;startNoGuessGame({size,count,weights,positions,choices,hasSurface:!!surface.length,maxSources});return;}
@@ -177,11 +191,11 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     const reserved=new Set([openingKey,...cluePositions(opening.pos,opening.piece,size).map(p=>key(...p))]);
     const minePositions=positions.filter(p=>!reserved.has(key(...p)));
     for(let i=minePositions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[minePositions[i],minePositions[j]]=[minePositions[j],minePositions[i]];}
-    N=size;MINE_COUNT=count;mineInput.max=capacity-1;settingError.textContent="";boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개`;
+    N=size;MINE_COUNT=count;mineInput.max=capacity-1;settingError.textContent="";boardInfo.textContent=`${N}×${N}×${N} · ${MINE_COUNT} mines`;
     mines=new Set(minePositions.slice(0,MINE_COUNT).map(p=>key(...p)));cells=new Map();
     for(const p of positions)cells.set(key(...p),{revealed:false,flagged:false,piece:pickPiece(weights)});
     cells.get(openingKey).piece=opening.piece;
-    ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();startClock(weights);reveal(openingKey);if(view==="2d")resize();cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+    ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"3D is unavailable in this environment, so the 2D view is shown.";resetCamera();startClock(weights);reveal(openingKey);if(view==="2d")resize();cellInfo.textContent="Starting cell: "+cellInfo.textContent;
     if(!surface.length&&view==="3d")showInteriorOpening(opening.pos);
   }
   function cluePositions([x,y,z],piece,size=N){
@@ -205,25 +219,25 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     }return out;
   }
   function countMines(pos,piece){return cluePositions(pos,piece).filter(p=>mines.has(key(...p))).length;}
-  function updateTime(){const seconds=Math.floor((performance.now()-gameStartedAt)/1000);$("gameTime").textContent=`시간 ${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;}
+  function updateTime(){const seconds=Math.floor((performance.now()-gameStartedAt)/1000);$("gameTime").textContent=`Time ${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;}
   function startClock(weights){clearInterval(clockTimer);gameWeights={...weights};gameStartedAt=performance.now();updateTime();clockTimer=setInterval(updateTime,1000);}
   function stopClock(){if(clockTimer!==null){updateTime();clearInterval(clockTimer);clockTimer=null;}}
   function hideSuccess(){clearTimeout(successTimer);successTimer=null;$("successEffect").hidden=true;}
   function showSuccess(){const effect=$("successEffect");hideSuccess();void effect.offsetWidth;effect.hidden=false;successTimer=setTimeout(hideSuccess,4000);}
   function clearHint(){hintKey=null;}
   function reveal(k,deferDraw=false){if(ended)return;const c=cells.get(k);if(!c||c.revealed||c.flagged)return;clearHint();c.revealed=true;
-    if(mines.has(k)){ended=true;won=false;message.textContent="지뢰를 밟았습니다! 새 게임으로 다시 도전하세요.";}
-    else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;won=true;message.textContent="성공! 모든 안전한 칸을 열었습니다.";showSuccess();}
+    if(mines.has(k)){ended=true;won=false;message.textContent="You hit a mine! Start a new game and try again.";}
+    else if([...cells].every(([id,v])=>mines.has(id)||v.revealed)){ended=true;won=true;message.textContent="You win! All safe cells are open.";showSuccess();}
     if(ended){hintKey=null;stopClock();window.dispatchEvent(new CustomEvent("chessmine:game-finished",{detail:{mode:colorMode?"no-guess-color":noGuess?"no-guess":"normal",size:N,mines:MINE_COUNT,weights:{...gameWeights},result:won?"won":"lost",durationMs:Math.max(0,Math.round(performance.now()-gameStartedAt))}}));}if(!deferDraw){draw();showCellInfo(k);}
   }
-  function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;clearHint();c.flagged=!c.flagged;draw();showCellInfo(k);if(colorMode&&groups.some(g=>g.invalid))cellInfo.textContent+=" · 묶음의 깃발이나 열린 칸을 확인하세요.";}
+  function toggleFlag(k){if(ended)return;const c=cells.get(k);if(!c||c.revealed)return;clearHint();c.flagged=!c.flagged;draw();showCellInfo(k);if(colorMode&&groups.some(g=>g.invalid))cellInfo.textContent+=" · Check the flags and open cells in the group.";}
   function resetTap(){lastTapKey=null;lastTapAt=0;}
   function clearClueSelection(){selectedClue=null;selectedClosed=null;clueRange.clear();resetTap();}
   function selectClue(k,c){
     selectedClue=k;clueRange=new Set(cluePositions(parse(k),c.piece).map(p=>key(...p)));draw();showCellInfo(k);
-    cellInfo.textContent+=ended?" · 게임 종료 후 범위 표시 중.":editingGroup?" · 범위 표시 중. 닫힌 칸을 눌러 묶음에 추가하세요.":" · 범위 표시 중. 빠르게 두 번 누르면 조건에 맞는 칸을 엽니다.";
+    cellInfo.textContent+=ended?" · Showing range after game over.":editingGroup?" · Showing range. Select closed cells to add them to the group.":" · Showing range. Double-tap to open eligible cells.";
   }
-  function stopExpansion(){if(expansionTimer!==null){clearTimeout(expansionTimer);expansionTimer=null;if(cellInfo.textContent.startsWith("자동 개방 중"))cellInfo.textContent="자동 개방을 중단했습니다.";}}
+  function stopExpansion(){if(expansionTimer!==null){clearTimeout(expansionTimer);expansionTimer=null;if(cellInfo.textContent.startsWith("Auto-opening"))cellInfo.textContent="Auto-open canceled.";}}
   function expandClues(){
     stopExpansion();const instant=$("expansionMode").checked,queue=[...cells].filter(([id,c])=>c.revealed&&!mines.has(id)).map(([id])=>id);
     let opened=0,matched=0,queueIndex=0,targets=[],targetIndex=0;
@@ -239,10 +253,10 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
         const pos=targets[targetIndex++],target=key(...pos),cell=cells.get(target);if(cell.revealed||cell.flagged)continue;
         reveal(target,true);opened++;if(!ended)queue.push(target);
         if(instant&&!ended)continue;
-        draw();if(ended&&!won){showCellInfo(target);cellInfo.textContent+=" · 자동 개방 중 지뢰가 열렸습니다.";}else cellInfo.textContent=ended?`자동 개방 완료: ${opened}칸 열기`:`자동 개방 중: ${opened}칸 열기`;
+        draw();if(ended&&!won){showCellInfo(target);cellInfo.textContent+=" · A mine opened during auto-open.";}else cellInfo.textContent=ended?`Auto-open complete: ${opened} cells opened`:`Auto-opening: ${opened} cells opened`;
         if(!ended)expansionTimer=setTimeout(step,45);return;
       }
-      draw();cellInfo.textContent=matched?`자동 개방 완료: ${opened}칸 열기`:"깃발 수가 숫자와 같은 열린 기물이 없습니다.";
+      draw();cellInfo.textContent=matched?`Auto-open complete: ${opened} cells opened`:"No open piece has a number matching the flag count.";
     }
     step();
   }
@@ -256,13 +270,13 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       if(!c&&!flag){clearClueSelection();draw();}
       else if(c&&c.revealed&&!flag)selectClue(k,c);
       else if(c&&!c.revealed&&!c.flagged&&!flag){if(groupDraft.has(k))groupDraft.delete(k);else groupDraft.add(k);updateGroups();draw();}
-      else if(c)$("groupStatus").textContent=cellInfo.textContent="깃발이 없는 닫힌 칸을 선택하세요.";
+      else if(c)$("groupStatus").textContent=cellInfo.textContent="Select a closed, unflagged cell.";
       return;
     }
     if(!c){
       const hadSelection=selectedClue!==null||selectedClosed!==null,now=performance.now(),doubleTap=!flag&&lastTapKey==="background"&&now-lastTapAt<=DOUBLE_TAP_MS;
       clearClueSelection();if(doubleTap){expandClues();return;}
-      if(!flag){lastTapKey="background";lastTapAt=now;cellInfo.textContent="배경을 빠르게 두 번 누르면 조건에 맞는 기물의 범위를 엽니다.";}
+      if(!flag){lastTapKey="background";lastTapAt=now;cellInfo.textContent="Double-tap an empty area to open eligible piece ranges.";}
       if(hadSelection)draw();return;
     }
     if(flag){const hadSelection=selectedClue!==null||selectedClosed!==null;clearClueSelection();toggleFlag(k);if(hadSelection)draw();return;}
@@ -270,14 +284,14 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     const now=performance.now(),doubleTap=lastTapKey===k&&now-lastTapAt<=DOUBLE_TAP_MS;
     lastTapKey=doubleTap?null:k;lastTapAt=doubleTap?0:now;
     if(!c.revealed){
-      if(!doubleTap){selectedClue=null;clueRange.clear();selectedClosed=k;draw();showCellInfo(k);cellInfo.textContent+=" · 빠르게 두 번 눌러 열기";return;}
+      if(!doubleTap){selectedClue=null;clueRange.clear();selectedClosed=k;draw();showCellInfo(k);cellInfo.textContent+=" · Double-tap to open";return;}
       clearClueSelection();reveal(k,true);draw();showCellInfo(k);return;
     }
     if(!doubleTap){selectedClosed=null;selectClue(k,c);return;}
     const range=[...clueRange],flags=range.filter(id=>cells.get(id).flagged).length,total=countMines(parse(k),c.piece);clearClueSelection();
-    if(flags!==total){draw();showCellInfo(k);cellInfo.textContent+=` · 깃발 ${flags}개 / 필요 ${total}개`;return;}
+    if(flags!==total){draw();showCellInfo(k);cellInfo.textContent+=` · Flags ${flags} / needed ${total}`;return;}
     let opened=0,last=k;for(const id of range){const cell=cells.get(id);if(!cell.revealed&&!cell.flagged){reveal(id,true);opened++;last=id;if(ended)break;}}
-    draw();showCellInfo(ended&&mines.has(last)?last:k);if(!ended)cellInfo.textContent+=` · ${opened}칸 열기`;
+    draw();showCellInfo(ended&&mines.has(last)?last:k);if(!ended)cellInfo.textContent+=` · ${opened} cells opened`;
   }
   function activateTap(k,rightClick){const cell=cells.get(k);activate(k,rightClick||(!editingGroup&&flagMode&&!!cell&&!cell.revealed));}
   function activateLongPress(k){const cell=cells.get(k);if(colorMode&&cell?.revealed&&!mines.has(k)){autoGroup(k,true);return;}activate(k,true);}
@@ -380,31 +394,31 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     if(generationUrl)URL.revokeObjectURL(generationUrl);generationUrl=null;$("start").disabled=false;$("cancelGeneration").hidden=true;
   }
   function startNoGuessGame(options){
-    settingError.textContent="";message.textContent="추측 없이 풀 수 있는 보드를 생성하고 있습니다…";$("start").disabled=true;$("cancelGeneration").hidden=false;
+    settingError.textContent="";message.textContent="Generating a no-guess board…";$("start").disabled=true;$("cancelGeneration").hidden=false;
     const source=`let N,MINE_COUNT,cells,mines,ended;const PIECES=${JSON.stringify(PIECES)},key=${key.toString()},parse=${parse.toString()};${pickPiece.toString()}\n${cluePositions.toString()}\n${countMines.toString()}\n${inferMoves.toString()}\n${generateNoGuessBoard.toString()}\nonmessage=e=>generateNoGuessBoard(e.data);`;
-    try{generationUrl=URL.createObjectURL(new Blob([source],{type:"text/javascript"}));generationWorker=new Worker(generationUrl);}catch(error){stopGeneration();message.textContent="";settingError.textContent="보드 생성 기능을 시작하지 못했습니다. 브라우저를 확인하세요.";return;}
+    try{generationUrl=URL.createObjectURL(new Blob([source],{type:"text/javascript"}));generationWorker=new Worker(generationUrl);}catch(error){stopGeneration();message.textContent="";settingError.textContent="Could not start the board generator. Check your browser.";return;}
     generationWorker.onmessage=({data})=>{
-      if(data.type==="progress"){message.textContent=`추측 없이 풀 수 있는 보드 생성 중… ${data.attempt}/100`;return;}
+      if(data.type==="progress"){message.textContent=`Generating a no-guess board… ${data.attempt}/100`;return;}
       stopGeneration();message.textContent="";
-      if(data.type!=="ready"){settingError.textContent="이 설정에서 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";return;}
-      stopExpansion();N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · 지뢰 ${MINE_COUNT}개 · 추측 없이 풀이 가능`;
+      if(data.type!=="ready"){settingError.textContent="No board found with these settings. Change the mine count or piece weights and try again.";return;}
+      stopExpansion();N=data.size;MINE_COUNT=data.count;mineInput.max=N**3-1;boardInfo.textContent=`${N}×${N}×${N} · ${MINE_COUNT} mines · solvable without guessing`;
       mines=new Set(data.mines);cells=new Map(data.pieces.map(([id,piece])=>[id,{revealed:false,flagged:false,piece}]));
-      resetGroups();hideSuccess();ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";resetCamera();startClock(options.weights);reveal(data.openingKey);if(view==="2d")resize();cellInfo.textContent="시작 칸: "+cellInfo.textContent;
+      resetGroups();hideSuccess();ended=false;won=false;clearHint();clearClueSelection();message.textContent=gl?"":"3D is unavailable in this environment, so the 2D view is shown.";resetCamera();startClock(options.weights);reveal(data.openingKey);if(view==="2d")resize();cellInfo.textContent="Starting cell: "+cellInfo.textContent;
       if(!data.hasSurface&&view==="3d")showInteriorOpening(data.opening);
     };
-    generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="보드 생성 중 오류가 발생했습니다. 다시 시도하세요.";};
-    generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="시간 안에 보드를 찾지 못했습니다. 지뢰 수나 기물 가중치를 바꾸고 다시 시도하세요.";},45000);
+    generationWorker.onerror=()=>{stopGeneration();message.textContent="";settingError.textContent="An error occurred while generating the board. Try again.";};
+    generationTimer=setTimeout(()=>{stopGeneration();message.textContent="";settingError.textContent="Could not find a board in time. Change the mine count or piece weights and try again.";},45000);
     generationWorker.postMessage(options);
   }
   function showHint(result=null){
     stopExpansion();
-    if(!cells.size){cellInfo.textContent="새 게임을 시작하세요.";return;}
-    if(ended){cellInfo.textContent="게임이 끝났습니다. 새 게임을 시작하세요.";return;}
+    if(!cells.size){cellInfo.textContent="Start a new game.";return;}
+    if(ended){cellInfo.textContent="The game is over. Start a new game.";return;}
     clearClueSelection();
     clearHint();result=result||inferMoves();
-    if(result.conflict){draw();cellInfo.textContent="깃발이나 공개된 숫자가 서로 맞지 않습니다. 깃발을 확인하세요.";return;}
-    if(result.limited){draw();cellInfo.textContent="가능한 배치가 너무 많아 이번 추론을 끝내지 못했습니다. 더 많은 칸을 열어 단서를 늘려 보세요.";return;}
-    if(!result.moves.length){draw();cellInfo.textContent="현재 공개된 단서만으로 확정할 수 있는 칸이 없습니다.";return;}
+    if(result.conflict){draw();cellInfo.textContent="Flags conflict with revealed numbers. Check the flags.";return;}
+    if(result.limited){draw();cellInfo.textContent="There are too many possible layouts to finish this inference. Open more cells to reveal clues.";return;}
+    if(!result.moves.length){draw();cellInfo.textContent="The revealed clues do not determine any cells yet.";return;}
     let choices=result.moves;
     if(choices.every(move=>move.sources?.length)){const fewest=Math.min(...choices.map(move=>move.sources.length));choices=choices.filter(move=>move.sources.length===fewest);}
     for(let i=choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}
@@ -424,7 +438,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
         return cx>=scrollX&&cx<scrollX+(scroller.clientWidth||r.width)&&cy>=scrollY&&cy<scrollY+(scroller.clientHeight||r.height);});
     }
     const choice=visibleHint||choices[0];hintKey=choice.key;
-    draw();cellInfo.textContent=`추론 가능한 칸: (${parse(hintKey).join(", ")}) · 단서를 확인하세요.`+(!visibleHint?(view==="3d"?" 현재 화면에서 가려져 있다면 보드를 돌리거나 2D 보기를 사용하세요.":" 표시된 좌표를 찾으려면 보드를 스크롤하세요."):"");
+    draw();cellInfo.textContent=`Inferred cell: (${parse(hintKey).join(", ")}) · Check the clues.`+(!visibleHint?(view==="3d"?" If it is hidden, rotate the board or use 2D view.":" Scroll the board to find the marked coordinates."):"");
   }
   function setView(v){
     resetTap();
@@ -458,7 +472,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     const s=Math.min((width-24)/(cols*N+(cols-1)*gap),(height-24)/(rows*(N+label)+(rows-1)*.3),58);
     return{cols,s,left:(width-(cols*N+(cols-1)*gap)*s)/2,top:(height-(rows*(N+label)+(rows-1)*.3)*s)/2};
   }
-  function showInteriorOpening([x,y,z]){setView("2d");const {cols,s,left,top}=layout2d(),r=scroller.getBoundingClientRect();scroller.scrollLeft=Math.max(0,left+(z%cols)*(N+.58)*s+(x+.5)*s-(scroller.clientWidth||r.width)/2);scroller.scrollTop=Math.max(0,top+Math.floor(z/cols)*(N+.72)*s+(.42+y+.5)*s-(scroller.clientHeight||r.height)/2);if(!ended)message.textContent="시작 칸이 내부에 있어 2D 보기를 표시합니다.";}
+  function showInteriorOpening([x,y,z]){setView("2d");const {cols,s,left,top}=layout2d(),r=scroller.getBoundingClientRect();scroller.scrollLeft=Math.max(0,left+(z%cols)*(N+.58)*s+(x+.5)*s-(scroller.clientWidth||r.width)/2);scroller.scrollTop=Math.max(0,top+Math.floor(z/cols)*(N+.72)*s+(.42+y+.5)*s-(scroller.clientHeight||r.height)/2);if(!ended)message.textContent="The starting cell is inside the board, so the 2D view is shown.";}
   function draw2d(){
     ctx.clearRect(0,0,width,height);const{cols,s,left,top}=layout2d();cellSize=s;
     for(let z=0;z<N;z++){
@@ -501,7 +515,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
       gl.enable(gl.DEPTH_TEST);gl.clearColor(0,0,0,0);
-    }catch(error){console.error("3D renderer:",error);gl=null;$("view3d").disabled=true;message.textContent="이 환경에서는 3D를 사용할 수 없어 층별 2D 보기를 표시합니다.";}
+    }catch(error){console.error("3D renderer:",error);gl=null;$("view3d").disabled=true;message.textContent="3D is unavailable in this environment, so the 2D view is shown.";}
   }
   function center([x,y,z]){const s=Number(spacing.value),mid=(N-1)/2;return[(x-mid)*s,(z-mid)*s,(y-mid)*s];}
   function build3d(){
@@ -562,9 +576,9 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   function zoom(factor){resetTap();distance=Math.max(N*Number(spacing.value)*.95,Math.min(N*Number(spacing.value)*10,distance*factor));render3d();}
   function draw(){
     if(colorMode)updateGroups();
-    if(!cells.size){stats.textContent="보드를 준비하고 있습니다.";if(view==="2d"&&width&&height)ctx.clearRect(0,0,width,height);else if(gl)gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);return;}
+    if(!cells.size){stats.textContent="Preparing board.";if(view==="2d"&&width&&height)ctx.clearRect(0,0,width,height);else if(gl)gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);return;}
     const f=[...cells.values()].filter(c=>c.flagged).length;
-    stats.textContent=`칸 ${N**3}개 · 지뢰 ${MINE_COUNT}개 · 깃발 ${f}개 · 연 칸 ${[...cells].filter(([k,c])=>c.revealed&&!mines.has(k)).length}/${N**3-MINE_COUNT}개`;
+    stats.textContent=`${N**3} cells · ${MINE_COUNT} mines · ${f} flags · ${[...cells].filter(([k,c])=>c.revealed&&!mines.has(k)).length}/${N**3-MINE_COUNT} safe cells open`;
     if(view==="3d"){build3d();render3d();}else if(width&&height)draw2d();
   }
   function resize(){
@@ -594,7 +608,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       if(far>=near&&near<closest){closest=near;best=cell.key;}
     }return best;
   }
-  function showCellInfo(k){const c=cells.get(k);if(!c)return;const pos=`(${parse(k).join(", ")})`;cellInfo.textContent=c.revealed&&!mines.has(k)?`${pos} · ${SYMBOLS[c.piece]} ${NAMES[c.piece]} 규칙으로 센 지뢰: ${countMines(parse(k),c.piece)}개`:`${pos} · ${won&&mines.has(k)?"꽃":c.flagged?"깃발 표시":mines.has(k)&&(c.revealed||ended)?"지뢰":"닫힌 칸"}`;}
+  function showCellInfo(k){const c=cells.get(k);if(!c)return;const pos=`(${parse(k).join(", ")})`;cellInfo.textContent=c.revealed&&!mines.has(k)?`${pos} · ${SYMBOLS[c.piece]} ${NAMES[c.piece]}-rule mines: ${countMines(parse(k),c.piece)}`:`${pos} · ${won&&mines.has(k)?"Mine":c.flagged?"Flagged":mines.has(k)&&(c.revealed||ended)?"Mine":"Closed"}`;}
   const pointers=new Map();let gesture=null;
   const pointerDistance=()=>{const p=[...pointers.values()];return Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);};
   canvas3d.addEventListener("pointerdown",e=>{
@@ -654,15 +668,15 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   for(const [id,value] of [["chooseEasy","easy"],["chooseNormal","normal"],["chooseHard","hard"],["chooseCustom","custom"]])$(id).addEventListener("click",()=>{$("difficultyDialog").close();chooseDifficulty(value);});
   $("difficultyDialog").addEventListener("cancel",e=>e.preventDefault());
   $("helpDialog").addEventListener("click",e=>{const dialog=$("helpDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))dialog.close();});
-  $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="보드 생성을 취소했습니다.";});
+  $("cancelGeneration").addEventListener("click",()=>{stopGeneration();message.textContent="Board generation canceled.";});
   function fullscreenChanged(){
     const expanded=document.fullscreenElement===$("gameArea")||$("gameArea").classList.contains("expanded");
-    $("fullscreenButton").setAttribute("aria-label",expanded?"전체화면 종료":"전체화면");$("fullscreenButton").title=expanded?"전체화면 종료":"전체화면";
+    $("fullscreenButton").setAttribute("aria-label",expanded?"Exit fullscreen":"Fullscreen");$("fullscreenButton").title=expanded?"Exit fullscreen":"Fullscreen";
     $("fullscreenButton").setAttribute("aria-pressed",String(expanded));resize();
   }
   $("fullscreenButton").addEventListener("click",async()=>{
     const area=$("gameArea");resetTap();
-    if(document.fullscreenElement===area){try{await document.exitFullscreen();}catch{cellInfo.textContent="전체화면을 종료하지 못했습니다.";}return;}
+    if(document.fullscreenElement===area){try{await document.exitFullscreen();}catch{cellInfo.textContent="Could not exit fullscreen.";}return;}
     if(area.classList.contains("expanded")){area.classList.remove("expanded");fullscreenChanged();return;}
     if(area.requestFullscreen){try{await area.requestFullscreen();return;}catch{}}
     area.classList.add("expanded");fullscreenChanged();
@@ -690,38 +704,38 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       else if(rowA===rowB){a.widthScale=.43;b.widthScale=.43;}
     }
     if(JSON.stringify(groupLabels())!==groupOptionsKey)refreshGroupOptions();
-    $("groupEdit").textContent=editingGroup?"선택 중":"묶음 만들기";$("groupEdit").setAttribute("aria-pressed",String(editingGroup));
+    $("groupEdit").textContent=editingGroup?"Selecting":"Create Group";$("groupEdit").setAttribute("aria-pressed",String(editingGroup));
     $("groupEditor").hidden=!editingGroup;
     for(const id of ["groupEdit","groupManageLabel","groupDelete"])$(id).hidden=editingGroup;
-    $("groupDraft").textContent=`칸 ${groupDraft.size}개 선택`;$("groupMineCount").max=groupDraft.size;
+    $("groupDraft").textContent=`${groupDraft.size} cells selected`;$("groupMineCount").max=groupDraft.size;
     const group=groups[activeGroup];$("groupDelete").disabled=!group||editingGroup;
-    const warning=groups.some(g=>g.invalid)?"깃발이나 열린 칸이 묶음과 맞지 않습니다. 기록을 확인하세요.":"";if(warning&&$("groupStatus").textContent!==warning)cellInfo.textContent=warning;$("groupStatus").textContent=warning;
+    const warning=groups.some(g=>g.invalid)?"Flags or open cells conflict with this group. Check the count.":"";if(warning&&$("groupStatus").textContent!==warning)cellInfo.textContent=warning;$("groupStatus").textContent=warning;
   }
-  function groupLabels(){return groups.map((group,i)=>`묶음 ${i+1} · ${group.colorName} · ${group.remaining??group.mines}/${group.closed??group.ids.size}${group.invalid?" · 확인 필요":""}`);}
+  function groupLabels(){return groups.map((group,i)=>`Group ${i+1} · ${group.colorName} · ${group.remaining??group.mines}/${group.closed??group.ids.size}${group.invalid?" · check needed":""}`);}
   function refreshGroupOptions(){
-    const select=$("groupSelect"),labels=groupLabels();groupOptionsKey=JSON.stringify(labels);select.replaceChildren(new Option("없음",""));labels.forEach((label,i)=>select.add(new Option(label,String(i))));select.value=activeGroup<0?"":String(activeGroup);
+    const select=$("groupSelect"),labels=groupLabels();groupOptionsKey=JSON.stringify(labels);select.replaceChildren(new Option("None",""));labels.forEach((label,i)=>select.add(new Option(label,String(i))));select.value=activeGroup<0?"":String(activeGroup);
   }
   function resetGroups(){if(!colorMode)return;groups=[];groupDraft.clear();editingGroup=false;activeGroup=-1;nextGroupColor=0;refreshGroupOptions();updateGroups();}
-  function addGroup(ids,count,source=null){const colorIndex=nextGroupColor++,[colorName,color]=groupColors[colorIndex]||[`색상 ${colorIndex+1}`,`hsl(${Math.round(colorIndex*137.508)%360}, 90%, 75%)`];groups.push({ids:new Set(ids),mines:count,colorName,color,source});activeGroup=groups.length-1;refreshGroupOptions();updateGroups();draw();}
+  function addGroup(ids,count,source=null){const colorIndex=nextGroupColor++,[colorName,color]=groupColors[colorIndex]||[`Color ${colorIndex+1}`,`hsl(${Math.round(colorIndex*137.508)%360}, 90%, 75%)`];groups.push({ids:new Set(ids),mines:count,colorName,color,source});activeGroup=groups.length-1;refreshGroupOptions();updateGroups();draw();}
   function removeGroup(index){groups.splice(index,1);if(activeGroup>index)activeGroup--;else if(activeGroup===index)activeGroup=Math.min(index,groups.length-1);refreshGroupOptions();updateGroups();draw();}
   async function autoGroup(id,silent=false){
-    if(!colorMode||ended||!cells.get(id)?.revealed||mines.has(id)){if(!silent)cellInfo.textContent="열린 기물을 먼저 선택하세요.";return;}
+    if(!colorMode||ended||!cells.get(id)?.revealed||mines.has(id)){if(!silent)cellInfo.textContent="Select an open piece first.";return;}
     if(hintState()!=="authenticated"||!premiumActive){if(!silent)showPremiumNotice();return;}
     const board=cells,owner=window.chessmineHints.owner();
     try{const balance=await window.chessmineHints.balance();if(!balance.premium){if(!silent)showPremiumNotice();return;}if(cells!==board||ended||window.chessmineHints.owner()!==owner||(!silent&&selectedClue!==id))return;
-      const cell=cells.get(id);if(!cell?.revealed||mines.has(id))return;const sourceIndex=groups.findIndex(group=>group.source===id);if(sourceIndex>=0){removeGroup(sourceIndex);cellInfo.textContent="자동 묶음을 해제했습니다.";return;}
+      const cell=cells.get(id);if(!cell?.revealed||mines.has(id))return;const sourceIndex=groups.findIndex(group=>group.source===id);if(sourceIndex>=0){removeGroup(sourceIndex);cellInfo.textContent="Auto Group removed.";return;}
       const range=cluePositions(parse(id),cell.piece).map(p=>key(...p)),closed=range.filter(k=>!cells.get(k).revealed&&!cells.get(k).flagged),flags=range.filter(k=>cells.get(k).flagged).length,remaining=countMines(parse(id),cell.piece)-flags;
-      if(remaining<0||remaining>closed.length){cellInfo.textContent="깃발 수가 기물의 숫자와 맞지 않습니다.";return;}if(!closed.length){cellInfo.textContent="묶을 닫힌 칸이 없습니다.";return;}
-      const duplicate=groups.findIndex(group=>!group.invalid&&group.remaining===remaining&&group.closed===closed.length&&closed.every(k=>group.ids.has(k)));if(duplicate>=0){removeGroup(duplicate);cellInfo.textContent="같은 묶음을 해제했습니다.";return;}
-      addGroup(closed,remaining,id);cellInfo.textContent=`자동 묶음: ${closed.length}칸 · 남은 지뢰 ${remaining}개`;
-    }catch{if(!silent)cellInfo.textContent="프리미엄 상태를 확인하지 못했습니다. 연결을 확인하세요.";}
+      if(remaining<0||remaining>closed.length){cellInfo.textContent="The flag count does not match the piece number.";return;}if(!closed.length){cellInfo.textContent="There are no closed cells to group.";return;}
+      const duplicate=groups.findIndex(group=>!group.invalid&&group.remaining===remaining&&group.closed===closed.length&&closed.every(k=>group.ids.has(k)));if(duplicate>=0){removeGroup(duplicate);cellInfo.textContent="Matching group removed.";return;}
+      addGroup(closed,remaining,id);cellInfo.textContent=`Auto Group: ${closed.length} cells · ${remaining} mines remaining`;
+    }catch{if(!silent)cellInfo.textContent="Could not verify premium status. Check your connection.";}
   }
-  $("groupEdit").addEventListener("click",()=>{if(!cells.size||ended){cellInfo.textContent="진행 중인 게임에서 묶음을 만드세요.";return;}stopExpansion();resetTap();editingGroup=true;groupDraft.clear();clearClueSelection();clearHint();updateGroups();draw();});
+  $("groupEdit").addEventListener("click",()=>{if(!cells.size||ended){cellInfo.textContent="Create groups during an active game.";return;}stopExpansion();resetTap();editingGroup=true;groupDraft.clear();clearClueSelection();clearHint();updateGroups();draw();});
   for(const [id,delta] of [["groupMineDown",-1],["groupMineUp",1]])$(id).addEventListener("click",()=>{$("groupMineCount").value=String(Math.min(groupDraft.size,Math.max(0,(Number($("groupMineCount").value)||0)+delta)));});
   $("groupCancel").addEventListener("click",()=>{editingGroup=false;groupDraft.clear();updateGroups();draw();});
   $("groupSave").addEventListener("click",()=>{
     const raw=$("groupMineCount").value,n=Number(raw);
-    if(!groupDraft.size||[...groupDraft].some(id=>!cells.has(id)||cells.get(id).revealed||cells.get(id).flagged)||raw.trim()===""||!Number.isInteger(n)||n<0||n>groupDraft.size){$("groupStatus").textContent=cellInfo.textContent="칸을 선택하고 지뢰 수를 0부터 선택한 칸 수 사이로 입력하세요.";return;}
+    if(!groupDraft.size||[...groupDraft].some(id=>!cells.has(id)||cells.get(id).revealed||cells.get(id).flagged)||raw.trim()===""||!Number.isInteger(n)||n<0||n>groupDraft.size){$("groupStatus").textContent=cellInfo.textContent="Select cells and enter a mine count between 0 and the number of selected cells.";return;}
     const ids=new Set(groupDraft);groupDraft.clear();editingGroup=false;addGroup(ids,n);
   });
   $("groupSelect").addEventListener("change",()=>{activeGroup=$("groupSelect").value===""?-1:Number($("groupSelect").value);updateGroups();draw();});
@@ -729,36 +743,36 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
   let startWasDisabled=false;
   let promoDecision=null;
   function finishPromoDecision(accepted){if(!promoDecision)return;const resolve=promoDecision;promoDecision=null;$("promoConfirmDialog").close();resolve(accepted);}
-  function askPromo(reward){$("promoConfirmText").textContent=`광고를 보고 힌트 ${reward}개를 받으시겠습니까?`;$("promoConfirmDialog").showModal();return new Promise(resolve=>{promoDecision=resolve;});}
+  function askPromo(reward){$("promoConfirmText").textContent=`Watch an ad to receive ${reward} hints?`;$("promoConfirmDialog").showModal();return new Promise(resolve=>{promoDecision=resolve;});}
   $("promoAccept").addEventListener("click",()=>finishPromoDecision(true));$("promoCancel").addEventListener("click",()=>finishPromoDecision(false));$("promoConfirmDialog").addEventListener("cancel",e=>{e.preventDefault();finishPromoDecision(false);});$("promoConfirmDialog").addEventListener("click",e=>{const dialog=$("promoConfirmDialog"),r=dialog.getBoundingClientRect();if(e.target===dialog&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))finishPromoDecision(false);});
   function setHintBusy(busy){hintBusy=busy;$("hintButton").disabled=busy;$("difficulty").disabled=busy;if(busy){startWasDisabled=$("start").disabled;$("start").disabled=true;}else $("start").disabled=startWasDisabled;}
   function hintState(){const state=window.chessmineHints?.state();return !hintOffline&&state==="authenticated"?state:"guest";}
-  function showGuestHints(){if(hintState()==="guest")$("hintButton").textContent=`힌트 (${guestHints})`;}
-  function hintError(error){cellInfo.textContent=error?.message==="login_required"?"계정 연결을 확인하고 다시 시도하세요.":"힌트를 처리하지 못했습니다. 연결을 확인하고 다시 시도하세요.";}
+  function showGuestHints(){if(hintState()==="guest")$("hintButton").textContent=`Hint (${guestHints})`;}
+  function hintError(error){cellInfo.textContent=error?.message==="login_required"?"Check your account connection and try again.":"Could not process the hint. Check your connection and try again.";}
   async function useHint(guest){const result=inferMoves();if(result.conflict||result.limited||!result.moves.length){showHint(result);return;}if(guest){guestHints--;showGuestHints();}else await window.chessmineHints.use();showHint(result);}
-  window.addEventListener("chessmine:hint-credits",event=>{const data=event.detail||{};premiumActive=data.premium===true;premiumAvailable=data.premiumTestAvailable===true;$("premiumTest").checked=premiumActive;$("premiumTest").disabled=!premiumAvailable;$("premiumTestStatus").textContent=premiumAvailable?"테스트용 설정입니다.":hintState()==="authenticated"?"현재 테스트를 이용할 수 없습니다.":"로그인 후 이용할 수 있습니다.";if(Number.isSafeInteger(data.credits)){hintOffline=false;$("hintButton").textContent=`힌트 (${data.credits})`;}else if(hintState()==="guest")showGuestHints();else $("hintButton").textContent="힌트";});showGuestHints();
-  $("premiumTest").addEventListener("change",async()=>{const enabled=$("premiumTest").checked;$("premiumTest").disabled=true;try{await window.chessmineHints.setPremium(enabled);}catch{$("premiumTest").checked=premiumActive;$("premiumTestStatus").textContent="변경하지 못했습니다. 연결을 확인하세요.";}finally{$("premiumTest").disabled=hintState()!=="authenticated"||!premiumAvailable;}});
+  window.addEventListener("chessmine:hint-credits",event=>{const data=event.detail||{};premiumActive=data.premium===true;premiumAvailable=data.premiumTestAvailable===true;$("premiumTest").checked=premiumActive;$("premiumTest").disabled=!premiumAvailable;$("premiumTestStatus").textContent=premiumAvailable?"This is a test setting.":hintState()==="authenticated"?"Testing is currently unavailable.":"Available after login.";if(Number.isSafeInteger(data.credits)){hintOffline=false;$("hintButton").textContent=`Hint (${data.credits})`;}else if(hintState()==="guest")showGuestHints();else $("hintButton").textContent="Hint";});showGuestHints();
+  $("premiumTest").addEventListener("change",async()=>{const enabled=$("premiumTest").checked;$("premiumTest").disabled=true;try{await window.chessmineHints.setPremium(enabled);}catch{$("premiumTest").checked=premiumActive;$("premiumTestStatus").textContent="Could not save the change. Check your connection.";}finally{$("premiumTest").disabled=hintState()!=="authenticated"||!premiumAvailable;}});
   $("hintButton").addEventListener("click",async()=>{
-    if(hintBusy||$("hintPromoDialog").open)return;if(!cells.size||ended){showHint();return;}if(generationWorker){cellInfo.textContent="보드 생성이 끝난 뒤 힌트를 사용하세요.";return;}
+    if(hintBusy||$("hintPromoDialog").open)return;if(!cells.size||ended){showHint();return;}if(generationWorker){cellInfo.textContent="Use a hint after board generation finishes.";return;}
     stopExpansion();resetTap();setHintBusy(true);
     try{
       let guest=hintState()==="guest",owner=guest?null:window.chessmineHints.owner(),credits=guestHints,reward=3;
-      if(!guest){try{const balance=await window.chessmineHints.balance();credits=balance.credits;reward=balance.premium?5:3;}catch(error){if(error?.message!=="network_unavailable"&&error?.message!=="login_required")throw error;hintOffline=true;premiumActive=false;guest=true;owner=null;credits=guestHints;showGuestHints();cellInfo.textContent="계정 서버에 연결할 수 없어 임시 힌트로 진행합니다. 새로고침하면 초기화됩니다.";}}
+      if(!guest){try{const balance=await window.chessmineHints.balance();credits=balance.credits;reward=balance.premium?5:3;}catch(error){if(error?.message!=="network_unavailable"&&error?.message!=="login_required")throw error;hintOffline=true;premiumActive=false;guest=true;owner=null;credits=guestHints;showGuestHints();cellInfo.textContent="Could not connect to the account server, so temporary hints are in use. They reset when you refresh.";}}
       if(credits>0){await useHint(guest);return;}
       if(!await askPromo(reward))return;if(!guest&&(hintState()!=="authenticated"||window.chessmineHints.owner()!==owner))throw new Error("account_changed");
       promoTicket=guest?{guest:true}:{guest:false,owner,ticket:(await window.chessmineHints.start()).ticket};
-      $("promoReward").textContent=`카운트다운이 끝나면 X를 눌러 힌트 ${reward}개를 받으세요.`;
-      const close=$("promoClose"),deadline=performance.now()+3000;close.disabled=true;close.textContent="3";close.setAttribute("aria-label","3초 후 닫기 가능");$("hintPromoDialog").showModal();
-      const timer=setInterval(()=>{const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));if(remaining){close.textContent=String(remaining);close.setAttribute("aria-label",`${remaining}초 후 닫기 가능`);}else{clearInterval(timer);close.disabled=false;close.textContent="×";close.setAttribute("aria-label","홍보 닫고 힌트 받기");}},250);
+      $("promoReward").textContent=`When the countdown ends, press X to claim ${reward} hints.`;
+      const close=$("promoClose"),deadline=performance.now()+3000;close.disabled=true;close.textContent="3";close.setAttribute("aria-label","Can close in 3 seconds");$("hintPromoDialog").showModal();
+      const timer=setInterval(()=>{const remaining=Math.max(0,Math.ceil((deadline-performance.now())/1000));if(remaining){close.textContent=String(remaining);close.setAttribute("aria-label",`Can close in ${remaining} seconds`);}else{clearInterval(timer);close.disabled=false;close.textContent="×";close.setAttribute("aria-label","Close promotion and claim hints");}},250);
     }catch(error){hintError(error);}finally{setHintBusy(false);}
   });
   $("promoClose").addEventListener("click",()=>{if(!$("promoClose").disabled)$("hintPromoDialog").close();});$("hintPromoDialog").addEventListener("cancel",e=>{if($("promoClose").disabled)e.preventDefault();});
-  $("hintPromoDialog").addEventListener("close",async()=>{if(!promoTicket)return;const promo=promoTicket;promoTicket=null;setHintBusy(true);try{if(promo.guest){guestHints+=3;showGuestHints();cellInfo.textContent=hintState()==="guest"?"힌트 3개를 받았습니다. 힌트 버튼을 눌러 사용하세요.":"비로그인 힌트 3개를 받았습니다. 로그아웃하면 사용할 수 있습니다.";}else{if(hintState()!=="authenticated"||window.chessmineHints.owner()!==promo.owner)throw new Error("account_changed");await window.chessmineHints.claim(promo.ticket);cellInfo.textContent="힌트를 받았습니다. 힌트 버튼을 눌러 사용하세요.";}}catch(error){hintError(error);}finally{setHintBusy(false);}});
+  $("hintPromoDialog").addEventListener("close",async()=>{if(!promoTicket)return;const promo=promoTicket;promoTicket=null;setHintBusy(true);try{if(promo.guest){guestHints+=3;showGuestHints();cellInfo.textContent=hintState()==="guest"?"You received 3 hints. Press Hint to use them.":"You received 3 guest hints. Sign out to use them.";}else{if(hintState()!=="authenticated"||window.chessmineHints.owner()!==promo.owner)throw new Error("account_changed");await window.chessmineHints.claim(promo.ticket);cellInfo.textContent="You received hints. Press Hint to use them.";}}catch(error){hintError(error);}finally{setHintBusy(false);}});
   function hidePremiumNotice(){$("premiumNotice").hidden=true;$("autoGroupButton").setAttribute("aria-expanded","false");}
   function showPremiumNotice(){$("premiumNotice").hidden=false;$("autoGroupButton").setAttribute("aria-expanded","true");}
   hidePremiumNotice();document.addEventListener("click",event=>{if(!$("autoGroupWrap").contains(event.target))hidePremiumNotice();});$("premiumNotice").addEventListener("click",hidePremiumNotice);
-  $("autoGroupButton").addEventListener("click",()=>{stopExpansion();resetTap();if(hintState()!=="authenticated"||!premiumActive){if($("premiumNotice").hidden)showPremiumNotice();else hidePremiumNotice();return;}hidePremiumNotice();if(!selectedClue){cellInfo.textContent="열린 기물을 먼저 선택하세요.";return;}autoGroup(selectedClue);});
-  flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`깃발 모드: ${flagMode?"켬":"끔"}`;});
+  $("autoGroupButton").addEventListener("click",()=>{stopExpansion();resetTap();if(hintState()!=="authenticated"||!premiumActive){if($("premiumNotice").hidden)showPremiumNotice();else hidePremiumNotice();return;}hidePremiumNotice();if(!selectedClue){cellInfo.textContent="Select an open piece first.";return;}autoGroup(selectedClue);});
+  flagButton.addEventListener("click",()=>{stopExpansion();resetTap();flagMode=!flagMode;flagButton.classList.toggle("active",flagMode);flagButton.setAttribute("aria-pressed",String(flagMode));flagButton.textContent=`Flag mode: ${flagMode?"On":"Off"}`;});
   spacing.addEventListener("input",()=>{resetTap();for(const cell of visibleCells)cell.center=center(cell.pos);resetCamera();});$("resetCamera").addEventListener("click",()=>{resetTap();resetCamera();});
   sizeInput.addEventListener("change",()=>{const n=Number(sizeInput.value);if(Number.isInteger(n)&&n>=3&&n<=10)mineInput.max=n**3-1;});
   window.addEventListener("keydown",e=>{
@@ -770,7 +784,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
     if(e.target===canvas3d){if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","+","=","-"].includes(e.key))e.preventDefault();
       if(k==="arrowleft")yaw-=.12;if(k==="arrowright")yaw+=.12;if(k==="arrowup")pitch=Math.min(1.45,pitch+.12);if(k==="arrowdown")pitch=Math.max(-1.45,pitch-.12);if(k==="+"||k==="=")zoom(.9);if(k==="-")zoom(1.1);render3d();}
   });
-  canvas3d.addEventListener("webglcontextlost",e=>{e.preventDefault();gl=null;$("view3d").disabled=true;setView("2d");message.textContent="3D 렌더링이 중단되어 2D 보기로 전환했습니다. 새로고침하면 다시 시도합니다.";});
+  canvas3d.addEventListener("webglcontextlost",e=>{e.preventDefault();gl=null;$("view3d").disabled=true;setView("2d");message.textContent="3D rendering stopped, so the game switched to 2D view. Refresh to try again.";});
   for(const p of PIECES)$("weight"+p).addEventListener("input",updateWeightSummary);
   window.addEventListener("resize",resize);updateWeightSummary();init3d();setView(gl?"3d":"2d");resetCamera();$("difficultyDialog").showModal();
 })();

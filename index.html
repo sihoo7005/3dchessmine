@@ -1,11 +1,18 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="refresh" content="0; url=3d_minesweeper.html?mode=no-guess-color">
-  <title>3D 체스 지뢰찾기</title>
+  <title>3D Chess Minesweeper</title>
 </head>
 <body>
-  <a href="3d_minesweeper.html?mode=no-guess-color">3D 체스 지뢰찾기 열기</a>
+  <a href="3d_minesweeper.html?mode=no-guess-color">Open 3D Chess Minesweeper</a>
+<script>
+if ((localStorage.getItem("chessmine:language") || (/^en/i.test(navigator.language) ? "en" : "ko")) === "ko") {
+  document.documentElement.lang = "ko";
+  document.title = "3D 체스 지뢰찾기";
+  document.querySelector("a").textContent = "3D 체스 지뢰찾기 열기";
+}
+</script>
 </body>
 </html>
