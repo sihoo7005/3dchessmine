@@ -454,7 +454,7 @@ header{justify-content:flex-start}header h1{margin-right:auto}.header-actions{di
       style.badges=groups.filter(group=>group.ids.has(k)&&group.closed>0).map(group=>({text:group.invalid?"!":`${group.remaining}/${group.closed}`,color:group.color,slot:group.slot,fontScale:group.fontScale,widthScale:group.widthScale}));
       if(draftLayout&&groupDraft.has(k))style.badges.push({text:"●",color:"#fff2a8",slot:draftLayout.slot,fontScale:draftLayout.fontScale,widthScale:draftLayout.widthScale});
     }
-    if(hintSources.has(k))style.fill="#9b6b20";else if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";
+    if(hintSources.has(k))style.fill="#a5adb4";else if(k===selectedClue||k===selectedClosed)style.fill="#356a89";else if(clueRange.has(k))style.fill=c.flagged?"#608c65":c.revealed?"#35665d":"#438c80";
     return style;
   }
   function paintLabel(context,s,cx,cy,size){
