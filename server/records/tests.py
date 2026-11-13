@@ -45,6 +45,42 @@ class CrossOriginTests(TestCase):
         self.payload = {'clientId': str(uuid.uuid4()), 'mode': 'no-guess', 'size': 3, 'mines': 2,
                         'weights': {'K': 7, 'R': 1, 'B': 1, 'Q': 1, 'N': 1}, 'result': 'lost', 'durationMs': 1234}
 
+    def test_cloudflare_login_and_origin_restrictions(self):
+        import re
+        origin = 'https://3dchessmine.pages.dev'
+        start = self.client.get('/chessmine/auth/start', {'state': self.state, 'origin': origin})
+        self.assertContains(start, 'origin=https%3A%2F%2F3dchessmine.pages.dev')
+        self.assertEqual(self.client.get('/chessmine/auth/start', {'state': self.state, 'origin': 'https://evil.example'}).status_code, 400)
+        self.client.force_login(self.alice)
+        self.assertEqual(self.client.get('/chessmine/auth/bridge', {'state': self.state, 'origin': 'https://evil.example'}).status_code, 400)
+        bridge = self.client.get('/chessmine/auth/bridge', {'state': self.state, 'origin': origin})
+        self.assertContains(bridge, origin)
+        self.assertNotContains(bridge, 'https://sihoo7005.github.io')
+        code = re.search(r'"code": "([A-Za-z0-9_-]+)"', bridge.content.decode()).group(1)
+        response = self.client.post('/chessmine/api/cross/exchange', json.dumps({'code': code}), content_type='application/json', HTTP_ORIGIN=origin)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Access-Control-Allow-Origin'], origin)
+        token = response.json()['token']
+        self.assertEqual(self.client.get('/chessmine/api/cross/session', HTTP_ORIGIN=origin, HTTP_AUTHORIZATION='Bearer ' + token).status_code, 200)
+        self.assertEqual(self.client.get('/chessmine/api/cross/session', HTTP_ORIGIN='https://evil.example', HTTP_AUTHORIZATION='Bearer ' + token).status_code, 403)
+
+    def test_cloudflare_oauth_callback_preserves_origin(self):
+        from unittest.mock import patch
+        from urllib.parse import urlencode
+        origin = 'https://3dchessmine.pages.dev'
+        self.client.get('/chessmine/auth/start', {'state': self.state, 'origin': origin})
+        csrf = self.client.cookies['chessmine_csrf'].value
+        next_path = '/chessmine/auth/bridge?' + urlencode({'state': self.state, 'origin': origin})
+        response = self.client.post('/chessmine/accounts/google/login/', {'csrfmiddlewaretoken': csrf, 'next': next_path})
+        google_state = parse_qs(urlparse(response['Location']).query)['state'][0]
+        profile = {'id': 'google-cloud-test', 'email': 'cloud@example.invalid', 'verified_email': True, 'name': 'Test User'}
+        with patch('allauth.socialaccount.providers.google.views.GoogleOAuth2Adapter.get_access_token_data', return_value={'access_token': 'test'}), \
+             patch('allauth.socialaccount.providers.google.views.GoogleOAuth2Adapter._fetch_user_info', return_value=profile):
+            callback = self.client.get('/chessmine/accounts/google/login/callback/', {'state': google_state, 'code': 'test'})
+        self.assertEqual(callback.status_code, 302)
+        self.assertEqual(callback['Location'], next_path)
+        self.assertContains(self.client.get(callback['Location']), origin)
+
     def issue_token(self, user):
         import re
         self.client.force_login(user)

@@ -16,7 +16,7 @@ from .models import GameRecord, HintBalance
 GAME_ROOT = Path(__file__).resolve().parents[2]
 @require_GET
 def service_home(request):
-    return HttpResponse('<!doctype html><html lang="ko"><meta charset="utf-8"><title>3D 체스 지뢰찾기</title><p>이 서버는 3D 체스 지뢰찾기의 Google 로그인과 플레이 기록을 처리합니다.</p><p><a href="https://sihoo7005.github.io/3dchessmine/">게임 열기</a> · <a href="/chessmine/privacy.html">개인정보처리방침</a></p></html>')
+    return HttpResponse('<!doctype html><html lang="ko"><meta charset="utf-8"><title>3D 체스 지뢰찾기</title><p>이 서버는 3D 체스 지뢰찾기의 Google 로그인과 플레이 기록을 처리합니다.</p><p><a href="https://3dchessmine.pages.dev/">게임 열기</a> · <a href="/chessmine/privacy.html">개인정보처리방침</a></p></html>')
 
 @require_GET
 def privacy_file(request):
@@ -77,6 +77,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import AccessToken, LoginTicket
 
 GAME_ORIGIN = 'https://sihoo7005.github.io'
+GAME_ORIGINS = {GAME_ORIGIN, 'https://3dchessmine.pages.dev'}
 
 def token_digest(token):
     return hashlib.sha256(token.encode('ascii')).hexdigest()
@@ -92,9 +93,13 @@ def valid_state(value):
 @require_GET
 def cross_login_start(request):
     state = request.GET.get('state', '')
-    if not valid_state(state):
+    origin = request.GET.get('origin', GAME_ORIGIN)
+    if not valid_state(state) or origin not in GAME_ORIGINS:
         return HttpResponse('잘못된 로그인 요청입니다.', status=400)
-    next_path = '/chessmine/auth/bridge?' + urlencode({'state': state})
+    params = {'state': state}
+    if origin != GAME_ORIGIN:
+        params['origin'] = origin
+    next_path = '/chessmine/auth/bridge?' + urlencode(params)
     if request.user.is_authenticated:
         return redirect(next_path)
     html = format_html('''<!doctype html><html lang="ko"><meta charset="utf-8"><title>Google 로그인</title>
@@ -107,7 +112,8 @@ def cross_login_start(request):
 @require_GET
 def cross_login_bridge(request):
     state = request.GET.get('state', '')
-    if not request.user.is_authenticated or not valid_state(state):
+    origin = request.GET.get('origin', GAME_ORIGIN)
+    if not request.user.is_authenticated or not valid_state(state) or origin not in GAME_ORIGINS:
         return HttpResponse('로그인을 완료하지 못했습니다. 게임 화면에서 다시 시도해 주세요.', status=400)
     code = secrets.token_urlsafe(32)
     now = timezone.now()
@@ -118,21 +124,21 @@ def cross_login_bridge(request):
     # JSON values are generated server-side and contain only UUID and URL-safe characters.
     return HttpResponse(f'''<!doctype html><html lang="ko"><meta charset="utf-8"><title>로그인 완료</title>
       <p>게임 화면으로 돌아갑니다. 이 창이 닫히지 않으면 직접 닫아 주세요.</p>
-      <script>if(window.opener){{window.opener.postMessage({payload}, {json.dumps(GAME_ORIGIN)});window.close();}}</script></html>''')
-
-def cors_response(response):
-    response['Access-Control-Allow-Origin'] = GAME_ORIGIN
-    response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
-    response['Vary'] = 'Origin'
-    response['Cache-Control'] = 'no-store'
-    return response
+      <script>if(window.opener){{window.opener.postMessage({payload}, {json.dumps(origin)});window.close();}}</script></html>''')
 
 @csrf_exempt
 @never_cache
 def cross_api(request, action):
-    if request.headers.get('Origin') != GAME_ORIGIN:
+    origin = request.headers.get('Origin')
+    if origin not in GAME_ORIGINS:
         return JsonResponse({'error': 'origin_not_allowed'}, status=403)
+    def cors_response(response):
+        response['Access-Control-Allow-Origin'] = origin
+        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
+        response['Vary'] = 'Origin'
+        response['Cache-Control'] = 'no-store'
+        return response
     if request.method == 'OPTIONS':
         return cors_response(HttpResponse(status=204))
     if action == 'exchange':
